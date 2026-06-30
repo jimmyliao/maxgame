@@ -18,27 +18,25 @@
     -webkit-user-select:none; user-select:none; touch-action:none; color:#e8f5e9; }
   #app{ position:fixed; inset:0; display:flex; flex-direction:column;
     padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
-  #hud{ display:flex; align-items:center; gap:8px; padding:8px 12px; font-weight:700; font-size:13px; flex-wrap:wrap; }
-  #hud.hide{ display:none; }
-  .pill{ background:rgba(255,255,255,.1); padding:4px 10px; border-radius:20px; white-space:nowrap; }
-  #wave{ color:#fff59d; } #score{ color:#a5d6a7; } #chap{ color:#90caf9; }
   #stage{ flex:1; position:relative; min-height:0; }
   canvas#game{ display:block; width:100%; height:100%; touch-action:none; }
-  #dock{ display:flex; gap:6px; padding:8px; padding-bottom:max(8px,env(safe-area-inset-bottom)); background:rgba(0,0,0,.25); }
+  /* 控制列 */
+  #dock{ display:flex; justify-content:space-between; align-items:flex-end; gap:8px;
+    padding:10px 14px; padding-bottom:max(10px,env(safe-area-inset-bottom)); }
   #dock.hide{ display:none; }
-  .hero{ position:relative; flex:1; border:none; border-radius:14px; overflow:hidden; background:#2e7d32; color:#fff;
-    padding:6px 2px; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:1px;
-    box-shadow:0 2px 0 rgba(0,0,0,.3); transition:transform .05s; }
-  .hero:active{ transform:translateY(1px); }
-  .hero.sel{ background:#66bb6a; outline:3px solid #fff; }
-  .hero.lock{ background:#37474f; opacity:.5; }
-  .hero canvas{ width:34px; height:34px; }
-  .hero .nm{ font-size:11px; font-weight:700; }
-  .hero .cd{ position:absolute; left:0; bottom:0; width:100%; background:rgba(0,0,0,.45); height:0%; pointer-events:none; }
-  #fusion{ flex:1.2; background:linear-gradient(#455a64,#37474f); }
-  #fusion.ready{ background:linear-gradient(#ffd54f,#ffb300); color:#3e2723; animation:glow 1s ease-in-out infinite; }
-  @keyframes glow{ 0%,100%{ box-shadow:0 0 0 rgba(255,193,7,0);} 50%{ box-shadow:0 0 16px rgba(255,193,7,.9);} }
-  #fusion .fill{ position:absolute; left:0; bottom:0; width:100%; background:rgba(255,213,79,.35); height:0%; pointer-events:none; }
+  .pad{ display:flex; gap:10px; align-items:center; }
+  .gb{ border:none; border-radius:50%; width:64px; height:64px; font-size:14px; font-weight:800; color:#fff;
+    background:#2e7d32; box-shadow:0 3px 0 rgba(0,0,0,.35); display:flex; align-items:center; justify-content:center;
+    position:relative; overflow:hidden; cursor:pointer; flex:none; }
+  .gb:active,.gb.on{ transform:translateY(2px); box-shadow:0 1px 0 rgba(0,0,0,.35); filter:brightness(1.2); }
+  .gb.move{ background:#455a64; font-size:24px; }
+  .gb.jump{ background:#0277bd; }
+  .gb.atk{ background:#c62828; width:74px; height:74px; font-size:16px; }
+  .gb.sp{ background:#6a1b9a; width:74px; height:74px; }
+  .gb.sp.ready{ animation:glow 1s infinite; }
+  @keyframes glow{ 0%,100%{ box-shadow:0 3px 0 rgba(0,0,0,.35);} 50%{ box-shadow:0 0 16px #ce93d8;} }
+  .gb .fill{ position:absolute; left:0; bottom:0; width:100%; background:rgba(0,0,0,.5); height:0%; pointer-events:none; }
+  /* 畫面 */
   .scr{ position:absolute; inset:0; z-index:10; display:flex; flex-direction:column; align-items:center; justify-content:center;
     text-align:center; padding:22px; background:rgba(7,20,12,.9); overflow:auto; }
   .scr.hide{ display:none; }
@@ -49,58 +47,43 @@
     border-radius:30px; cursor:pointer; box-shadow:0 4px 0 #2e7d32; }
   .btn:active{ transform:translateY(2px); box-shadow:0 2px 0 #2e7d32; }
   .btn.sec{ background:#546e7a; box-shadow:0 4px 0 #37474f; font-size:14px; padding:10px 22px; }
-  /* 章節地圖 */
   #map .cards{ display:flex; flex-direction:column; gap:12px; width:100%; max-width:460px; margin-top:8px; }
   .card{ display:flex; align-items:center; gap:12px; background:rgba(255,255,255,.08); border-radius:16px; padding:12px 14px;
     cursor:pointer; text-align:left; border:2px solid transparent; }
-  .card.locked{ opacity:.45; cursor:not-allowed; }
-  .card.cleared{ border-color:#66bb6a; }
+  .card.locked{ opacity:.45; cursor:not-allowed; } .card.cleared{ border-color:#66bb6a; }
   .card canvas{ width:54px; height:54px; flex:none; }
-  .card .info{ flex:1; }
-  .card .info .t{ font-size:15px; font-weight:800; color:#fff; }
-  .card .info .d{ font-size:12px; color:#b0bec5; margin-top:2px; }
-  .card .st{ font-size:22px; }
-  /* 對話 */
+  .card .info{ flex:1; } .card .info .t{ font-size:15px; font-weight:800; color:#fff; }
+  .card .info .d{ font-size:12px; color:#b0bec5; margin-top:2px; } .card .st{ font-size:22px; }
   #story{ position:absolute; inset:0; z-index:12; display:flex; flex-direction:column; justify-content:flex-end; }
   #story.hide{ display:none; }
   #story .sky{ position:absolute; inset:0; }
   #story .box{ position:relative; margin:14px; margin-bottom:max(14px,env(safe-area-inset-bottom));
     background:rgba(10,26,16,.94); border:2px solid #66bb6a; border-radius:18px; padding:14px 16px; display:flex; gap:12px; align-items:flex-start; }
   #story .box canvas{ width:64px; height:64px; flex:none; background:rgba(255,255,255,.06); border-radius:12px; }
-  #story .box .tx{ flex:1; }
-  #story .box .nm{ font-size:14px; font-weight:800; color:#ffd54f; margin-bottom:4px; }
+  #story .box .tx{ flex:1; } #story .box .nm{ font-size:14px; font-weight:800; color:#ffd54f; margin-bottom:4px; }
   #story .box .ln{ font-size:15px; line-height:1.6; color:#e8f5e9; min-height:48px; }
   #story .tap{ position:absolute; right:16px; bottom:8px; font-size:11px; color:#90a4ae; }
 </style>
 </head>
 <body>
 <div id="app">
-  <div id="hud" class="hide">
-    <span class="pill" id="chap">第一章</span>
-    <span class="pill">棲地 <span id="hp">❤</span></span>
-    <span class="pill" id="wave">第 1 波</span>
-    <span class="pill">守退 <span id="score">0</span></span>
-  </div>
   <div id="stage">
     <canvas id="game"></canvas>
 
-    <!-- 標題 -->
     <div class="scr" id="title">
       <h1>守土 · 福爾摩沙衛士</h1>
-      <h2>守護台灣特有種的家園</h2>
-      <p>外來入侵種正在蔓延，台灣的原生動物決定挺身而出。<br>操控特有種、守住棲地，把入侵種擋回去！</p>
-      <p style="color:#ffd54f">一場有故事的卡通保衛戰 🐾</p>
+      <h2>台灣特有種 對決 外來入侵種</h2>
+      <p>外來入侵種的「王」一隻隻出現，威脅台灣動物的家。<br>操控特有種，閃過牠的攻擊、抓住破綻反擊，打倒每一隻魔王！</p>
+      <p style="color:#ffd54f">一場有故事的卡通對戰 🐾⚔️</p>
       <button class="btn" id="toMap">開始冒險</button>
     </div>
 
-    <!-- 章節地圖 -->
     <div class="scr hide" id="map">
       <h1 style="font-size:24px">選擇章節</h1>
       <div class="cards" id="cards"></div>
       <button class="btn sec" id="resetProg" style="margin-top:18px">重置進度</button>
     </div>
 
-    <!-- 對話 -->
     <div id="story" class="hide">
       <canvas class="sky" id="storybg"></canvas>
       <div class="box">
@@ -110,22 +93,23 @@
       </div>
     </div>
 
-    <!-- 結算 -->
     <div class="scr hide" id="result">
-      <h1 id="rTitle"></h1>
-      <h2 id="rSub"></h2>
-      <p id="rBody"></p>
+      <h1 id="rTitle"></h1><h2 id="rSub"></h2><p id="rBody"></p>
       <button class="btn" id="rMain"></button>
       <button class="btn sec" id="rMap">回章節地圖</button>
     </div>
   </div>
 
   <div id="dock" class="hide">
-    <button class="hero sel" data-i="0"><div class="cd"></div><canvas width="68" height="68"></canvas><span class="nm">石虎</span></button>
-    <button class="hero" data-i="1"><div class="cd"></div><canvas width="68" height="68"></canvas><span class="nm">黑熊</span></button>
-    <button class="hero" data-i="2"><div class="cd"></div><canvas width="68" height="68"></canvas><span class="nm">爺蟬</span></button>
-    <button class="hero" data-i="3"><div class="cd"></div><canvas width="68" height="68"></canvas><span class="nm">勾蜓</span></button>
-    <button class="hero" id="fusion"><div class="fill"></div><canvas width="68" height="68"></canvas><span class="nm">融合</span></button>
+    <div class="pad">
+      <button class="gb move" id="bLeft">◀</button>
+      <button class="gb move" id="bRight">▶</button>
+    </div>
+    <div class="pad">
+      <button class="gb jump" id="bJump">跳</button>
+      <button class="gb sp" id="bSp"><span class="fill"></span>必殺</button>
+      <button class="gb atk" id="bAtk">攻擊</button>
+    </div>
   </div>
 </div>
 
@@ -133,391 +117,327 @@
 (() => {
   "use strict";
 
-  /* ========== 卡通動物繪製（程式畫，可用於任何 canvas 2D context）========== */
+  /* ===== 卡通動物（程式畫）===== */
   function drawCreature(c, kind, x, y, s, o){
-    o = o || {}; const t = o.t||0, mood = o.mood||"happy", flip = o.flip;
-    const bob = Math.sin(t*3 + (o.ph||0))*s*0.04;
-    c.save(); c.translate(x, y+bob); if(flip) c.scale(-1,1);
-    c.lineJoin="round"; c.lineCap="round";
-    const eye=(ex,ey,r,ang)=>{ c.fillStyle="#fff"; c.beginPath(); c.arc(ex,ey,r,0,7); c.fill();
-      c.fillStyle="#222"; c.beginPath(); c.arc(ex+Math.cos(ang||0)*r*0.3, ey+Math.sin(ang||0)*r*0.3, r*0.55,0,7); c.fill(); };
-    const brow=(ex,ey,w,down)=>{ c.strokeStyle="#3e2723"; c.lineWidth=s*0.05; c.beginPath();
-      c.moveTo(ex-w,ey-(down?-2:2)); c.lineTo(ex+w,ey+(down?-2:2)*0.4); c.stroke(); };
-
-    if(kind==="leopard"){ // 石虎
+    o=o||{}; const t=o.t||0, mood=o.mood||"happy", flip=o.flip;
+    const bob=Math.sin(t*3+(o.ph||0))*s*0.04;
+    c.save(); c.translate(x,y+bob); if(flip) c.scale(-1,1); c.lineJoin="round"; c.lineCap="round";
+    const eye=(ex,ey,r)=>{ c.fillStyle="#fff"; c.beginPath(); c.arc(ex,ey,r,0,7); c.fill();
+      c.fillStyle="#222"; c.beginPath(); c.arc(ex,ey,r*0.55,0,7); c.fill(); };
+    const brow=(ex,ey,w)=>{ c.strokeStyle="#3e2723"; c.lineWidth=s*0.05; c.beginPath(); c.moveTo(ex-w,ey-2); c.lineTo(ex+w,ey+2); c.stroke(); };
+    if(kind==="leopard"){
       c.fillStyle="#e8a55c"; c.beginPath(); c.ellipse(0,s*0.35,s*0.55,s*0.5,0,0,7); c.fill();
-      c.fillStyle="#caa"; // tail
-      c.strokeStyle="#e8a55c"; c.lineWidth=s*0.16; c.beginPath(); c.moveTo(s*0.45,s*0.5); c.quadraticCurveTo(s*0.9,s*0.4,s*0.8,s*0.0); c.stroke();
-      c.fillStyle="#e8a55c"; c.beginPath(); c.arc(0,-s*0.3,s*0.5,0,7); c.fill(); // head
-      // ears
+      c.strokeStyle="#e8a55c"; c.lineWidth=s*0.16; c.beginPath(); c.moveTo(s*0.45,s*0.5); c.quadraticCurveTo(s*0.9,s*0.4,s*0.8,0); c.stroke();
+      c.fillStyle="#e8a55c"; c.beginPath(); c.arc(0,-s*0.3,s*0.5,0,7); c.fill();
       c.beginPath(); c.moveTo(-s*0.45,-s*0.6); c.lineTo(-s*0.2,-s*0.75); c.lineTo(-s*0.15,-s*0.45); c.fill();
       c.beginPath(); c.moveTo(s*0.45,-s*0.6); c.lineTo(s*0.2,-s*0.75); c.lineTo(s*0.15,-s*0.45); c.fill();
       c.fillStyle="#3e2723"; c.beginPath(); c.arc(-s*0.32,-s*0.62,s*0.07,0,7); c.arc(s*0.32,-s*0.62,s*0.07,0,7); c.fill();
-      // spots
       c.fillStyle="#5d4037"; for(const p of [[-.3,.3],[.32,.28],[0,.55],[-.15,.1],[.18,.05]]){ c.beginPath(); c.arc(p[0]*s,(p[1]+0.1)*s,s*0.06,0,7); c.fill(); }
-      // forehead stripes
       c.strokeStyle="#5d4037"; c.lineWidth=s*0.05; c.beginPath(); c.moveTo(-s*0.12,-s*0.55); c.lineTo(-s*0.1,-s*0.3); c.moveTo(s*0.12,-s*0.55); c.lineTo(s*0.1,-s*0.3); c.stroke();
-      // muzzle
       c.fillStyle="#fff8f0"; c.beginPath(); c.ellipse(0,-s*0.12,s*0.26,s*0.2,0,0,7); c.fill();
       eye(-s*0.18,-s*0.32,s*0.1); eye(s*0.18,-s*0.32,s*0.1);
-      if(mood==="angry"){ brow(-s*0.18,-s*0.46,s*0.12,true); brow(s*0.18,-s*0.46,s*0.12,true); }
+      if(mood==="angry"){ brow(-s*0.18,-s*0.46,s*0.12); brow(s*0.18,-s*0.46,s*0.12); }
       c.fillStyle="#e57373"; c.beginPath(); c.arc(0,-s*0.16,s*0.05,0,7); c.fill();
-      c.strokeStyle="#5d4037"; c.lineWidth=s*0.03; c.beginPath(); c.moveTo(0,-s*0.11); c.lineTo(0,-s*0.04); c.stroke();
-
-    } else if(kind==="bear"){ // 台灣黑熊
+    } else if(kind==="bear"){
       c.fillStyle="#2b2b2b"; c.beginPath(); c.ellipse(0,s*0.35,s*0.6,s*0.55,0,0,7); c.fill();
-      c.fillStyle="#fafafa"; c.beginPath(); c.moveTo(-s*0.18,s*0.1); c.lineTo(0,s*0.5); c.lineTo(s*0.18,s*0.1); c.closePath(); c.fill(); // V
+      c.fillStyle="#fafafa"; c.beginPath(); c.moveTo(-s*0.18,s*0.1); c.lineTo(0,s*0.5); c.lineTo(s*0.18,s*0.1); c.closePath(); c.fill();
       c.fillStyle="#2b2b2b"; c.beginPath(); c.arc(0,-s*0.28,s*0.5,0,7); c.fill();
-      c.beginPath(); c.arc(-s*0.42,-s*0.55,s*0.18,0,7); c.arc(s*0.42,-s*0.55,s*0.18,0,7); c.fill(); // round ears
+      c.beginPath(); c.arc(-s*0.42,-s*0.55,s*0.18,0,7); c.arc(s*0.42,-s*0.55,s*0.18,0,7); c.fill();
       c.fillStyle="#8d6e63"; c.beginPath(); c.ellipse(0,-s*0.1,s*0.28,s*0.22,0,0,7); c.fill();
       c.fillStyle="#222"; c.beginPath(); c.ellipse(0,-s*0.18,s*0.09,s*0.07,0,0,7); c.fill();
       eye(-s*0.2,-s*0.34,s*0.09); eye(s*0.2,-s*0.34,s*0.09);
-      if(mood==="angry"){ brow(-s*0.2,-s*0.48,s*0.12,true); brow(s*0.2,-s*0.48,s*0.12,true); }
-
-    } else if(kind==="cicada"){ // 台灣爺蟬
-      c.fillStyle="rgba(220,240,200,.55)"; // wings
-      c.beginPath(); c.ellipse(-s*0.35,s*0.1,s*0.5,s*0.24,-0.5,0,7); c.fill();
+      if(mood==="angry"){ brow(-s*0.2,-s*0.48,s*0.12); brow(s*0.2,-s*0.48,s*0.12); }
+    } else if(kind==="cicada"){
+      c.fillStyle="rgba(220,240,200,.55)"; c.beginPath(); c.ellipse(-s*0.35,s*0.1,s*0.5,s*0.24,-0.5,0,7); c.fill();
       c.beginPath(); c.ellipse(s*0.35,s*0.1,s*0.5,s*0.24,0.5,0,7); c.fill();
-      c.strokeStyle="rgba(120,160,90,.6)"; c.lineWidth=s*0.02; c.stroke();
-      c.fillStyle="#7cb342"; c.beginPath(); c.ellipse(0,s*0.05,s*0.3,s*0.5,0,0,7); c.fill(); // body
-      c.fillStyle="#558b2f"; c.beginPath(); c.arc(0,-s*0.35,s*0.32,0,7); c.fill(); // head
+      c.fillStyle="#7cb342"; c.beginPath(); c.ellipse(0,s*0.05,s*0.3,s*0.5,0,0,7); c.fill();
+      c.fillStyle="#558b2f"; c.beginPath(); c.arc(0,-s*0.35,s*0.32,0,7); c.fill();
       eye(-s*0.2,-s*0.38,s*0.12); eye(s*0.2,-s*0.38,s*0.12);
-      if(mood==="angry"){ brow(-s*0.2,-s*0.54,s*0.12,true); brow(s*0.2,-s*0.54,s*0.12,true); }
-      c.strokeStyle="#33691e"; c.lineWidth=s*0.04; for(let i=-1;i<=1;i++){ c.beginPath(); c.moveTo(0,s*0.2+i*0.12*s); c.lineTo(0,s*0.2+i*0.12*s); c.stroke(); }
-
-    } else if(kind==="dragonfly"){ // 無霸勾蜓
-      c.fillStyle="rgba(180,235,245,.5)";
-      for(const a of [-0.6,0.6,-1.0,1.0]){ c.save(); c.rotate(a); c.beginPath(); c.ellipse(s*0.45,0,s*0.42,s*0.13,0,0,7); c.fill(); c.restore(); }
-      c.fillStyle="#26c6da"; c.beginPath(); c.ellipse(0,s*0.2,s*0.13,s*0.6,0,0,7); c.fill(); // long body
-      c.strokeStyle="#00838f"; c.lineWidth=s*0.03; for(let i=0;i<5;i++){ c.beginPath(); c.moveTo(-s*0.13,(i*0.16-0.1)*s); c.lineTo(s*0.13,(i*0.16-0.1)*s); c.stroke(); }
+      if(mood==="angry"){ brow(-s*0.2,-s*0.54,s*0.12); brow(s*0.2,-s*0.54,s*0.12); }
+    } else if(kind==="dragonfly"){
+      c.fillStyle="rgba(180,235,245,.5)"; for(const a of [-0.6,0.6,-1.0,1.0]){ c.save(); c.rotate(a); c.beginPath(); c.ellipse(s*0.45,0,s*0.42,s*0.13,0,0,7); c.fill(); c.restore(); }
+      c.fillStyle="#26c6da"; c.beginPath(); c.ellipse(0,s*0.2,s*0.13,s*0.6,0,0,7); c.fill();
       c.fillStyle="#00acc1"; c.beginPath(); c.arc(0,-s*0.42,s*0.26,0,7); c.fill();
       eye(-s*0.16,-s*0.46,s*0.14); eye(s*0.16,-s*0.46,s*0.14);
-      if(mood==="angry"){ brow(-s*0.16,-s*0.62,s*0.12,true); brow(s*0.16,-s*0.62,s*0.12,true); }
-
-    } else if(kind==="snail"){ // 福壽螺（入侵）
-      c.fillStyle="#c79a6b"; c.beginPath(); c.ellipse(-s*0.15,s*0.35,s*0.5,s*0.28,0,0,7); c.fill(); // foot
-      c.fillStyle="#8d5524"; c.beginPath(); c.arc(s*0.15,-s*0.05,s*0.42,0,7); c.fill(); // shell
+      if(mood==="angry"){ brow(-s*0.16,-s*0.62,s*0.12); brow(s*0.16,-s*0.62,s*0.12); }
+    } else if(kind==="snail"){
+      c.fillStyle="#c79a6b"; c.beginPath(); c.ellipse(-s*0.15,s*0.35,s*0.5,s*0.28,0,0,7); c.fill();
+      c.fillStyle="#8d5524"; c.beginPath(); c.arc(s*0.15,-s*0.05,s*0.42,0,7); c.fill();
       c.strokeStyle="#5d3a17"; c.lineWidth=s*0.06; c.beginPath();
-      for(let a=0;a<7;a+=0.2){ const rr=s*0.05*a; const px=s*0.15+Math.cos(a*1.6)*rr, py=-s*0.05+Math.sin(a*1.6)*rr; a===0?c.moveTo(px,py):c.lineTo(px,py);} c.stroke();
-      c.strokeStyle="#c79a6b"; c.lineWidth=s*0.05; // eyestalks
-      c.beginPath(); c.moveTo(-s*0.4,s*0.2); c.lineTo(-s*0.52,-s*0.15); c.moveTo(-s*0.28,s*0.18); c.lineTo(-s*0.34,-s*0.18); c.stroke();
+      for(let a=0;a<7;a+=0.2){ const rr=s*0.05*a,px=s*0.15+Math.cos(a*1.6)*rr,py=-s*0.05+Math.sin(a*1.6)*rr; a===0?c.moveTo(px,py):c.lineTo(px,py);} c.stroke();
+      c.strokeStyle="#c79a6b"; c.lineWidth=s*0.05; c.beginPath(); c.moveTo(-s*0.4,s*0.2); c.lineTo(-s*0.52,-s*0.15); c.moveTo(-s*0.28,s*0.18); c.lineTo(-s*0.34,-s*0.18); c.stroke();
       c.fillStyle="#222"; c.beginPath(); c.arc(-s*0.52,-s*0.17,s*0.06,0,7); c.arc(-s*0.34,-s*0.2,s*0.06,0,7); c.fill();
-      brow(-s*0.45,-s*0.3,s*0.1,true);
-
-    } else if(kind==="iguana"){ // 綠鬣蜥（入侵）
+      brow(-s*0.45,-s*0.3,s*0.1);
+    } else if(kind==="iguana"){
       c.fillStyle="#7cb342"; c.beginPath(); c.ellipse(0,s*0.3,s*0.58,s*0.32,0,0,7); c.fill();
-      c.strokeStyle="#558b2f"; c.lineWidth=s*0.14; c.beginPath(); c.moveTo(s*0.5,s*0.35); c.quadraticCurveTo(s*0.95,s*0.3,s*1.0,s*0.0); c.stroke();
-      c.fillStyle="#689f38"; for(let i=-2;i<=3;i++){ c.beginPath(); c.moveTo(i*s*0.16,s*0.0); c.lineTo(i*s*0.16+s*0.05,-s*0.16); c.lineTo(i*s*0.16+s*0.1,s*0.0); c.fill(); } // spikes
-      c.fillStyle="#7cb342"; c.beginPath(); c.ellipse(-s*0.5,s*0.15,s*0.3,s*0.26,0,0,7); c.fill(); // head
-      c.fillStyle="#aed581"; c.beginPath(); c.ellipse(-s*0.55,s*0.4,s*0.16,s*0.12,0,0,7); c.fill(); // dewlap
-      eye(-s*0.6,s*0.05,s*0.1);
-      brow(-s*0.6,-s*0.08,s*0.1,true);
-
-    } else if(kind==="frog"){ // 斑腿樹蛙（入侵）
+      c.strokeStyle="#558b2f"; c.lineWidth=s*0.14; c.beginPath(); c.moveTo(s*0.5,s*0.35); c.quadraticCurveTo(s*0.95,s*0.3,s*1.0,0); c.stroke();
+      c.fillStyle="#689f38"; for(let i=-2;i<=3;i++){ c.beginPath(); c.moveTo(i*s*0.16,0); c.lineTo(i*s*0.16+s*0.05,-s*0.16); c.lineTo(i*s*0.16+s*0.1,0); c.fill(); }
+      c.fillStyle="#7cb342"; c.beginPath(); c.ellipse(-s*0.5,s*0.15,s*0.3,s*0.26,0,0,7); c.fill();
+      c.fillStyle="#aed581"; c.beginPath(); c.ellipse(-s*0.55,s*0.4,s*0.16,s*0.12,0,0,7); c.fill();
+      eye(-s*0.6,s*0.05,s*0.1); brow(-s*0.6,-s*0.08,s*0.1);
+    } else if(kind==="frog"){
       c.fillStyle="#8d6e63"; c.beginPath(); c.ellipse(0,s*0.3,s*0.55,s*0.42,0,0,7); c.fill();
       c.fillStyle="#6d4c41"; for(const p of [[-.3,.45],[.3,.45],[-.1,.55],[.15,.3]]){ c.beginPath(); c.arc(p[0]*s,p[1]*s,s*0.07,0,7); c.fill(); }
-      c.fillStyle="#a1887f"; c.beginPath(); c.arc(-s*0.28,-s*0.18,s*0.2,0,7); c.arc(s*0.28,-s*0.18,s*0.2,0,7); c.fill(); // eye bumps
+      c.fillStyle="#a1887f"; c.beginPath(); c.arc(-s*0.28,-s*0.18,s*0.2,0,7); c.arc(s*0.28,-s*0.18,s*0.2,0,7); c.fill();
       eye(-s*0.28,-s*0.2,s*0.13); eye(s*0.28,-s*0.2,s*0.13);
-      if(mood!=="happy"){ brow(-s*0.28,-s*0.38,s*0.13,true); brow(s*0.28,-s*0.38,s*0.13,true); }
-      c.strokeStyle="#5d4037"; c.lineWidth=s*0.04; c.beginPath(); c.arc(0,s*0.05,s*0.2,0.1,Math.PI-0.1); c.stroke();
-
-    } else if(kind==="ibis"){ // 埃及聖䴉（入侵）
+      if(mood!=="happy"){ brow(-s*0.28,-s*0.38,s*0.13); brow(s*0.28,-s*0.38,s*0.13); }
+    } else if(kind==="ibis"){
       c.fillStyle="#fafafa"; c.beginPath(); c.ellipse(0,s*0.25,s*0.5,s*0.4,0,0,7); c.fill();
-      c.fillStyle="#eee"; c.beginPath(); c.moveTo(s*0.3,s*0.4); c.lineTo(s*0.7,s*0.6); c.lineTo(s*0.3,s*0.55); c.fill(); // tail
-      c.fillStyle="#222"; c.beginPath(); c.arc(-s*0.2,-s*0.3,s*0.26,0,7); c.fill(); // black head
-      c.strokeStyle="#222"; c.lineWidth=s*0.08; c.beginPath(); c.moveTo(-s*0.4,-s*0.28); c.quadraticCurveTo(-s*0.85,-s*0.2,-s*0.8,s*0.15); c.stroke(); // curved beak
-      eye(-s*0.18,-s*0.34,s*0.08);
-      brow(-s*0.18,-s*0.46,s*0.1,true);
-
-    } else if(kind==="nest"){ // 棲地巢
-      c.fillStyle="#6d4c41"; c.beginPath(); c.ellipse(0,s*0.2,s*0.7,s*0.4,0,0,7); c.fill();
-      c.strokeStyle="#4e342e"; c.lineWidth=s*0.06;
-      for(let i=0;i<6;i++){ c.beginPath(); c.ellipse(0,s*0.2,s*0.7-i*0.02*s,s*0.4-i*0.03*s,i*0.3,0.2,Math.PI-0.2); c.stroke(); }
-      c.fillStyle="#fffde7"; for(const dx of [-0.22,0,0.22]){ c.beginPath(); c.ellipse(dx*s,s*0.12,s*0.14,s*0.18,0,0,7); c.fill(); }
+      c.fillStyle="#222"; c.beginPath(); c.arc(-s*0.2,-s*0.3,s*0.26,0,7); c.fill();
+      c.strokeStyle="#222"; c.lineWidth=s*0.08; c.beginPath(); c.moveTo(-s*0.4,-s*0.28); c.quadraticCurveTo(-s*0.85,-s*0.2,-s*0.8,s*0.15); c.stroke();
+      eye(-s*0.18,-s*0.34,s*0.08); brow(-s*0.18,-s*0.46,s*0.1);
     }
     c.restore();
   }
 
-  /* ========== 資料 ========== */
+  /* ===== 角色與魔王資料 ===== */
   const HEROES = [
-    { key:"leopard", name:"石虎", cd:0.55, dmg:2, type:"dash"  },
-    { key:"bear",    name:"黑熊", cd:2.2,  dmg:3, type:"slam"  },
-    { key:"cicada",  name:"爺蟬", cd:3.0,  dmg:1, type:"sonic" },
-    { key:"dragonfly",name:"勾蜓",cd:2.4,  dmg:1, type:"sweep" },
+    { key:"leopard", name:"石虎", speed:235, atkDmg:7, atkCd:0.33, reach:64, spName:"突刺", spCd:4.5 },
+    { key:"bear",    name:"黑熊", speed:160, atkDmg:12,atkCd:0.6,  reach:78, spName:"震地", spCd:6.0 },
+    { key:"cicada",  name:"爺蟬", speed:185, atkDmg:6, atkCd:0.4,  reach:60, spName:"音波", spCd:5.0 },
+    { key:"dragonfly",name:"勾蜓",speed:265, atkDmg:6, atkCd:0.3,  reach:60, spName:"疾風", spCd:4.5 },
   ];
-  const ENEMIES = {
-    snail:  { kind:"snail",  name:"福壽螺",   hp:1, speed:20, r:20, dmg:1, energy:8 },
-    iguana: { kind:"iguana", name:"綠鬣蜥",   hp:5, speed:28, r:24, dmg:1, energy:14 },
-    frog:   { kind:"frog",   name:"斑腿樹蛙", hp:2, speed:46, r:18, dmg:1, energy:9 },
-    ibis:   { kind:"ibis",   name:"埃及聖䴉", hp:3, speed:40, r:22, dmg:2, energy:13 },
-  };
-  // 章節戰役
   const CH = [
-    { name:"第一章 · 稻田保衛戰", place:"稻田", bg:"paddy", habHp:14,
-      waves:[{snail:6},{snail:9}],
-      intro:[
-        {s:0,m:"happy",t:"嗨！我是石虎，淺山的夜行獵手，身上的斑點是我的招牌。"},
-        {s:0,m:"angry",t:"糟了——福壽螺爬滿了稻田，把秧苗都啃光了！這些是從南美洲來的入侵種。"},
-        {s:0,m:"happy",t:"別怕，跟著我！點畫面，我就衝過去把牠們撞飛！守住中央的巢就贏了。"},
-      ],
-      outro:[ {s:0,m:"happy",t:"呼～稻田守住了！但入侵種不只這些…我們往淺山去看看。"} ] },
-
-    { name:"第二章 · 淺山的大個子", place:"淺山", bg:"hill", habHp:16,
-      waves:[{snail:5},{snail:4,iguana:3},{iguana:4}],
-      intro:[
-        {s:1,m:"happy",t:"我是台灣黑熊，胸口這個白色的「V」是月亮的印記。"},
-        {s:1,m:"angry",t:"綠鬣蜥又肥又硬，石虎一隻撞不倒。看我的——重拳震地，一次清一片！"},
-        {s:0,m:"happy",t:"我也在！下面可以切換我們兩個，石虎打小的、黑熊清大的，搭配起來最強。"},
-      ],
-      outro:[ {s:1,m:"happy",t:"哈哈，這點重量難不倒我。聽說溪流那邊也出事了…"} ] },
-
-    { name:"第三章 · 溪流的歌聲", place:"溪流", bg:"stream", habHp:16,
-      waves:[{frog:6},{snail:4,frog:6},{iguana:3,frog:6}],
-      intro:[
-        {s:2,m:"happy",t:"吱————！我是台灣爺蟬，全世界最大的蟬，叫聲能傳好幾百公尺。"},
-        {s:2,m:"angry",t:"斑腿樹蛙跳得又快又多，正在搶我們原生青蛙的家。"},
-        {s:2,m:"happy",t:"交給我的音波吧！我一叫，整片青蛙都會被震得頭暈，動彈不得！"},
-      ],
-      outro:[ {s:2,m:"happy",t:"安靜下來了…謝謝大家。最後一個地方——濕地，可能最難。"} ] },
-
-    { name:"第四章 · 濕地決戰", place:"濕地", bg:"wetland", habHp:18,
-      waves:[{iguana:3,frog:5},{ibis:4,frog:4},{ibis:5,iguana:3}],
-      intro:[
-        {s:3,m:"happy",t:"嗡嗡嗡！我是無霸勾蜓，台灣飛最快的蜻蜓，天空是我的地盤！"},
-        {s:3,m:"angry",t:"埃及聖䴉從天上來，搶黑面琵鷺的棲地。我來高速掃場，清掉整排！"},
-        {s:0,m:"happy",t:"四隻夥伴到齊了！能量集滿就按『融合』——我們合體，一招清空全場！"},
-      ],
-      outro:[
-        {s:0,m:"happy",t:"我們守住了濕地，也守住了台灣每一個家。"},
-        {s:1,m:"happy",t:"這些動物都是真的，正在消失中。記得牠們的名字，就是最好的守護。"},
-      ] },
+    { place:"稻田", bg:"paddy", hero:0, boss:{kind:"snail", name:"福壽螺王", hp:120, r:62, dmg:14},
+      intro:[ {s:0,m:"happy",t:"我是石虎，淺山的夜行獵手！"},
+              {s:0,m:"angry",t:"福壽螺王把整片稻田都啃光了，還愈長愈大隻…"},
+              {s:0,m:"happy",t:"看我的！等牠出招後露出破綻，我就衝上去咬牠！下面：◀▶移動、跳、攻擊、必殺(突刺)。"} ],
+      outro:[ {s:0,m:"happy",t:"贏了！稻田保住了。下一個敵人在淺山等著…"} ] },
+    { place:"淺山", bg:"hill", hero:1, boss:{kind:"iguana", name:"綠鬣蜥王", hp:165, r:72, dmg:16},
+      intro:[ {s:1,m:"happy",t:"換我了，台灣黑熊！胸口的白 V 是月亮的印記。"},
+              {s:1,m:"angry",t:"綠鬣蜥王又肥又硬，普通攻擊不夠看。"},
+              {s:1,m:"happy",t:"必殺『震地』可以打牠一大片！趁牠衝完累了，重拳招呼。"} ],
+      outro:[ {s:1,m:"happy",t:"這點重量難不倒我。溪流那邊好像也有狀況…"} ] },
+    { place:"溪流", bg:"stream", hero:2, boss:{kind:"frog", name:"斑腿樹蛙王", hp:200, r:66, dmg:14},
+      intro:[ {s:2,m:"happy",t:"吱———！我是台灣爺蟬，全世界最大的蟬。"},
+              {s:2,m:"angry",t:"斑腿樹蛙王跳得又快又高，一直搶我們的家。"},
+              {s:2,m:"happy",t:"必殺『音波』是遠程的，還能把牠震暈！趁牠暈了狂攻。"} ],
+      outro:[ {s:2,m:"happy",t:"安靜下來了…最後的決戰，在濕地。"} ] },
+    { place:"濕地", bg:"wetland", hero:3, boss:{kind:"ibis", name:"埃及聖䴉王", hp:255, r:70, dmg:16},
+      intro:[ {s:3,m:"happy",t:"嗡嗡嗡！無霸勾蜓，台灣飛最快的蜻蜓！"},
+              {s:3,m:"angry",t:"埃及聖䴉王從天上來，搶黑面琵鷺的家。這是最後一戰！"},
+              {s:3,m:"happy",t:"必殺『疾風』超快、還能閃過攻擊！打倒牠，守住台灣！"} ],
+      outro:[ {s:3,m:"happy",t:"我們贏了！"},
+              {s:0,m:"happy",t:"這些動物都是真的，正在消失。記得牠們，就是最好的守護。"} ] },
   ];
 
-  const FUSION_MAX = 100;
-
-  /* ========== DOM ========== */
+  /* ===== DOM ===== */
   const canvas=document.getElementById("game"), ctx=canvas.getContext("2d");
-  const hud=document.getElementById("hud"), dock=document.getElementById("dock");
-  const elHp=document.getElementById("hp"), elWave=document.getElementById("wave"),
-        elScore=document.getElementById("score"), elChap=document.getElementById("chap");
+  const dock=document.getElementById("dock");
   const titleScr=document.getElementById("title"), mapScr=document.getElementById("map"),
         resultScr=document.getElementById("result"), storyScr=document.getElementById("story");
-  const heroBtns=[...document.querySelectorAll(".hero[data-i]")], fusionBtn=document.getElementById("fusion");
+  const bSp=document.getElementById("bSp");
 
-  // 在 dock 與選單畫角色頭像
-  heroBtns.forEach((b,i)=>{ const cc=b.querySelector("canvas").getContext("2d");
-    drawCreature(cc,HEROES[i].key,34,40,28,{t:0}); });
-  { const fc=fusionBtn.querySelector("canvas").getContext("2d"); fc.font="34px serif"; fc.textAlign="center"; fc.textBaseline="middle"; fc.fillText("✨",34,36); }
-
-  let W=0,H=0,dpr=1;
-  function resize(){ const r=canvas.getBoundingClientRect(); W=r.width; H=r.height;
-    dpr=Math.min(window.devicePixelRatio||1,2); canvas.width=Math.round(W*dpr); canvas.height=Math.round(H*dpr);
-    ctx.setTransform(dpr,0,0,dpr,0,0); }
+  let W=0,H=0,GY=0,dpr=1;
+  function resize(){ const r=canvas.getBoundingClientRect(); W=r.width; H=r.height; GY=H*0.82;
+    dpr=Math.min(window.devicePixelRatio||1,2); canvas.width=Math.round(W*dpr); canvas.height=Math.round(H*dpr); ctx.setTransform(dpr,0,0,dpr,0,0); }
   window.addEventListener("resize",resize);
 
-  /* ========== 進度 ========== */
   function getUnlocked(){ try{ return parseInt(localStorage.getItem("shoutu_unlocked")||"0",10)||0; }catch(e){ return 0; } }
-  function setUnlocked(v){ try{ localStorage.setItem("shoutu_unlocked", String(v)); }catch(e){} }
+  function setUnlocked(v){ try{ localStorage.setItem("shoutu_unlocked",String(v)); }catch(e){} }
 
-  /* ========== 狀態 ========== */
-  let state="title", chapter=0;
-  let hero, cools, enemies, effects, floaters, habHp, habMax, score, energy, fusionReady, shake, elapsed;
-  let spawnQueue, spawnTimer, waveIdx, waves, betweenTimer, waveBanner, unlockedHeroes, hab;
+  /* ===== 狀態 ===== */
+  let state="title", chapter=0, elapsed=0, shake=0;
+  let hero, boss, heroDef, projs, fx, floaters;
+  const GRAV=1700, JUMP=-620;
+  const input={ left:false, right:false };
 
-  /* ========== 場景切換 ========== */
-  function show(scr){ [titleScr,mapScr,resultScr].forEach(s=>s.classList.add("hide"));
-    storyScr.classList.add("hide"); if(scr) scr.classList.remove("hide"); }
-  function setBattleUI(on){ hud.classList.toggle("hide",!on); dock.classList.toggle("hide",!on); }
-
+  function show(scr){ [titleScr,mapScr,resultScr].forEach(s=>s.classList.add("hide")); storyScr.classList.add("hide"); if(scr) scr.classList.remove("hide"); }
+  function setBattleUI(on){ dock.classList.toggle("hide",!on); }
   function goTitle(){ state="title"; setBattleUI(false); show(titleScr); }
 
-  function goMap(){
-    state="map"; setBattleUI(false); show(mapScr);
-    const cards=document.getElementById("cards"); cards.innerHTML="";
-    const unlocked=getUnlocked();
-    CH.forEach((c,i)=>{
-      const div=document.createElement("div"); div.className="card"+(i>unlocked?" locked":"")+(i<unlocked?" cleared":"");
-      const cv=document.createElement("canvas"); cv.width=108; cv.height=108;
-      div.appendChild(cv);
+  function goMap(){ state="map"; setBattleUI(false); show(mapScr);
+    const cards=document.getElementById("cards"); cards.innerHTML=""; const unlocked=getUnlocked();
+    CH.forEach((c,i)=>{ const div=document.createElement("div"); div.className="card"+(i>unlocked?" locked":"")+(i<unlocked?" cleared":"");
+      const cv=document.createElement("canvas"); cv.width=108; cv.height=108; div.appendChild(cv);
       const info=document.createElement("div"); info.className="info";
-      info.innerHTML=`<div class="t">${c.name}</div><div class="d">棲地：${c.place}　新夥伴：${HEROES[i].name}</div>`;
-      div.appendChild(info);
-      const st=document.createElement("div"); st.className="st"; st.textContent=i<unlocked?"✅":(i>unlocked?"🔒":"▶"); div.appendChild(st);
-      drawCreature(cv.getContext("2d"),HEROES[i].key,54,62,40,{t:0});
-      if(i<=unlocked) div.onclick=()=>startChapter(i);
-      cards.appendChild(div);
-    });
+      info.innerHTML=`<div class="t">第${i+1}章 · ${c.place}</div><div class="d">${HEROES[c.hero].name} VS ${c.boss.name}</div>`;
+      div.appendChild(info); const st=document.createElement("div"); st.className="st"; st.textContent=i<unlocked?"✅":(i>unlocked?"🔒":"▶"); div.appendChild(st);
+      drawCreature(cv.getContext("2d"),HEROES[c.hero].key,54,62,38,{t:0});
+      if(i<=unlocked) div.onclick=()=>startChapter(i); cards.appendChild(div); });
   }
 
-  /* ========== 對話 ========== */
-  let dlg=null, dlgIdx=0, dlgAfter=null;
-  function playStory(lines, after){
-    state="story"; setBattleUI(false); show(null); storyScr.classList.remove("hide");
-    drawStoryBg(); dlg=lines; dlgIdx=0; dlgAfter=after; renderLine();
-  }
-  function renderLine(){
-    const ln=dlg[dlgIdx]; const h=HEROES[ln.s];
-    document.getElementById("spk").textContent=h.name;
-    document.getElementById("line").textContent=ln.t;
-    const pc=document.getElementById("portrait"); const px=pc.getContext("2d");
-    px.clearRect(0,0,128,128); drawCreature(px,h.key,64,72,46,{t:0,mood:ln.m});
-  }
+  /* ===== 對話 ===== */
+  let dlg=null,dlgIdx=0,dlgAfter=null;
+  function playStory(lines,after){ state="story"; setBattleUI(false); show(null); storyScr.classList.remove("hide"); drawStoryBg(); dlg=lines; dlgIdx=0; dlgAfter=after; renderLine(); }
+  function renderLine(){ const ln=dlg[dlgIdx], h=HEROES[ln.s];
+    document.getElementById("spk").textContent=h.name; document.getElementById("line").textContent=ln.t;
+    const px=document.getElementById("portrait").getContext("2d"); px.clearRect(0,0,128,128); drawCreature(px,h.key,64,72,46,{t:0,mood:ln.m}); }
   function advance(){ dlgIdx++; if(dlgIdx>=dlg.length){ const a=dlgAfter; dlg=null; if(a)a(); } else renderLine(); }
-  function drawStoryBg(){ const sb=document.getElementById("storybg"); const r=storyScr.getBoundingClientRect();
-    sb.width=r.width; sb.height=r.height; const g=sb.getContext("2d"); paintBackground(g,r.width,r.height, CH[chapter].bg, 0); }
+  function drawStoryBg(){ const sb=document.getElementById("storybg"), r=storyScr.getBoundingClientRect(); sb.width=r.width; sb.height=r.height; paintBackground(sb.getContext("2d"),r.width,r.height,CH[chapter].bg); }
   storyScr.addEventListener("pointerdown",(e)=>{ e.preventDefault(); if(state==="story") advance(); },{passive:false});
 
-  /* ========== 開始章節 / 戰鬥 ========== */
+  /* ===== 開始戰鬥 ===== */
   function startChapter(i){ chapter=i; playStory(CH[i].intro, beginBattle); }
-
-  function beginBattle(){
-    const c=CH[chapter];
-    state="play"; setBattleUI(true); show(null);
-    hero=0; cools=[0,0,0,0]; enemies=[]; effects=[]; floaters=[];
-    habMax=c.habHp; habHp=c.habHp; score=0; energy=0; fusionReady=false; fusionBtn.classList.remove("ready");
-    shake=0; elapsed=0; waves=c.waves; waveIdx=-1; betweenTimer=0; waveBanner=0; spawnQueue=[]; spawnTimer=0;
-    unlockedHeroes=chapter+1;
-    heroBtns.forEach((b,k)=>{ b.classList.toggle("lock",k>=unlockedHeroes); b.classList.toggle("sel",k===0); });
-    elChap.textContent=c.name.split(" · ")[0];
-    nextWave();
-  }
-  function nextWave(){
-    waveIdx++;
-    if(waveIdx>=waves.length){ return; }
-    const w=waves[waveIdx]; spawnQueue=[];
-    for(const k in w) for(let n=0;n<w[k];n++) spawnQueue.push(k);
-    for(let a=spawnQueue.length-1;a>0;a--){ const b=Math.floor((elapsed*131+a*17)%(a+1)); const tmp=spawnQueue[a]; spawnQueue[a]=spawnQueue[b]; spawnQueue[b]=tmp; }
-    spawnTimer=0.5; waveBanner=1.6; elWave.textContent="第 "+(waveIdx+1)+" / "+waves.length+" 波";
+  function beginBattle(){ const c=CH[chapter]; heroDef=HEROES[c.hero]; state="play"; setBattleUI(true); show(null);
+    elapsed=0; shake=0; projs=[]; fx=[]; floaters=[]; input.left=input.right=false;
+    hero={ key:heroDef.key, x:W*0.22, y:GY-28, vy:0, onGround:true, face:1, hp:100, maxhp:100,
+      atkT:0, atkCd:0, atkHit:false, spCd:0, invuln:0, hitT:0, dashT:0, dashDir:1, foot:28 };
+    const b=c.boss; boss={ kind:b.kind, name:b.name, x:W*0.78, y:GY-b.r*0.7, vy:0, onGround:true, face:-1,
+      hp:b.hp, maxhp:b.hp, r:b.r, dmg:b.dmg, foot:b.r*0.7, st:"idle", t:1.0, stun:0, danger:false, atk:null, hitT:0 };
+    updateSp();
   }
 
-  function selectHero(i){ if(i>=unlockedHeroes) return; hero=i; heroBtns.forEach((b,k)=>b.classList.toggle("sel",k===i)); }
-
-  function spawnEnemy(type){ const def=ENEMIES[type]; let x,y; const m=36;
-    const edge = type==="ibis" ? 2 : Math.floor((elapsed*53+enemies.length*31)%3);
-    if(edge===0){x=-m;y=Math.random()*H*0.85;} else if(edge===1){x=W+m;y=Math.random()*H*0.85;} else {x=Math.random()*W;y=-m;}
-    enemies.push({type,x,y,hp:def.hp,maxhp:def.hp,r:def.r,stun:0,hitFlash:0,ph:Math.random()*6}); }
-
-  function cast(px,py){ if(state!=="play"||cools[hero]>0) return; const h=HEROES[hero]; cools[hero]=h.cd;
-    if(h.type==="dash"){ let best=null,bd=90*90; for(const e of enemies){const dx=e.x-px,dy=e.y-py,d=dx*dx+dy*dy; if(d<bd){bd=d;best=e;}}
-      if(best){ damage(best,h.dmg); effects.push({type:"dash",x1:hab.x,y1:hab.y,x2:best.x,y2:best.y,life:0.18,max:0.18}); }
-      else effects.push({type:"dash",x1:hab.x,y1:hab.y,x2:px,y2:py,life:0.12,max:0.12}); }
-    else if(h.type==="slam"){ const R=95; effects.push({type:"slam",x:px,y:py,r:R,life:0.35,max:0.35});
-      for(const e of enemies){ const dx=e.x-px,dy=e.y-py; if(dx*dx+dy*dy<R*R){ damage(e,h.dmg); const d=Math.hypot(dx,dy)||1; e.x+=dx/d*28; e.y+=dy/d*28; } } shake=Math.max(shake,9); }
-    else if(h.type==="sonic"){ effects.push({type:"sonic",x:hab.x,y:hab.y,r:Math.max(W,H),life:0.55,max:0.55});
-      for(const e of enemies){ damage(e,h.dmg); e.stun=1.4; e.hitFlash=0.2; } }
-    else if(h.type==="sweep"){ const band=50; effects.push({type:"sweep",y:py,life:0.22,max:0.22});
-      for(const e of enemies) if(Math.abs(e.y-py)<band) damage(e,h.dmg); } }
-
-  function damage(e,d){ e.hp-=d; e.hitFlash=0.15; if(e.hp<=0&&!e.dead){ const def=ENEMIES[e.type]; score++; addEnergy(def.energy);
-    floaters.push({x:e.x,y:e.y,txt:"守退!",life:0.7,col:"#a5d6a7"}); effects.push({type:"pop",x:e.x,y:e.y,life:0.3,max:0.3}); e.dead=true; } }
-  function addEnergy(v){ if(fusionReady) return; energy=Math.min(FUSION_MAX,energy+v); if(energy>=FUSION_MAX){ fusionReady=true; fusionBtn.classList.add("ready"); } }
-  function doFusion(){ if(state!=="play"||!fusionReady) return; fusionReady=false; energy=0; fusionBtn.classList.remove("ready");
-    effects.push({type:"fusion",x:hab.x,y:hab.y,r:Math.max(W,H)*1.2,life:0.7,max:0.7});
-    score+=enemies.length; enemies=[]; habHp=Math.min(habMax,habHp+3); shake=14;
-    floaters.push({x:hab.x,y:hab.y-50,txt:"融合 · 守土！",life:1.3,col:"#ffd54f",big:true}); }
-
-  /* ========== 更新 ========== */
-  function update(dt){ elapsed+=dt; hab={x:W/2,y:H*0.58,r:34};
-    for(let i=0;i<4;i++) if(cools[i]>0) cools[i]=Math.max(0,cools[i]-dt);
-    if(waveBanner>0) waveBanner-=dt; if(shake>0) shake=Math.max(0,shake-dt*40);
-    if(spawnQueue.length){ spawnTimer-=dt; if(spawnTimer<=0){ spawnEnemy(spawnQueue.shift()); spawnTimer=Math.max(0.45,1.2-chapter*0.12); } }
-    for(const e of enemies){ const def=ENEMIES[e.type]; if(e.hitFlash>0)e.hitFlash-=dt; let sp=def.speed; if(e.stun>0){e.stun-=dt;sp=0;}
-      const dx=hab.x-e.x,dy=hab.y-e.y,d=Math.hypot(dx,dy)||1; e.x+=dx/d*sp*dt; e.y+=dy/d*sp*dt;
-      if(d<hab.r+e.r){ habHp-=def.dmg; e.dead=true; shake=Math.max(shake,7); floaters.push({x:hab.x,y:hab.y-30,txt:"-"+def.dmg,life:0.7,col:"#ff8a80"}); } }
-    enemies=enemies.filter(e=>!e.dead);
-    for(const ef of effects) ef.life-=dt; effects=effects.filter(ef=>ef.life>0);
-    for(const f of floaters){ f.life-=dt; f.y-=22*dt; } floaters=floaters.filter(f=>f.life>0);
-    if(spawnQueue.length===0&&enemies.length===0&&betweenTimer<=0&&waveBanner<=0){
-      if(waveIdx<waves.length-1) betweenTimer=1.3; else return winChapter(); }
-    if(betweenTimer>0){ betweenTimer-=dt; if(betweenTimer<=0) nextWave(); }
-    if(habHp<=0){ habHp=0; loseChapter(); }
-    updateHud();
+  /* ===== 英雄動作 ===== */
+  function heroAttack(){ if(state!=="play"||hero.atkCd>0||hero.dashT>0) return; hero.atkT=0.22; hero.atkCd=heroDef.atkCd; hero.atkHit=false;
+    hero.x += hero.face*10; }
+  function heroJump(){ if(state!=="play"||!hero.onGround) return; hero.vy=JUMP; hero.onGround=false; }
+  function heroSpecial(){ if(state!=="play"||hero.spCd>0) return; const k=hero.key; hero.spCd=heroDef.spCd;
+    if(k==="leopard"||k==="dragonfly"){ hero.dashT=(k==="dragonfly")?0.34:0.26; hero.dashDir=hero.face; hero.invuln=Math.max(hero.invuln,hero.dashT+0.05); hero.spDmg=(k==="dragonfly")?24:20; hero.spHit=false; flo(hero.x,hero.y-50,heroDef.spName+"!","#fff59d"); }
+    else if(k==="bear"){ hero.vy=JUMP*0.7; hero.slamPending=true; flo(hero.x,hero.y-50,"震地!","#fff59d"); }
+    else if(k==="cicada"){ projs.push({from:"hero",x:hero.x+hero.face*30,y:hero.y-20,vx:hero.face*460,vy:0,r:18,dmg:16,stun:true,life:1.6,kind:"sonic"}); flo(hero.x,hero.y-50,"音波!","#fff59d"); }
+    updateSp();
   }
-  function updateHud(){ const hearts=Math.ceil(habHp/2); elHp.textContent= habHp>0? "❤".repeat(hearts):"💀";
-    elScore.textContent=score;
-    for(let i=0;i<4;i++) heroBtns[i].querySelector(".cd").style.height=(cools[i]/HEROES[i].cd*100)+"%";
-    fusionBtn.querySelector(".fill").style.height=(energy/FUSION_MAX*100)+"%"; }
+  function hurtHero(dmg,fromX){ if(hero.invuln>0) return; hero.hp-=dmg; hero.invuln=1.0; hero.hitT=0.3; shake=Math.max(shake,10);
+    hero.vy=-260; hero.onGround=false; hero.x += (hero.x<fromX?-1:1)*30; flo(hero.x,hero.y-50,"-"+dmg,"#ff8a80");
+    if(hero.hp<=0){ hero.hp=0; loseChapter(); } }
+  function hitBoss(dmg,stun){ boss.hp-=dmg; boss.hitT=0.18; flo(boss.x,boss.y-boss.r-10,"-"+dmg,"#fff");
+    if(stun){ boss.stun=Math.max(boss.stun,1.3); boss.st="idle"; boss.danger=false; }
+    if(boss.hp<=0){ boss.hp=0; winChapter(); } }
 
-  function winChapter(){ if(state!=="play") return; state="storywin"; setBattleUI(false);
-    const wasMax=getUnlocked(); if(chapter+1>wasMax) setUnlocked(Math.min(CH.length, chapter+1));
-    playStory(CH[chapter].outro, ()=>{
-      const last=chapter>=CH.length-1;
-      showResult("🌿 "+CH[chapter].place+"守住了！", last?"全戰役完成！":"章節過關",
-        last? "你守護了台灣每一個棲地，集滿四隻夥伴。<br>這些動物都是真實存在、正在消失的生命——你記住牠們了。"
-            : "守退 "+score+" 隻入侵種，新夥伴加入了隊伍！",
-        last?"再玩一次":"下一章 ▶", last? ()=>goMap() : ()=>startChapter(chapter+1));
-    }); }
-  function loseChapter(){ if(state!=="play") return; state="lose"; setBattleUI(false);
-    showResult("棲地失守…", CH[chapter].place+"被攻破了", "守退了 "+score+" 隻。<br>試試切換不同夥伴，能量滿了早點按『融合』大絕！",
-      "再挑戰一次", ()=>startChapter(chapter)); }
+  /* ===== 魔王 AI ===== */
+  function bossPick(){ const gap=Math.abs(hero.x-boss.x); const r=(Math.floor(elapsed*7)+boss.hp)%3;
+    if(gap>W*0.4) return "charge"; if(r===0) return "charge"; if(r===1) return "slam"; return "spit"; }
+  function bossUpdate(dt){ if(boss.hitT>0) boss.hitT-=dt;
+    boss.face = hero.x<boss.x ? -1 : 1;
+    if(boss.stun>0){ boss.stun-=dt; boss.danger=false; return; }
+    // 重力
+    boss.vy+=GRAV*dt; boss.y+=boss.vy*dt; const by=GY-boss.foot; if(boss.y>=by){ if(!boss.onGround&&boss.atk==="slam"&&boss.st==="attack"){ // 落地震波
+          projs.push({from:"bossWave",x:boss.x,y:GY,vx:-280,r:20,dmg:13,life:1.4}); projs.push({from:"bossWave",x:boss.x,y:GY,vx:280,r:20,dmg:13,life:1.4}); shake=Math.max(shake,9); boss.st="recover"; boss.t=1.0; }
+        boss.y=by; boss.vy=0; boss.onGround=true; }
+    switch(boss.st){
+      case "idle": { const gap=hero.x-boss.x, d=Math.abs(gap); const want = d<W*0.28? -Math.sign(gap):Math.sign(gap);
+        boss.x += want*60*dt; boss.t-=dt; if(boss.t<=0){ boss.atk=bossPick(); boss.st="tele"; boss.t=0.75; } break; }
+      case "tele": { boss.t-=dt; if(boss.t<=0){ boss.st="attack"; boss.danger=true;
+          if(boss.atk==="charge"){ boss.cv=Math.sign(hero.x-boss.x)*Math.max(360,W*0.9); boss.t=0.55; }
+          else if(boss.atk==="slam"){ boss.vy=JUMP*0.95; boss.onGround=false; boss.t=2.0; }
+          else if(boss.atk==="spit"){ for(let i=0;i<3;i++){ const ang=-0.5-i*0.25; projs.push({from:"boss",x:boss.x+boss.face*boss.r*0.6,y:boss.y-boss.r*0.4,vx:boss.face*(300+i*30),vy:-260+i*60,r:14,dmg:10,life:2.4,grav:true}); } boss.danger=false; boss.st="recover"; boss.t=0.9; }
+        } break; }
+      case "attack": { if(boss.atk==="charge"){ boss.x+=boss.cv*dt; boss.t-=dt;
+          if(boss.x<boss.r){ boss.x=boss.r; } if(boss.x>W-boss.r){ boss.x=W-boss.r; }
+          if(boss.t<=0){ boss.danger=false; boss.st="recover"; boss.t=1.1; } }
+        else if(boss.atk==="slam"){ boss.t-=dt; if(boss.t<=0&&boss.onGround){ boss.st="recover"; boss.t=1.0; } }
+        break; }
+      case "recover": { boss.danger=false; boss.t-=dt; if(boss.t<=0){ boss.st="idle"; boss.t=0.7+Math.random()*0.6; } break; }
+    }
+    boss.x=Math.max(boss.r,Math.min(W-boss.r,boss.x));
+    // 魔王身體傷害（攻擊中）
+    if(boss.danger && hero.invuln<=0){ const dx=Math.abs(hero.x-boss.x), dy=Math.abs(hero.y-boss.y);
+      if(dx<boss.r+18 && dy<boss.r){ hurtHero(boss.dmg,boss.x); } }
+  }
+
+  /* ===== 更新 ===== */
+  function update(dt){ elapsed+=dt; if(shake>0) shake=Math.max(0,shake-dt*40);
+    // 計時器
+    if(hero.atkCd>0)hero.atkCd-=dt; if(hero.atkT>0)hero.atkT-=dt; if(hero.spCd>0){hero.spCd-=dt; updateSp();}
+    if(hero.invuln>0)hero.invuln-=dt; if(hero.hitT>0)hero.hitT-=dt;
+    // 移動
+    let mv=0; if(input.left)mv-=1; if(input.right)mv+=1; if(mv!==0){ hero.face=mv; }
+    if(hero.dashT>0){ hero.x+=hero.dashDir*620*dt; hero.dashT-=dt; }
+    else hero.x+=mv*heroDef.speed*dt;
+    hero.x=Math.max(20,Math.min(W-20,hero.x));
+    // 重力
+    hero.vy+=GRAV*dt; hero.y+=hero.vy*dt; const hy=GY-hero.foot;
+    if(hero.y>=hy){ if(!hero.onGround&&hero.slamPending){ hero.slamPending=false; projs.push({from:"heroWave",x:hero.x,y:GY,vx:-360,r:20,dmg:0,life:0.5}); projs.push({from:"heroWave",x:hero.x,y:GY,vx:360,r:20,dmg:0,life:0.5}); if(Math.abs(hero.x-boss.x)<160){ hitBoss(20); } shake=Math.max(shake,9); }
+      hero.y=hy; hero.vy=0; hero.onGround=true; }
+    // 基本攻擊命中
+    if(hero.atkT>0 && !hero.atkHit){ const gap=Math.abs(hero.x-boss.x)-boss.r; const facing=(boss.x-hero.x)*hero.face>=0;
+      if(gap<heroDef.reach && facing){ hitBoss(heroDef.atkDmg); hero.atkHit=true; } }
+    // 突刺/疾風命中
+    if(hero.dashT>0 && !hero.spHit && (hero.key==="leopard"||hero.key==="dragonfly")){ if(Math.abs(hero.x-boss.x)<boss.r+26){ hitBoss(hero.spDmg); hero.spHit=true; } }
+
+    bossUpdate(dt);
+
+    // 投射物
+    for(const p of projs){ p.life-=dt; p.x+=p.vx*dt; if(p.grav){ p.vy+=GRAV*dt; p.y+=p.vy*dt; if(p.y>GY){ p.y=GY; p.life=0; } }
+      if(p.from==="bossWave"||p.from==="boss"){ if(hero.invuln<=0){ const onGround=hero.onGround;
+          if(p.from==="bossWave"){ if(onGround && Math.abs(hero.x-p.x)<24){ hurtHero(p.dmg,p.x); p.life=0; } }
+          else { if(Math.hypot(hero.x-p.x,hero.y-p.y)<22){ hurtHero(p.dmg,p.x); p.life=0; } } } }
+      if(p.from==="hero"){ if(Math.abs(p.x-boss.x)<boss.r && Math.abs(p.y-boss.y)<boss.r){ hitBoss(p.dmg,p.stun); p.life=0; } }
+    }
+    projs=projs.filter(p=>p.life>0 && p.x>-60 && p.x<W+60);
+    for(const f of floaters){ f.life-=dt; f.y-=24*dt; } floaters=floaters.filter(f=>f.life>0);
+  }
+  function updateSp(){ const r=Math.max(0,hero?hero.spCd:0); bSp.querySelector(".fill").style.height=(r/heroDef.spCd*100)+"%"; bSp.classList.toggle("ready", r<=0); }
+
+  function winChapter(){ if(state!=="play")return; state="post"; setBattleUI(false);
+    const was=getUnlocked(); if(chapter+1>was) setUnlocked(Math.min(CH.length,chapter+1));
+    playStory(CH[chapter].outro, ()=>{ const last=chapter>=CH.length-1;
+      showResult("🏆 打倒 "+CH[chapter].boss.name+"！", last?"全戰役完成！":"章節過關",
+        last?"你打倒了所有入侵種的王，守住了台灣每一個家。<br>這些動物都是真實、正在消失的生命——你記住牠們了。":"新夥伴加入了隊伍，往下一章前進！",
+        last?"再玩一次":"下一章 ▶", last?goMap:()=>startChapter(chapter+1)); }); }
+  function loseChapter(){ if(state!=="play")return; state="lose"; setBattleUI(false);
+    showResult("被擊倒了…", CH[chapter].boss.name+"太強了", "撐住！等魔王出招『後』再上去打，被打就先閃。<br>必殺也能閃過攻擊喔！", "再挑戰一次", ()=>startChapter(chapter)); }
   function showResult(title,sub,body,mainTxt,mainFn){ state="result"; show(resultScr);
     document.getElementById("rTitle").textContent=title; document.getElementById("rSub").textContent=sub;
-    document.getElementById("rBody").innerHTML=body; const mb=document.getElementById("rMain");
-    mb.textContent=mainTxt; mb.onclick=mainFn; }
+    document.getElementById("rBody").innerHTML=body; const mb=document.getElementById("rMain"); mb.textContent=mainTxt; mb.onclick=mainFn; }
 
-  /* ========== 背景 ========== */
-  function paintBackground(c,w,h,bg,t){
-    let top="#1b5e20",bot="#33691e";
-    if(bg==="paddy"){top="#aed581";bot="#7cb342";}
-    else if(bg==="hill"){top="#81c784";bot="#558b2f";}
-    else if(bg==="stream"){top="#4fc3f7";bot="#0288d1";}
-    else if(bg==="wetland"){top="#80cbc4";bot="#00695c";}
+  function flo(x,y,txt,col){ floaters.push({x,y,txt,col,life:0.7}); }
+
+  /* ===== 背景 ===== */
+  function paintBackground(c,w,h,bg){ let top="#1b5e20",bot="#33691e";
+    if(bg==="paddy"){top="#cfe8a0";bot="#9ccc65";} else if(bg==="hill"){top="#a5d6a7";bot="#66946a";}
+    else if(bg==="stream"){top="#9fd8f0";bot="#4fa6c9";} else if(bg==="wetland"){top="#a7d7cf";bot="#5a9a8f";}
     const g=c.createLinearGradient(0,0,0,h); g.addColorStop(0,top); g.addColorStop(1,bot); c.fillStyle=g; c.fillRect(0,0,w,h);
-    c.globalAlpha=0.12; c.fillStyle="#fff";
-    if(bg==="paddy"){ for(let y=h*0.5;y<h;y+=22){ c.fillRect(0,y,w,2);} }
-    else if(bg==="hill"){ c.beginPath(); c.moveTo(0,h*0.6); c.quadraticCurveTo(w*0.3,h*0.4,w*0.6,h*0.62); c.quadraticCurveTo(w*0.85,h*0.78,w,h*0.55); c.lineTo(w,h); c.lineTo(0,h); c.fill(); }
-    else if(bg==="stream"){ for(let i=0;i<5;i++){ c.beginPath(); c.ellipse((i*0.27)*w,(0.5+0.1*i)*h%h,40,8,0,0,7); c.fill(); } }
-    else if(bg==="wetland"){ for(let x=0;x<w;x+=40){ c.fillRect(x,h*0.65,4,h*0.35);} }
+    // 遠景
+    c.globalAlpha=0.18; c.fillStyle="#2e7d32";
+    c.beginPath(); c.moveTo(0,h*0.62); c.quadraticCurveTo(w*0.3,h*0.46,w*0.55,h*0.6); c.quadraticCurveTo(w*0.8,h*0.72,w,h*0.55); c.lineTo(w,h); c.lineTo(0,h); c.fill();
     c.globalAlpha=1;
   }
+  function drawGround(){ ctx.fillStyle="#5d4037"; ctx.fillRect(0,GY,W,H-GY);
+    ctx.fillStyle="#6d4c41"; ctx.fillRect(0,GY,W,6);
+    ctx.strokeStyle="rgba(0,0,0,.12)"; ctx.lineWidth=2; for(let x=0;x<W;x+=28){ ctx.beginPath(); ctx.moveTo(x,GY+12); ctx.lineTo(x+10,GY+12); ctx.stroke(); } }
 
-  /* ========== 繪製戰鬥 ========== */
-  function draw(){ ctx.save(); let ox=0,oy=0; if(shake>0){ ox=(Math.random()-0.5)*shake; oy=(Math.random()-0.5)*shake; ctx.translate(ox,oy); }
-    paintBackground(ctx,W+1,H+1,CH[chapter]?CH[chapter].bg:"paddy",elapsed);
-    if(!hab) hab={x:W/2,y:H*0.58,r:34};
-    // 巢光環
-    const pulse=1+0.06*Math.sin(elapsed*4); ctx.beginPath(); ctx.arc(hab.x,hab.y,hab.r*1.8*pulse,0,7); ctx.fillStyle="rgba(255,241,118,.14)"; ctx.fill();
-    drawCreature(ctx,"nest",hab.x,hab.y-hab.r*0.3,hab.r,{t:0});
-    // 守護者
-    drawCreature(ctx,HEROES[hero].key,hab.x,hab.y-hab.r-30,34,{t:elapsed,mood:"happy"});
-    // 特效（底層）
-    for(const ef of effects){ const a=ef.life/ef.max;
-      if(ef.type==="dash"){ ctx.strokeStyle="rgba(255,183,77,"+a+")"; ctx.lineWidth=7*a+2; ctx.beginPath(); ctx.moveTo(ef.x1,ef.y1); ctx.lineTo(ef.x2,ef.y2); ctx.stroke(); }
-      else if(ef.type==="slam"){ ctx.strokeStyle="rgba(121,85,72,"+a+")"; ctx.lineWidth=8; ctx.beginPath(); ctx.arc(ef.x,ef.y,ef.r*(1-a),0,7); ctx.stroke(); }
-      else if(ef.type==="sonic"){ ctx.strokeStyle="rgba(174,213,129,"+(a*0.9)+")"; ctx.lineWidth=10; ctx.beginPath(); ctx.arc(ef.x,ef.y,ef.r*(1-a),0,7); ctx.stroke(); }
-      else if(ef.type==="sweep"){ ctx.fillStyle="rgba(77,208,225,"+(a*0.5)+")"; ctx.fillRect(0,ef.y-25,W,50); }
-      else if(ef.type==="fusion"){ ctx.fillStyle="rgba(255,213,79,"+(a*0.5)+")"; ctx.beginPath(); ctx.arc(ef.x,ef.y,ef.r*(1-a),0,7); ctx.fill(); }
-      else if(ef.type==="pop"){ ctx.fillStyle="rgba(255,255,255,"+a+")"; ctx.beginPath(); ctx.arc(ef.x,ef.y,20*(1-a)+4,0,7); ctx.fill(); } }
-    // 敵人
-    for(const e of enemies){ const def=ENEMIES[e.type]; if(e.hitFlash>0) ctx.globalAlpha=0.55;
-      drawCreature(ctx,def.kind,e.x,e.y,e.r*1.25,{t:elapsed,ph:e.ph,mood:"angry",flip:e.x<hab.x?false:true}); ctx.globalAlpha=1;
-      if(e.stun>0){ ctx.font="14px serif"; ctx.textAlign="center"; ctx.fillText("💫",e.x,e.y-e.r-6); }
-      if(e.maxhp>1&&e.hp<e.maxhp){ const w=e.r*1.6; ctx.fillStyle="rgba(0,0,0,.4)"; ctx.fillRect(e.x-w/2,e.y-e.r-12,w,4); ctx.fillStyle="#ff8a80"; ctx.fillRect(e.x-w/2,e.y-e.r-12,w*e.hp/e.maxhp,4); } }
+  /* ===== 繪製 ===== */
+  function hpBar(x,y,w,frac,col,name,faceKind){ ctx.fillStyle="rgba(0,0,0,.45)"; ctx.fillRect(x,y,w,14); ctx.fillStyle=col; ctx.fillRect(x,y,w*Math.max(0,frac),14);
+    ctx.strokeStyle="rgba(255,255,255,.5)"; ctx.lineWidth=2; ctx.strokeRect(x,y,w,14);
+    ctx.fillStyle="#fff"; ctx.font="bold 13px sans-serif"; ctx.textBaseline="alphabetic"; ctx.fillText(name,x,y-5); }
+  function draw(){ ctx.save(); if(shake>0) ctx.translate((Math.random()-0.5)*shake,(Math.random()-0.5)*shake);
+    paintBackground(ctx,W+1,H+1,CH[chapter]?CH[chapter].bg:"paddy"); drawGround();
+    // 投射物
+    for(const p of projs){ if(p.from==="bossWave"||p.from==="heroWave"){ ctx.fillStyle=p.from==="bossWave"?"rgba(180,120,80,.6)":"rgba(180,220,140,.5)"; ctx.beginPath(); ctx.ellipse(p.x,GY-6,p.r,p.r*0.5,0,0,7); ctx.fill(); }
+      else if(p.from==="boss"){ ctx.fillStyle="#7e57c2"; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,7); ctx.fill(); }
+      else if(p.kind==="sonic"){ ctx.strokeStyle="rgba(174,213,129,.9)"; ctx.lineWidth=4; ctx.beginPath(); ctx.arc(p.x,p.y,16,0,7); ctx.stroke(); } }
+    // 魔王
+    ctx.textAlign="left"; ctx.textBaseline="middle";
+    const bflash=boss.hitT>0; if(bflash) ctx.globalAlpha=0.6;
+    const tele=(boss.st==="tele"); if(tele && Math.floor(elapsed*12)%2===0) ctx.globalAlpha=0.7;
+    drawCreature(ctx,boss.kind,boss.x,boss.y,boss.r,{t:elapsed,mood:"angry",flip:boss.face>0}); ctx.globalAlpha=1;
+    if(tele){ ctx.fillStyle="#ff5252"; ctx.font="bold 30px sans-serif"; ctx.textAlign="center"; ctx.fillText("!",boss.x,boss.y-boss.r-14); }
+    if(boss.stun>0){ ctx.font="20px serif"; ctx.textAlign="center"; ctx.fillText("💫",boss.x,boss.y-boss.r-10); }
+    // 英雄（被擊中閃爍、無敵閃爍）
+    let ha=1; if(hero.invuln>0 && Math.floor(elapsed*16)%2===0) ha=0.4; ctx.globalAlpha=ha;
+    drawCreature(ctx,hero.key,hero.x,hero.y,32,{t:elapsed,mood:hero.hitT>0?"angry":"happy",flip:hero.face<0}); ctx.globalAlpha=1;
+    if(hero.atkT>0){ ctx.strokeStyle="rgba(255,255,255,.85)"; ctx.lineWidth=5; ctx.beginPath(); ctx.arc(hero.x+hero.face*36,hero.y-6,26,-0.8,0.8); ctx.stroke(); }
     // 浮字
-    ctx.textAlign="center"; ctx.textBaseline="middle";
-    for(const f of floaters){ const a=Math.min(1,f.life*1.6); ctx.globalAlpha=a; ctx.fillStyle=f.col;
-      ctx.font=(f.big?"bold 22px":"bold 14px")+" sans-serif"; ctx.fillText(f.txt,f.x,f.y); ctx.globalAlpha=1; }
-    if(waveBanner>0){ const a=Math.min(1,waveBanner); ctx.globalAlpha=a; ctx.fillStyle="#fff59d"; ctx.font="bold 28px sans-serif"; ctx.fillText("第 "+(waveIdx+1)+" 波 來襲！",W/2,H*0.26); ctx.globalAlpha=1; }
+    ctx.textAlign="center"; for(const f of floaters){ ctx.globalAlpha=Math.min(1,f.life*1.6); ctx.fillStyle=f.col; ctx.font="bold 16px sans-serif"; ctx.fillText(f.txt,f.x,f.y); ctx.globalAlpha=1; }
+    // 血條（對戰 UI）
+    hpBar(14,30,W*0.40,hero.hp/hero.maxhp,"#66bb6a",HEROES[CH[chapter].hero].name,hero.key);
+    hpBar(W-14-W*0.40,30,W*0.40,boss.hp/boss.maxhp,"#ef5350",boss.name,boss.kind);
+    ctx.fillStyle="rgba(255,255,255,.85)"; ctx.font="bold 12px sans-serif"; ctx.textAlign="center"; ctx.fillText("第"+(chapter+1)+"章 · "+CH[chapter].place,W/2,40);
     ctx.restore();
   }
 
-  /* ========== 主迴圈 ========== */
+  /* ===== 迴圈 ===== */
   let last=0;
-  function frame(ts){ const dt=Math.min(0.04,(ts-last)/1000||0); last=ts; if(state==="play") update(dt); if(state==="play"||state==="lose"||state==="result") draw(); requestAnimationFrame(frame); }
+  function frame(ts){ const dt=Math.min(0.04,(ts-last)/1000||0); last=ts; if(state==="play"){ update(dt); draw(); } else if(state==="lose"||state==="result"){ draw(); } requestAnimationFrame(frame); }
 
-  /* ========== 輸入 ========== */
-  function toCanvas(cx,cy){ const r=canvas.getBoundingClientRect(); return [cx-r.left,cy-r.top]; }
-  canvas.addEventListener("pointerdown",(e)=>{ if(state!=="play")return; e.preventDefault(); const [x,y]=toCanvas(e.clientX,e.clientY); cast(x,y); },{passive:false});
-  heroBtns.forEach(b=>b.addEventListener("pointerdown",(e)=>{ e.preventDefault(); selectHero(+b.dataset.i); },{passive:false}));
-  fusionBtn.addEventListener("pointerdown",(e)=>{ e.preventDefault(); doFusion(); },{passive:false});
-  document.getElementById("toMap").onclick=goMap;
-  document.getElementById("rMap").onclick=goMap;
+  /* ===== 輸入 ===== */
+  function hold(btn,flag){ const b=document.getElementById(btn);
+    const on=(e)=>{ e.preventDefault(); input[flag]=true; b.classList.add("on"); };
+    const off=(e)=>{ e.preventDefault(); input[flag]=false; b.classList.remove("on"); };
+    b.addEventListener("pointerdown",on); b.addEventListener("pointerup",off); b.addEventListener("pointerleave",off); b.addEventListener("pointercancel",off); }
+  hold("bLeft","left"); hold("bRight","right");
+  const tap=(id,fn)=>document.getElementById(id).addEventListener("pointerdown",(e)=>{ e.preventDefault(); fn(); },{passive:false});
+  tap("bJump",heroJump); tap("bAtk",heroAttack); tap("bSp",heroSpecial);
+  canvas.addEventListener("pointerdown",(e)=>{ if(state!=="play")return; e.preventDefault(); heroAttack(); },{passive:false});
+  document.getElementById("toMap").onclick=goMap; document.getElementById("rMap").onclick=goMap;
   document.getElementById("resetProg").onclick=()=>{ setUnlocked(0); goMap(); };
-  window.addEventListener("keydown",(e)=>{ if(state==="play"){ if(e.key>="1"&&e.key<="4") selectHero(+e.key-1);
-    else if(e.key==="f"||e.key==="F") doFusion(); else if(e.code==="Space"){ e.preventDefault(); cast(hab.x,hab.y-90);} }
+  window.addEventListener("keydown",(e)=>{ if(state==="play"){ if(e.key==="ArrowLeft"||e.key==="a")input.left=true; else if(e.key==="ArrowRight"||e.key==="d")input.right=true;
+      else if(e.key==="ArrowUp"||e.key==="w"||e.code==="Space"){ e.preventDefault(); heroJump(); } else if(e.key==="j"||e.key==="Enter")heroAttack(); else if(e.key==="k"||e.key==="Shift")heroSpecial(); }
     else if(state==="story"&&e.code==="Space"){ e.preventDefault(); advance(); } });
+  window.addEventListener("keyup",(e)=>{ if(e.key==="ArrowLeft"||e.key==="a")input.left=false; else if(e.key==="ArrowRight"||e.key==="d")input.right=false; });
 
-  /* ========== 啟動 ========== */
   resize(); goTitle(); requestAnimationFrame(frame);
   if("serviceWorker" in navigator){ window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{})); }
 })();
