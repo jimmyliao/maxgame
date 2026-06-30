@@ -234,7 +234,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     document.getElementById("hsType").textContent=TYPE[h.type];
     document.getElementById("hsTag").textContent=LOBBY_TAG[h.key]||h.status;
     document.getElementById("ecoVal").textContent=getEco();
-    document.getElementById("trophyVal").textContent=getUnlocked();
+    document.getElementById("trophyVal").textContent=Math.floor(getEco()/100)+1;
     [...document.querySelectorAll("#roster .rb")].forEach((b,i)=>b.classList.toggle("sel",i===featured)); }
   function goLobby(){ state="lobby"; setBattleUI(false); show(lobbyScr); buildRoster(); updateLobby(); resizeHeroShow(); }
   const TICKERS=["🌿 石虎全台僅存數百隻，路殺是最大威脅之一","🐻 台灣黑熊胸前的白色 V 是月亮的印記","💧 福壽螺來自南美，是稻田的大害","🦎 綠鬣蜥棄養野化，正衝擊南部生態","🕊 埃及聖䴉搶佔黑面琵鷺的濕地","🪲 爺蟬幼蟲在地下蟄伏多年才羽化"];
