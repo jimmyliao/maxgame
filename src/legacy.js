@@ -9,7 +9,8 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     leopard:"assets/heroes/leopard.png", bear:"assets/heroes/bear.png",
     cicada:"assets/heroes/cicada.png", dragonfly:"assets/heroes/dragonfly.png",
     snail:"assets/bosses/snail.png", iguana:"assets/bosses/iguana.png",
-    frog:"assets/bosses/frog.png", ibis:"assets/bosses/ibis.png"
+    frog:"assets/bosses/frog.png", ibis:"assets/bosses/ibis.png",
+    deer:"assets/heroes/deer.png", magpie:"assets/heroes/magpie.png"
   };
   function loadSprites(){ for(const k in SPRITE_SRC){ const img=new Image(); img.onload=()=>{ if(img.naturalWidth>0) SPRITES[k]=img; }; img.src=SPRITE_SRC[k]; } }
   loadSprites();
@@ -134,6 +135,30 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
       c.fillStyle="#222"; c.beginPath(); c.arc(-s*0.2,-s*0.3,s*0.26,0,7); c.fill();
       c.strokeStyle="#222"; c.lineWidth=s*0.08; c.beginPath(); c.moveTo(-s*0.4,-s*0.28); c.quadraticCurveTo(-s*0.85,-s*0.2,-s*0.8,s*0.15); c.stroke();
       eye(-s*0.18,-s*0.34,s*0.08); brow(-s*0.18,-s*0.46,s*0.1);
+    } else if(kind==="deer"){
+      c.fillStyle="#c8884a"; c.beginPath(); c.ellipse(0,s*0.32,s*0.5,s*0.44,0,0,7); c.fill();
+      c.fillStyle="#f5e2c8"; c.beginPath(); c.ellipse(0,s*0.42,s*0.26,s*0.3,0,0,7); c.fill();
+      c.fillStyle="#fff6e6"; for(const p of [[-0.26,0.18],[0.24,0.16],[-0.1,0.34],[0.12,0.36],[-0.28,0.42]]){ c.beginPath(); c.arc(p[0]*s,p[1]*s,s*0.045,0,7); c.fill(); }
+      c.strokeStyle="#a86a36"; c.lineWidth=s*0.1; c.lineCap="round"; c.beginPath(); c.moveTo(-s*0.2,s*0.6); c.lineTo(-s*0.22,s*0.78); c.moveTo(s*0.2,s*0.6); c.lineTo(s*0.22,s*0.78); c.stroke();
+      c.fillStyle="#c8884a"; c.beginPath(); c.ellipse(0,-s*0.18,s*0.18,s*0.26,0,0,7); c.fill();
+      c.beginPath(); c.ellipse(0,-s*0.42,s*0.26,s*0.22,0,0,7); c.fill();
+      c.beginPath(); c.ellipse(-s*0.26,-s*0.5,s*0.1,s*0.16,-0.4,0,7); c.fill(); c.beginPath(); c.ellipse(s*0.26,-s*0.5,s*0.1,s*0.16,0.4,0,7); c.fill();
+      c.strokeStyle="#8a5a2a"; c.lineWidth=s*0.05; c.beginPath(); c.moveTo(-s*0.12,-s*0.56); c.lineTo(-s*0.16,-s*0.74); c.moveTo(-s*0.16,-s*0.66); c.lineTo(-s*0.26,-s*0.72); c.moveTo(s*0.12,-s*0.56); c.lineTo(s*0.16,-s*0.74); c.moveTo(s*0.16,-s*0.66); c.lineTo(s*0.26,-s*0.72); c.stroke();
+      c.fillStyle="#f5e2c8"; c.beginPath(); c.ellipse(0,-s*0.34,s*0.13,s*0.1,0,0,7); c.fill();
+      c.fillStyle="#5d4037"; c.beginPath(); c.ellipse(0,-s*0.3,s*0.05,s*0.04,0,0,7); c.fill();
+      eye(-s*0.12,-s*0.44,s*0.07); eye(s*0.12,-s*0.44,s*0.07);
+      if(mood==="angry"){ brow(-s*0.12,-s*0.54,s*0.08); brow(s*0.12,-s*0.54,s*0.08); }
+    } else if(kind==="magpie"){
+      c.strokeStyle="#2962a8"; c.lineWidth=s*0.12; c.lineCap="round"; c.beginPath(); c.moveTo(s*0.2,s*0.4); c.quadraticCurveTo(s*0.7,s*0.6,s*0.95,s*0.18); c.stroke();
+      c.fillStyle="#dbe9f7"; c.beginPath(); c.arc(s*0.95,s*0.18,s*0.06,0,7); c.fill();
+      c.fillStyle="#2f73c4"; c.beginPath(); c.ellipse(-s*0.05,s*0.25,s*0.4,s*0.42,0,0,7); c.fill();
+      c.fillStyle="#dbe9f7"; c.beginPath(); c.ellipse(-s*0.05,s*0.36,s*0.2,s*0.26,0,0,7); c.fill();
+      c.fillStyle="#235a9e"; c.beginPath(); c.ellipse(-s*0.22,s*0.22,s*0.18,s*0.3,-0.3,0,7); c.fill();
+      c.strokeStyle="#e53935"; c.lineWidth=s*0.05; c.beginPath(); c.moveTo(-s*0.12,s*0.62); c.lineTo(-s*0.12,s*0.76); c.moveTo(s*0.06,s*0.62); c.lineTo(s*0.06,s*0.76); c.stroke();
+      c.fillStyle="#1a1a1a"; c.beginPath(); c.arc(0,-s*0.28,s*0.3,0,7); c.fill();
+      c.fillStyle="#e53935"; c.beginPath(); c.moveTo(s*0.26,-s*0.3); c.lineTo(s*0.48,-s*0.24); c.lineTo(s*0.26,-s*0.17); c.closePath(); c.fill();
+      eye(-s*0.02,-s*0.32,s*0.08);
+      if(mood==="angry"){ brow(-s*0.02,-s*0.44,s*0.1); }
     }
     // 立體上色：頂光 + 底暗，只作用在角色剪影上（source-atop，離屏內不污染背景）
     c.globalCompositeOperation="source-atop";
@@ -152,14 +177,18 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
 
   /* ===== 英雄（台灣特有種）===== */
   const HEROES = [
-    { key:"leopard", name:"石虎", type:"forest", speed:235, atkDmg:7, atkCd:0.33, reach:64, spName:"突刺", spCd:4.5,
+    { key:"leopard", name:"石虎", type:"forest", speed:235, atkDmg:7, atkCd:0.33, reach:64, spName:"突刺", spCd:4.5, sp:"dash",
       status:"瀕危・保育類", fact:"台灣唯一的原生貓科動物，夜行性，全台僅存數百隻，棲地破碎與路殺是最大威脅。" },
-    { key:"bear", name:"黑熊", type:"forest", speed:160, atkDmg:12, atkCd:0.6, reach:78, spName:"震地", spCd:6.0,
+    { key:"bear", name:"黑熊", type:"forest", speed:160, atkDmg:12, atkCd:0.6, reach:78, spName:"震地", spCd:6.0, sp:"slam",
       status:"瀕危・保育類", fact:"台灣唯一原生熊類，胸前有 V 形白斑（月熊）。森林的傘護種，保護牠就保護整片山林。" },
-    { key:"cicada", name:"爺蟬", type:"bug", speed:185, atkDmg:6, atkCd:0.4, reach:60, spName:"音波", spCd:5.0,
+    { key:"cicada", name:"爺蟬", type:"bug", speed:185, atkDmg:6, atkCd:0.4, reach:60, spName:"音波", spCd:5.0, sp:"sonic",
       status:"台灣特有", fact:"台灣體型最大的蟬之一，鳴聲宏亮可傳數百公尺。幼蟲在地下生活多年才羽化。" },
-    { key:"dragonfly", name:"勾蜓", type:"sky", speed:265, atkDmg:6, atkCd:0.3, reach:60, spName:"疾風", spCd:4.5,
+    { key:"dragonfly", name:"勾蜓", type:"sky", speed:265, atkDmg:6, atkCd:0.3, reach:60, spName:"疾風", spCd:4.5, sp:"dash",
       status:"保育類", fact:"無霸勾蜓是台灣最大的蜻蜓，飛行迅速，是乾淨溪流與濕地的指標生物。" },
+    { key:"deer", name:"梅花鹿", type:"forest", speed:250, atkDmg:8, atkCd:0.36, reach:70, spName:"鹿躍", spCd:4.6, sp:"dash", locked:true, cost:300,
+      status:"台灣特有亞種・復育中", fact:"梅花鹿曾因獵捕在野外滅絕，經人工復育後重返墾丁等地，是台灣復育成功的象徵。" },
+    { key:"magpie", name:"台灣藍鵲", type:"sky", speed:272, atkDmg:6, atkCd:0.3, reach:62, spName:"群襲", spCd:4.2, sp:"dash", locked:true, cost:400,
+      status:"台灣特有・國鳥之一", fact:"台灣藍鵲尾羽極長、藍紅相間，群體護巢性極強，俗稱長尾山娘。" },
   ];
   /* ===== 章節與魔王（外來入侵種）===== */
   const CH = [
@@ -200,18 +229,25 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   const bSp=document.getElementById("bSp"), bSwap=document.getElementById("bSwap");
   const lobbyScr=document.getElementById("lobby");
   const heroShow=document.getElementById("heroShow"), hctx=heroShow.getContext("2d");
-  const LOBBY_TAG={ leopard:"台灣唯一原生貓科 · 夜行獵手", bear:"台灣唯一原生熊 · 森林守護者", cicada:"台灣最大的蟬 · 鳴聲震場", dragonfly:"台灣最快的蜻蜓 · 空中獵手" };
+  const LOBBY_TAG={ leopard:"台灣唯一原生貓科 · 夜行獵手", bear:"台灣唯一原生熊 · 森林守護者", cicada:"台灣最大的蟬 · 鳴聲震場", dragonfly:"台灣最快的蜻蜓 · 空中獵手", deer:"復育成功的象徵 · 重返山林", magpie:"長尾山娘 · 護巢勇者" };
   // 保育行動知識（玩中學）
-  const CONS_END={ leopard:"開車經過淺山請減速，避免路殺石虎。", bear:"登山不留廚餘、不餵食野生動物。", cicada:"保留老樹與森林，就是保留昆蟲的家。", dragonfly:"別污染溪流濕地，牠們是水質好壞的指標。" };
+  const CONS_END={ leopard:"開車經過淺山請減速，避免路殺石虎。", bear:"登山不留廚餘、不餵食野生動物。", cicada:"保留老樹與森林，就是保留昆蟲的家。", dragonfly:"別污染溪流濕地，牠們是水質好壞的指標。", deer:"支持棲地保育，讓復育的族群能長久生存。", magpie:"友善賞鳥不干擾巢區，讓藍鵲安心育雛。" };
   const CONS_INV={ snail:"看到福壽螺的粉紅色卵塊，撥落水中可阻止孵化。", iguana:"養寵物請養到底——綠鬣蜥是因棄養才氾濫的。", frog:"不要隨意放生，外來蛙會排擠台灣原生種。", ibis:"發現外來入侵種，可通報林業保育署協助移除。" };
   let featured=0, hsW=0, hsH=0;
   function getEco(){ try{ return parseInt(localStorage.getItem("shoutu_eco")||"0",10)||0; }catch(e){ return 0; } }
   function setEco(v){ try{ localStorage.setItem("shoutu_eco",String(v)); }catch(e){} }
-  // 復育（保育值用途）：升級守護者族群 → 血量↑攻擊↑
-  function getUpg(){ try{ return JSON.parse(localStorage.getItem("shoutu_upg")||"{}")||{}; }catch(e){ return {}; } }
-  function setUpg(o){ try{ localStorage.setItem("shoutu_upg",JSON.stringify(o)); }catch(e){} }
-  function upgLv(key){ return getUpg()[key]||0; }
-  function upgCost(lv){ return 50*(lv+1); }
+  // 守護者經驗/等級（最高 50，不退級）
+  function getXP(){ try{ return JSON.parse(localStorage.getItem("shoutu_xp")||"{}")||{}; }catch(e){ return {}; } }
+  function setXP(o){ try{ localStorage.setItem("shoutu_xp",JSON.stringify(o)); }catch(e){} }
+  function heroXP(key){ return getXP()[key]||0; }
+  function heroLevel(key){ return Math.min(50, Math.floor(heroXP(key)/100)+1); }
+  function gainXP(key,amt){ const o=getXP(); o[key]=Math.min((o[key]||0)+amt, 4999); setXP(o); }
+  function lvHP(key){ return 100 + (heroLevel(key)-1)*6; }
+  function lvAtk(key){ return Math.floor((heroLevel(key)-1)/4); }
+  // 解鎖守護者（基本 4 隻恆解鎖；梅花鹿/藍鵲用保育值解鎖）
+  function getUnlockedHeroes(){ try{ return JSON.parse(localStorage.getItem("shoutu_heroes")||"[]")||[]; }catch(e){ return []; } }
+  function isHeroUnlocked(key){ const h=HEROES.find(x=>x.key===key); if(!h||!h.locked) return true; return getUnlockedHeroes().includes(key); }
+  function unlockHero(key){ const a=getUnlockedHeroes(); if(!a.includes(key)){ a.push(key); try{ localStorage.setItem("shoutu_heroes",JSON.stringify(a)); }catch(e){} } }
   // 戰績
   function getWins(){ try{ return parseInt(localStorage.getItem("shoutu_wins")||"0",10)||0; }catch(e){ return 0; } }
   function getMaxStar(){ try{ return parseInt(localStorage.getItem("shoutu_maxstar")||"0",10)||0; }catch(e){ return 0; } }
@@ -262,22 +298,36 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     document.getElementById("statsBody").innerHTML=
       `🌿 保育值：<b>${getEco()}</b><br>🎖️ 保育等級：<b>Lv.${lv}</b><br>🛡️ 驅逐外來種：<b>${getWins()}</b> 次<br>⭐ 最高配對星級：<b>${ml?("★"+ml):"—"}</b><br><br>`+
       `<span style="color:#ffd54f;font-weight:800">守護者族群復育</span><br>`+
-      HEROES.map(h=>`${h.name}　Lv.${upgLv(h.key)}`).join("　·　");
+      HEROES.filter(h=>isHeroUnlocked(h.key)).map(h=>`${h.name}　Lv.${heroLevel(h.key)}`).join("　·　");
   }
   function goSettings(){ state="settings"; setBattleUI(false); show(settingsScr); }
   function goUpgrade(){ state="upgrade"; setBattleUI(false); show(upgradeScr);
     document.getElementById("upgEco").textContent=getEco();
     const wrap=document.getElementById("upgCards"); wrap.innerHTML="";
-    HEROES.forEach(h=>{ const lv=upgLv(h.key), cost=upgCost(lv), eco=getEco(), can=eco>=cost;
+    HEROES.forEach((h,idx)=>{ const unlocked=isHeroUnlocked(h.key);
       const div=document.createElement("div"); div.className="card";
-      const cv=document.createElement("canvas"); cv.width=104; cv.height=104; div.appendChild(cv); drawCreature(cv.getContext("2d"),h.key,52,60,34,{t:0});
+      const cv=document.createElement("canvas"); cv.width=104; cv.height=104; div.appendChild(cv);
+      const cc=cv.getContext("2d"); drawCreature(cc,h.key,52,60,34,{t:0}); if(!unlocked){ cc.globalAlpha=0.55; cc.fillStyle="#000"; cc.fillRect(0,0,104,104); cc.globalAlpha=1; cc.font="30px serif"; cc.textAlign="center"; cc.fillText("🔒",52,64); }
       const info=document.createElement("div"); info.className="info";
-      info.innerHTML=`<div class="t">${h.name} <span style="color:#ffd54f;font-size:12px">Lv.${lv}</span></div>`+
-        `<div class="d">血量 +${lv*15} · 攻擊 +${lv}　｜　升級花 🌿 ${cost}</div>`;
-      div.appendChild(info);
-      const btn=document.createElement("button"); btn.className="btn"; btn.textContent="🌱 復育"; btn.style.cssText="margin:0;padding:8px 12px;font-size:13px;"+(can?"":"opacity:.4;");
-      btn.onclick=()=>{ if(getEco()>=cost){ setEco(getEco()-cost); const o=getUpg(); o[h.key]=lv+1; setUpg(o); goUpgrade(); } };
-      div.appendChild(btn); wrap.appendChild(div); });
+      if(!unlocked){
+        info.innerHTML=`<div class="t">${h.name} 🔒</div><div class="d">${h.status}<br>解鎖花 🌿 ${h.cost}</div>`;
+        div.appendChild(info);
+        const btn=document.createElement("button"); btn.className="btn"; btn.style.cssText="margin:0;padding:8px 12px;font-size:13px;"; btn.textContent="解鎖";
+        if(getEco()<h.cost){ btn.className="btn sec"; btn.style.opacity=".4"; }
+        btn.onclick=()=>{ if(getEco()>=h.cost){ setEco(getEco()-h.cost); unlockHero(h.key); goUpgrade(); } };
+        div.appendChild(btn);
+      } else {
+        const lv=heroLevel(h.key), xp=heroXP(h.key), inLv=lv>=50?100:(xp%100), max=lv>=50;
+        info.innerHTML=`<div class="t">${h.name} <span style="color:#ffd54f;font-size:12px">Lv.${lv}${max?" MAX":""}</span></div>`+
+          `<div class="d">血量 ${lvHP(h.key)} · 攻擊 +${lvAtk(h.key)}　｜　EXP ${max?"滿級":(inLv+"/100")}</div>`+
+          `<div style="height:6px;background:rgba(0,0,0,.4);border-radius:4px;margin-top:4px;overflow:hidden"><div style="height:100%;width:${inLv}%;background:#ffd54f"></div></div>`;
+        div.appendChild(info);
+        const btn=document.createElement("button"); btn.className="btn"; btn.style.cssText="margin:0;padding:8px 12px;font-size:13px;"; btn.textContent="🌿80→+100EXP";
+        if(max || getEco()<80){ btn.className="btn sec"; btn.style.opacity=".4"; }
+        btn.onclick=()=>{ if(!max && getEco()>=80){ setEco(getEco()-80); gainXP(h.key,100); goUpgrade(); } };
+        div.appendChild(btn);
+      }
+      wrap.appendChild(div); });
   }
   function setBattleUI(on){ dock.classList.toggle("hide",!on); }
   function goTitle(){ state="title"; setBattleUI(false); show(titleScr); }
@@ -286,10 +336,13 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   function resizeHeroShow(){ const r=heroShow.getBoundingClientRect(); hsW=r.width; hsH=r.height;
     const d=Math.min(window.devicePixelRatio||1,2); heroShow.width=Math.round(hsW*d); heroShow.height=Math.round(hsH*d); hctx.setTransform(d,0,0,d,0,0); }
   function buildRoster(){ const wrap=document.getElementById("roster"); wrap.innerHTML="";
-    HEROES.forEach((h,i)=>{ const b=document.createElement("button"); b.className="rb"+(i===featured?" sel":"");
+    HEROES.forEach((h,i)=>{ const unlocked=isHeroUnlocked(h.key);
+      const b=document.createElement("button"); b.className="rb"+(i===featured&&unlocked?" sel":"");
       const cv=document.createElement("canvas"); cv.width=116; cv.height=116; b.appendChild(cv);
-      drawCreature(cv.getContext("2d"), h.key, 58, 64, 40, {t:0});
-      b.onclick=()=>{ featured=i; updateLobby(); }; wrap.appendChild(b); }); }
+      const cc=cv.getContext("2d"); drawCreature(cc, h.key, 58, 64, 40, {t:0});
+      if(!unlocked){ cc.fillStyle="rgba(0,0,0,.5)"; cc.fillRect(0,0,116,116); cc.font="34px serif"; cc.textAlign="center"; cc.textBaseline="middle"; cc.fillText("🔒",58,60); }
+      b.onclick=()=>{ if(unlocked){ featured=i; updateLobby(); } else { transition(goUpgrade); } };
+      wrap.appendChild(b); }); }
   function updateLobby(){ const h=HEROES[featured];
     document.getElementById("hsName").textContent=h.name;
     document.getElementById("hsType").textContent=TYPE[h.type];
@@ -386,9 +439,9 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   function beginBattle(){ const c=CH[chapter]; state="play"; setBattleUI(true); show(null);
     elapsed=0; shake=0; hitstop=0; itemTimer=6; projs=[]; fx=[]; floaters=[]; parts=[]; items=[]; input.left=input.right=false;
     // 隊伍：配對戰可用全部 4 隻；戰役則用已解鎖的
-    const cnt = matchMode ? HEROES.length : Math.min(HEROES.length, getUnlocked()+1);
-    team=[]; for(let k=0;k<cnt;k++){ const mh=100+upgLv(HEROES[k].key)*15; team.push({idx:k, hp:mh, maxhp:mh, fainted:false}); }
-    active = matchMode ? Math.min(featured, team.length-1) : Math.min(c.hero, team.length-1);
+    const avail = HEROES.map((h,i)=>i).filter(i=> isHeroUnlocked(HEROES[i].key));
+    team = avail.map(i=>{ const mh=lvHP(HEROES[i].key); return {idx:i, hp:mh, maxhp:mh, fainted:false}; });
+    active = team.findIndex(m=>m.idx===featured); if(active<0) active=0;
     hero={ x:W*0.22, y:GY-28, vy:0, onGround:true, face:1, hp:100, maxhp:100, atkT:0, atkCd:0, atkHit:false, spCd:0, invuln:0, hitT:0, dashT:0, dashDir:1, foot:28, key:"leopard", type:"forest" };
     loadActive(active,true);
     const b=c.boss, hpS=matchMode?(0.7+matchLevel*0.18):1, dmgS=matchMode?(0.8+matchLevel*0.08):1;
@@ -398,7 +451,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     updateSp();
   }
   function loadActive(i,instant){ active=i; const m=team[i]; heroDef=HEROES[m.idx];
-    hero.key=heroDef.key; hero.type=heroDef.type; hero.maxhp=m.maxhp; hero.hp=m.hp;
+    hero.key=heroDef.key; hero.type=heroDef.type; hero.sp=heroDef.sp; hero.maxhp=m.maxhp; hero.hp=m.hp;
     hero.atkT=0; hero.atkCd=0; hero.atkHit=false; hero.spCd=0; hero.dashT=0; hero.invuln=Math.max(hero.invuln, instant?0.3:0.7); updateSp(); }
   function saveActive(){ if(team&&team[active]) team[active].hp=hero.hp; }
   function nextAlive(from){ for(let k=1;k<=team.length;k++){ const j=(from+k)%team.length; if(!team[j].fainted) return j; } return -1; }
@@ -407,10 +460,10 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   /* ===== 英雄動作 ===== */
   function heroAttack(){ if(state!=="play"||hero.atkCd>0||hero.dashT>0) return; hero.atkT=0.22; hero.atkCd=heroDef.atkCd; hero.atkHit=false; hero.x+=hero.face*10; }
   function heroJump(){ if(state!=="play"||!hero.onGround) return; hero.vy=JUMP; hero.onGround=false; }
-  function heroSpecial(){ if(state!=="play"||hero.spCd>0) return; const k=hero.key; hero.spCd=heroDef.spCd;
-    if(k==="leopard"||k==="dragonfly"){ hero.dashT=(k==="dragonfly")?0.34:0.26; hero.dashDir=hero.face; hero.invuln=Math.max(hero.invuln,hero.dashT+0.05); hero.spDmg=(k==="dragonfly")?24:20; hero.spHit=false; flo(hero.x,hero.y-50,heroDef.spName+"!","#fff59d"); }
-    else if(k==="bear"){ hero.vy=JUMP*0.7; hero.slamPending=true; flo(hero.x,hero.y-50,"震地!","#fff59d"); }
-    else if(k==="cicada"){ projs.push({from:"hero",x:hero.x+hero.face*30,y:hero.y-20,vx:hero.face*460,vy:0,r:18,dmg:16,stun:true,life:1.6,kind:"sonic"}); flo(hero.x,hero.y-50,"音波!","#fff59d"); }
+  function heroSpecial(){ if(state!=="play"||hero.spCd>0) return; const sp=hero.sp; hero.spCd=heroDef.spCd;
+    if(sp==="dash"){ const fast=hero.type==="sky"; hero.dashT=fast?0.34:0.26; hero.dashDir=hero.face; hero.invuln=Math.max(hero.invuln,hero.dashT+0.05); hero.spDmg=fast?24:20; hero.spHit=false; flo(hero.x,hero.y-50,heroDef.spName+"!","#fff59d"); }
+    else if(sp==="slam"){ hero.vy=JUMP*0.7; hero.slamPending=true; flo(hero.x,hero.y-50,heroDef.spName+"!","#fff59d"); }
+    else if(sp==="sonic"){ projs.push({from:"hero",x:hero.x+hero.face*30,y:hero.y-20,vx:hero.face*460,vy:0,r:18,dmg:16,stun:true,life:1.6,kind:"sonic"}); flo(hero.x,hero.y-50,heroDef.spName+"!","#fff59d"); }
     updateSp();
   }
   function hurtHero(base,fromX){ if(hero.invuln>0) return; const mult=eff(boss.type,hero.type); const dmg=Math.round(base*mult);
@@ -464,8 +517,8 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     hero.x=Math.max(20,Math.min(W-20,hero.x));
     hero.vy+=GRAV*dt; hero.y+=hero.vy*dt; const hy=GY-hero.foot;
     if(hero.y>=hy){ if(!hero.onGround&&hero.slamPending){ hero.slamPending=false; if(Math.abs(hero.x-boss.x)<160) hitBoss(20); shake=Math.max(shake,9); } hero.y=hy; hero.vy=0; hero.onGround=true; }
-    if(hero.atkT>0 && !hero.atkHit){ const gap=Math.abs(hero.x-boss.x)-boss.r; const facing=(boss.x-hero.x)*hero.face>=0; if(gap<heroDef.reach && facing){ hitBoss(heroDef.atkDmg+upgLv(hero.key)); hero.atkHit=true; } }
-    if(hero.dashT>0 && !hero.spHit && (hero.key==="leopard"||hero.key==="dragonfly")){ if(Math.abs(hero.x-boss.x)<boss.r+26){ hitBoss(hero.spDmg); hero.spHit=true; } }
+    if(hero.atkT>0 && !hero.atkHit){ const gap=Math.abs(hero.x-boss.x)-boss.r; const facing=(boss.x-hero.x)*hero.face>=0; if(gap<heroDef.reach && facing){ hitBoss(heroDef.atkDmg+lvAtk(hero.key)); hero.atkHit=true; } }
+    if(hero.dashT>0 && !hero.spHit && hero.sp==="dash"){ if(Math.abs(hero.x-boss.x)<boss.r+26){ hitBoss(hero.spDmg); hero.spHit=true; } }
     bossUpdate(dt);
     // 防穿模：非衝撞時，英雄不可走進魔王身體（維持在自己這側）
     { const charging=(boss.st==="attack"&&boss.atk==="charge"); if(!charging){ const minGap=boss.r*0.55+18;
@@ -485,9 +538,10 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   function updateSp(){ const r=Math.max(0,hero?hero.spCd:0); const cd=heroDef?heroDef.spCd:5; bSp.querySelector(".fill").style.height=(r/cd*100)+"%"; bSp.classList.toggle("ready", r<=0); }
 
   function winChapter(){ if(state!=="play")return;
-    if(matchMode){ state="post"; setBattleUI(false); bumpWin(); dailyBump("repel",1); if(matchLevel>=3) dailyBump("hard",1); const gain=matchLevel*10; setEco(getEco()+gain);
+    if(matchMode){ state="post"; setBattleUI(false); bumpWin(); dailyBump("repel",1); if(matchLevel>=3) dailyBump("hard",1);
+      const gain=matchLevel*10; setEco(getEco()+gain); const xpGain=40+matchLevel*15; gainXP(HEROES[featured].key, xpGain);
       const tip="🌱 <b>你可以這樣幫：</b><br>"+CONS_INV[boss.kind]+"<br>"+CONS_END[HEROES[featured].key];
-      showResult("🛡️ 驅逐成功！", boss.name+" 被擊退，棲地 +"+gain+" 保育值", tip, "⚔ 再來一場", quickMatch); return; }
+      showResult("🛡️ 驅逐成功！", boss.name+" 被擊退　🌿+"+gain+"　"+HEROES[featured].name+" EXP+"+xpGain, tip, "⚔ 再來一場", quickMatch); return; }
     state="post"; setBattleUI(false);
     const was=getUnlocked(); if(chapter+1>was) setUnlocked(Math.min(CH.length,chapter+1));
     playStory(CH[chapter].outro, ()=>{ const last=chapter>=CH.length-1;
@@ -590,14 +644,12 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   document.getElementById("navDex").onclick=()=>transition(goDex);
   document.getElementById("navUpg").onclick=()=>transition(goUpgrade);
   document.getElementById("upgBack").onclick=()=>transition(goLobby);
-  document.getElementById("upgReset").onclick=()=>{ setUnlocked(0); try{ localStorage.removeItem("shoutu_upg"); localStorage.removeItem("shoutu_eco"); }catch(e){} goUpgrade(); };
   document.getElementById("navDaily").onclick=()=>transition(goDaily);
   document.getElementById("dailyBack").onclick=()=>transition(goLobby);
   document.getElementById("navStats").onclick=()=>transition(goStats);
   document.getElementById("navSet").onclick=()=>transition(goSettings);
   document.getElementById("statsBack").onclick=()=>transition(goLobby);
   document.getElementById("setBack").onclick=()=>transition(goLobby);
-  document.getElementById("setReset").onclick=()=>{ try{ ["shoutu_unlocked","shoutu_eco","shoutu_upg","shoutu_wins","shoutu_maxstar"].forEach(k=>localStorage.removeItem(k)); }catch(e){} goSettings(); };
   document.getElementById("setShare").onclick=()=>{ const url="https://jimmyliao.github.io/maxgame/"; if(navigator.share){ navigator.share({title:"守土 · 福爾摩沙衛士", text:"一起來守護台灣特有種！", url}).catch(()=>{}); } else { try{ navigator.clipboard.writeText(url); }catch(e){} alert("遊戲連結已複製，分享給朋友一起守護台灣生態！\n"+url); } };
   window.__tx=transition;
   window.addEventListener("keydown",(e)=>{ if(state==="play"){ if(e.key==="ArrowLeft"||e.key==="a")input.left=true; else if(e.key==="ArrowRight"||e.key==="d")input.right=true;
