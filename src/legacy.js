@@ -572,20 +572,75 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     else if(it.key==="report"){ boss.hp-=28; burst(boss.x,boss.y-boss.r*0.2,14,"#ffd54f",1.3); shake=Math.max(shake,10); flo(it.x,it.y-34,"📢 通報移除！","#ffd54f"); if(boss.hp<=0){ boss.hp=0; winChapter(); } }
     else if(it.key==="shield"){ hero.invuln=Math.max(hero.invuln,3); flo(it.x,it.y-34,"🛡️ 生態廊道 無敵","#80deea"); } }
 
-  /* ===== 背景 ===== */
-  function paintBackground(c,w,h,bg){ let top="#1b5e20",bot="#33691e";
-    if(bg==="paddy"){top="#cfe8a0";bot="#9ccc65";} else if(bg==="hill"){top="#a5d6a7";bot="#66946a";}
-    else if(bg==="stream"){top="#9fd8f0";bot="#4fa6c9";} else if(bg==="wetland"){top="#a7d7cf";bot="#5a9a8f";}
-    const g=c.createLinearGradient(0,0,0,h); g.addColorStop(0,top); g.addColorStop(1,bot); c.fillStyle=g; c.fillRect(0,0,w,h);
-    c.globalAlpha=0.18; c.fillStyle="#2e7d32"; c.beginPath(); c.moveTo(0,h*0.62); c.quadraticCurveTo(w*0.3,h*0.46,w*0.55,h*0.6); c.quadraticCurveTo(w*0.8,h*0.72,w,h*0.55); c.lineTo(w,h); c.lineTo(0,h); c.fill(); c.globalAlpha=1; }
-  function drawGround(){ ctx.fillStyle="#5d4037"; ctx.fillRect(0,GY,W,H-GY); ctx.fillStyle="#6d4c41"; ctx.fillRect(0,GY,W,6);
-    ctx.strokeStyle="rgba(0,0,0,.12)"; ctx.lineWidth=2; for(let x=0;x<W;x+=28){ ctx.beginPath(); ctx.moveTo(x,GY+12); ctx.lineTo(x+10,GY+12); ctx.stroke(); } }
+  /* ===== 背景（依棲地的寫實大氣場景） ===== */
+  // 每種棲地的天空/太陽/三層山色/前景植被
+  const BG_PAL={
+    paddy:  { sky:["#6fa8cf","#a7cfe0","#f0e3b4"], sun:"255,238,180", sunX:0.74, sunY:0.20, far:"#9db7c4", mid:"#7a9a6e", near:"#46683f", veg:"rice" },
+    hill:   { sky:["#bcdcee","#d6e7e0","#eaf1d6"], sun:"255,250,225", sunX:0.30, sunY:0.18, far:"#9fbcc4", mid:"#6f9a6a", near:"#3c6b3a", veg:"tree" },
+    stream: { sky:["#a9d6ec","#cde8ef","#e3f1e6"], sun:"255,252,235", sunX:0.66, sunY:0.16, far:"#a7c4cc", mid:"#6f9e88", near:"#3e6f5c", veg:"rock" },
+    wetland:{ sky:["#f4b483","#e7a6a0","#9fb1c8"], sun:"255,210,150", sunX:0.78, sunY:0.26, far:"#b69ca8", mid:"#7d7f95", near:"#4a5a63", veg:"reed" },
+    forest: { sky:["#bcdcee","#cfe6d6","#e3efcf"], sun:"255,250,225", sunX:0.30, sunY:0.18, far:"#9fbcc4", mid:"#5f8f5a", near:"#33602f", veg:"tree" }
+  };
+  function drawVeg(c,w,hz,p,t){
+    if(p.veg==="tree"){ c.fillStyle="rgba(10,38,24,0.9)";
+      for(const tx of [0.04,0.13,0.88,0.97]){ const bx=w*tx, by=hz, th=hz*0.22;
+        c.beginPath(); c.moveTo(bx,by); c.lineTo(bx-th*0.42,by-th*0.55); c.lineTo(bx+th*0.42,by-th*0.55); c.closePath();
+        c.moveTo(bx,by-th*0.34); c.lineTo(bx-th*0.5,by-th*0.95); c.lineTo(bx+th*0.5,by-th*0.95); c.closePath(); c.fill();
+        c.fillRect(bx-2,by-th*0.55,4,th*0.55); } }
+    else if(p.veg==="reed"){ c.lineWidth=3;
+      for(let i=0;i<24;i++){ const bx=(i/24)*w+(i%3)*5, bh=hz*(0.1+0.06*(i%4)), sw=Math.sin(t*1.2+i)*5;
+        c.strokeStyle="rgba(20,32,30,0.8)"; c.beginPath(); c.moveTo(bx,hz); c.quadraticCurveTo(bx+sw,hz-bh*0.6,bx+sw*1.6,hz-bh); c.stroke();
+        c.fillStyle="rgba(80,62,34,0.85)"; c.beginPath(); c.ellipse(bx+sw*1.6,hz-bh,2.4,6.5,0,0,7); c.fill(); } }
+    else if(p.veg==="rice"){ c.strokeStyle="rgba(120,140,50,0.55)"; c.lineWidth=2;
+      for(let i=0;i<44;i++){ const bx=(i/44)*w, bh=hz*0.06, sw=Math.sin(t*1.5+i)*2.2;
+        c.beginPath(); c.moveTo(bx,hz); c.lineTo(bx+sw,hz-bh); c.stroke(); } }
+    else if(p.veg==="rock"){ c.fillStyle="rgba(66,78,84,0.88)";
+      for(const rx of [0.08,0.2,0.5,0.8,0.93]){ const bx=w*rx, by=hz, rw=hz*(0.06+0.03*((rx*10)%2));
+        c.beginPath(); c.moveTo(bx-rw,by); c.quadraticCurveTo(bx-rw*0.6,by-rw*0.95,bx,by-rw); c.quadraticCurveTo(bx+rw*0.7,by-rw*0.8,bx+rw,by); c.closePath(); c.fill(); } }
+  }
+  function paintBackground(c,w,h,bg,t){ t=t||0; const hz=h*0.82, p=BG_PAL[bg]||BG_PAL.forest;
+    // 天空漸層
+    const sky=c.createLinearGradient(0,0,0,hz); sky.addColorStop(0,p.sky[0]); sky.addColorStop(.55,p.sky[1]); sky.addColorStop(1,p.sky[2]);
+    c.fillStyle=sky; c.fillRect(0,0,w,hz);
+    // 太陽 + 大氣輝光
+    const sx=w*p.sunX, sy=hz*p.sunY;
+    const sun=c.createRadialGradient(sx,sy,2,sx,sy,hz*0.55); sun.addColorStop(0,"rgba("+p.sun+",0.95)"); sun.addColorStop(.25,"rgba("+p.sun+",0.4)"); sun.addColorStop(1,"rgba("+p.sun+",0)");
+    c.fillStyle=sun; c.fillRect(0,0,w,hz);
+    c.fillStyle="rgba("+p.sun+",0.9)"; c.beginPath(); c.arc(sx,sy,hz*0.05,0,7); c.fill();
+    // 飄移雲層
+    for(let i=0;i<4;i++){ const cx=((i*0.32+t*0.012)%1.25-0.12)*w, cy=hz*(0.12+i*0.07), cw=w*(0.16+0.05*(i%2)), ch=hz*0.045;
+      c.fillStyle="rgba(255,255,255,"+(0.34-i*0.05).toFixed(2)+")"; c.beginPath(); c.ellipse(cx,cy,cw,ch,0,0,7); c.fill(); }
+    // 遠/中/近三層山稜
+    const ridge=(yB,amp,seed,col)=>{ c.fillStyle=col; c.beginPath(); c.moveTo(0,yB);
+      for(let x=0;x<=w;x+=w/12){ c.lineTo(x, yB - amp*Math.sin(x/w*3.14159+seed) - amp*0.45*Math.sin(x/w*7+seed*1.7)); }
+      c.lineTo(w,hz); c.lineTo(0,hz); c.closePath(); c.fill(); };
+    ridge(hz*0.72,hz*0.13,0.4,p.far);
+    c.fillStyle="rgba(255,255,255,0.16)"; c.fillRect(0,hz*0.64,w,hz*0.13); // 山腰霧帶
+    ridge(hz*0.85,hz*0.12,1.6,p.mid);
+    ridge(hz*0.97,hz*0.10,2.7,p.near);
+    drawVeg(c,w,hz,p,t);
+    // 地平線空氣感壓暗
+    const hb=c.createLinearGradient(0,hz*0.78,0,hz); hb.addColorStop(0,"rgba(0,0,0,0)"); hb.addColorStop(1,"rgba(0,0,0,0.12)"); c.fillStyle=hb; c.fillRect(0,hz*0.78,w,hz*0.22);
+  }
+  function drawGround(bg,t){ t=t||0; const water=(bg==="paddy"||bg==="stream"||bg==="wetland");
+    if(water){ const wc={paddy:["#8a9659","#5a6a39"],stream:["#5aa6c4","#2f6f8c"],wetland:["#6f7e88","#3a525c"]}[bg];
+      const g=ctx.createLinearGradient(0,GY,0,H); g.addColorStop(0,wc[0]); g.addColorStop(1,wc[1]); ctx.fillStyle=g; ctx.fillRect(0,GY,W,H-GY);
+      ctx.save(); ctx.globalCompositeOperation="lighter"; // 水面流動反光
+      for(let i=0;i<7;i++){ const yy=GY+8+i*((H-GY-8)/7), a=0.13*(1-i/7), ww=W*(0.5+0.3*Math.sin(t*0.8+i)), xx=W*0.5-ww/2+Math.sin(t*0.5+i)*22;
+        ctx.fillStyle="rgba(255,255,255,"+a.toFixed(3)+")"; ctx.fillRect(xx,yy,ww,2); }
+      ctx.restore();
+      ctx.fillStyle="rgba(255,255,255,0.35)"; ctx.fillRect(0,GY,W,2); // 岸邊高光
+    } else { const sc={hill:["#6b7d3f","#45591f"],forest:["#5d7e3a","#3a5626"]}[bg]||["#5d4037","#3e2723"];
+      const g=ctx.createLinearGradient(0,GY,0,H); g.addColorStop(0,sc[0]); g.addColorStop(1,sc[1]); ctx.fillStyle=g; ctx.fillRect(0,GY,W,H-GY);
+      ctx.fillStyle="rgba(0,0,0,0.18)"; ctx.fillRect(0,GY,W,4);
+      ctx.strokeStyle="rgba(28,56,22,0.5)"; ctx.lineWidth=2; // 草叢
+      for(let x=6;x<W;x+=18){ const hh=6+((x*7)%6); ctx.beginPath(); ctx.moveTo(x,GY+8); ctx.lineTo(x+3,GY+8-hh); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x+6,GY+8); ctx.lineTo(x+4,GY+8-hh*0.8); ctx.stroke(); } } }
 
   /* ===== 繪製 ===== */
   function hpBar(x,y,w,frac,col,name){ ctx.fillStyle="rgba(0,0,0,.45)"; ctx.fillRect(x,y,w,14); ctx.fillStyle=col; ctx.fillRect(x,y,w*Math.max(0,frac),14);
     ctx.strokeStyle="rgba(255,255,255,.5)"; ctx.lineWidth=2; ctx.strokeRect(x,y,w,14); ctx.fillStyle="#fff"; ctx.font="bold 12px sans-serif"; ctx.textBaseline="alphabetic"; ctx.fillText(name,x,y-5); }
   function draw(){ ctx.save(); if(shake>0) ctx.translate((Math.random()-0.5)*shake,(Math.random()-0.5)*shake);
-    paintBackground(ctx,W+1,H+1,CH[chapter]?CH[chapter].bg:"paddy"); drawGround();
+    const _bg=CH[chapter]?CH[chapter].bg:"paddy"; paintBackground(ctx,W+1,H+1,_bg,elapsed); drawGround(_bg,elapsed);
     for(const p of projs){ if(p.from==="bossWave"){ ctx.fillStyle="rgba(180,120,80,.6)"; ctx.beginPath(); ctx.ellipse(p.x,GY-6,p.r,p.r*0.5,0,0,7); ctx.fill(); }
       else if(p.from==="boss"){ ctx.fillStyle="#7e57c2"; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,7); ctx.fill(); }
       else if(p.kind==="sonic"){ ctx.strokeStyle="rgba(174,213,129,.9)"; ctx.lineWidth=4; ctx.beginPath(); ctx.arc(p.x,p.y,16,0,7); ctx.stroke(); } }
