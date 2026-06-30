@@ -37,6 +37,12 @@ test("載入無錯誤、鐵則齊全、能走完一場戰鬥", async ({ page }) 
   await page.locator("#upgBack").click();
   await expect(page.locator("#playBtn")).toBeVisible();
 
+  // 每日任務：3 項
+  await page.locator("#navDaily").click();
+  await expect(page.locator("#dailyCards .card")).toHaveCount(3);
+  await page.locator("#dailyBack").click();
+  await expect(page.locator("#playBtn")).toBeVisible();
+
   // 戰績 / 設定
   await page.locator("#navStats").click();
   await expect(page.locator("#statsBack")).toBeVisible();

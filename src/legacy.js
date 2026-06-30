@@ -195,7 +195,8 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   const dock=document.getElementById("dock");
   const titleScr=document.getElementById("title"), mapScr=document.getElementById("map"),
         resultScr=document.getElementById("result"), storyScr=document.getElementById("story"), dexScr=document.getElementById("dex"),
-        upgradeScr=document.getElementById("upgrade"), statsScr=document.getElementById("stats"), settingsScr=document.getElementById("settings");
+        upgradeScr=document.getElementById("upgrade"), statsScr=document.getElementById("stats"), settingsScr=document.getElementById("settings"),
+        dailyScr=document.getElementById("daily");
   const bSp=document.getElementById("bSp"), bSwap=document.getElementById("bSwap");
   const lobbyScr=document.getElementById("lobby");
   const heroShow=document.getElementById("heroShow"), hctx=heroShow.getContext("2d");
@@ -215,6 +216,14 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   function getWins(){ try{ return parseInt(localStorage.getItem("shoutu_wins")||"0",10)||0; }catch(e){ return 0; } }
   function getMaxStar(){ try{ return parseInt(localStorage.getItem("shoutu_maxstar")||"0",10)||0; }catch(e){ return 0; } }
   function bumpWin(){ try{ localStorage.setItem("shoutu_wins",String(getWins()+1)); if(matchLevel>getMaxStar()) localStorage.setItem("shoutu_maxstar",String(matchLevel)); }catch(e){} }
+  // 每日任務（每天刷新、完成領保育值）
+  const DAILY_DEFS=[ {id:"repel",name:"驅逐 3 隻外來種",goal:3,reward:60}, {id:"item",name:"撿取 5 個保育道具",goal:5,reward:40}, {id:"hard",name:"打贏 1 場 ★3 以上配對",goal:1,reward:50} ];
+  function todayKey(){ try{ const d=new Date(); return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate(); }catch(e){ return "x"; } }
+  function getDaily(){ let o=null; try{ o=JSON.parse(localStorage.getItem("shoutu_daily")||"null"); }catch(e){}
+    if(!o || o.date!==todayKey()){ o={date:todayKey(),prog:{},claimed:{}}; saveDaily(o); } return o; }
+  function saveDaily(o){ try{ localStorage.setItem("shoutu_daily",JSON.stringify(o)); }catch(e){} }
+  function dailyBump(id,n){ const o=getDaily(); o.prog[id]=(o.prog[id]||0)+(n||1); saveDaily(o); }
+  function dailyClaimable(){ const o=getDaily(); return DAILY_DEFS.filter(d=>(o.prog[d.id]||0)>=d.goal && !o.claimed[d.id]).length; }
 
   let W=0,H=0,GY=0,dpr=1;
   function resize(){ const r=canvas.getBoundingClientRect(); W=r.width; H=r.height; GY=H*0.82;
@@ -233,7 +242,21 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   const GRAV=1700, JUMP=-620;
   const input={ left:false, right:false };
 
-  function show(scr){ [titleScr,mapScr,resultScr,dexScr,lobbyScr,upgradeScr,statsScr,settingsScr].forEach(s=>s.classList.add("hide")); storyScr.classList.add("hide"); if(scr) scr.classList.remove("hide"); }
+  function show(scr){ [titleScr,mapScr,resultScr,dexScr,lobbyScr,upgradeScr,statsScr,settingsScr,dailyScr].forEach(s=>s.classList.add("hide")); storyScr.classList.add("hide"); if(scr) scr.classList.remove("hide"); }
+  function goDaily(){ state="daily"; setBattleUI(false); show(dailyScr);
+    const o=getDaily(), wrap=document.getElementById("dailyCards"); wrap.innerHTML="";
+    DAILY_DEFS.forEach(d=>{ const prog=Math.min(o.prog[d.id]||0,d.goal), done=prog>=d.goal, claimed=!!o.claimed[d.id];
+      const div=document.createElement("div"); div.className="card"+(claimed?" cleared":"");
+      const info=document.createElement("div"); info.className="info";
+      info.innerHTML=`<div class="t">${d.name}</div>`+
+        `<div class="d">進度 ${prog}/${d.goal}　·　獎勵 🌿 ${d.reward}</div>`;
+      div.appendChild(info);
+      const btn=document.createElement("button"); btn.className="btn"; btn.style.cssText="margin:0;padding:8px 12px;font-size:13px;";
+      if(claimed){ btn.textContent="已領取"; btn.className="btn sec"; btn.disabled=true; btn.style.opacity=".5"; }
+      else if(done){ btn.textContent="領取"; btn.onclick=()=>{ const oo=getDaily(); if(!oo.claimed[d.id] && (oo.prog[d.id]||0)>=d.goal){ oo.claimed[d.id]=true; saveDaily(oo); setEco(getEco()+d.reward); goDaily(); } }; }
+      else { btn.textContent="進行中"; btn.className="btn sec"; btn.disabled=true; btn.style.opacity=".5"; }
+      div.appendChild(btn); wrap.appendChild(div); });
+  }
   function goStats(){ state="stats"; setBattleUI(false); show(statsScr);
     const lv=Math.floor(getEco()/100)+1, ml=getMaxStar();
     document.getElementById("statsBody").innerHTML=
@@ -273,6 +296,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     document.getElementById("hsTag").textContent=LOBBY_TAG[h.key]||h.status;
     document.getElementById("ecoVal").textContent=getEco();
     document.getElementById("trophyVal").textContent=Math.floor(getEco()/100)+1;
+    const cl=dailyClaimable(), nd=document.getElementById("navDaily"); if(nd) nd.textContent=cl>0?("📋 任務 ("+cl+")"):"📋 任務";
     [...document.querySelectorAll("#roster .rb")].forEach((b,i)=>b.classList.toggle("sel",i===featured)); }
   function goLobby(){ state="lobby"; setBattleUI(false); show(lobbyScr); buildRoster(); updateLobby(); resizeHeroShow(); }
   const TICKERS=["🌿 石虎全台僅存數百隻，路殺是最大威脅之一","🐻 台灣黑熊胸前的白色 V 是月亮的印記","💧 福壽螺來自南美，是稻田的大害","🦎 綠鬣蜥棄養野化，正衝擊南部生態","🕊 埃及聖䴉搶佔黑面琵鷺的濕地","🪲 爺蟬幼蟲在地下蟄伏多年才羽化"];
@@ -461,7 +485,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   function updateSp(){ const r=Math.max(0,hero?hero.spCd:0); const cd=heroDef?heroDef.spCd:5; bSp.querySelector(".fill").style.height=(r/cd*100)+"%"; bSp.classList.toggle("ready", r<=0); }
 
   function winChapter(){ if(state!=="play")return;
-    if(matchMode){ state="post"; setBattleUI(false); bumpWin(); const gain=matchLevel*10; setEco(getEco()+gain);
+    if(matchMode){ state="post"; setBattleUI(false); bumpWin(); dailyBump("repel",1); if(matchLevel>=3) dailyBump("hard",1); const gain=matchLevel*10; setEco(getEco()+gain);
       const tip="🌱 <b>你可以這樣幫：</b><br>"+CONS_INV[boss.kind]+"<br>"+CONS_END[HEROES[featured].key];
       showResult("🛡️ 驅逐成功！", boss.name+" 被擊退，棲地 +"+gain+" 保育值", tip, "⚔ 再來一場", quickMatch); return; }
     state="post"; setBattleUI(false);
@@ -483,7 +507,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   function burst(x,y,n,col,power){ power=power||1; for(let i=0;i<n;i++){ const a=Math.random()*6.283, sp=(70+Math.random()*200)*power; parts.push({type:"spark",x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-70,life:0.3+Math.random()*0.25,max:0.55,r:1.4+Math.random()*2.6,col}); } if(parts.length>240) parts.splice(0,parts.length-240); }
   function ringAt(x,y,col,maxr){ parts.push({type:"ring",x,y,life:0.28,max:0.28,r0:6,r1:maxr||40,col}); }
   function spawnItem(){ const k=ITEM_KEYS[Math.floor(Math.random()*ITEM_KEYS.length)]; items.push({key:k,x:60+Math.random()*(W-120),y:GY-22,life:12,bob:Math.random()*6}); }
-  function collectItem(it){ const d=ITEMS[it.key]; ringAt(it.x,it.y-10,d.col,46); burst(it.x,it.y-10,10,d.col,1);
+  function collectItem(it){ const d=ITEMS[it.key]; ringAt(it.x,it.y-10,d.col,46); burst(it.x,it.y-10,10,d.col,1); dailyBump("item",1);
     if(it.key==="heal"){ hero.hp=Math.min(hero.maxhp,hero.hp+30); flo(it.x,it.y-34,"🌿 棲地復育 +30","#a5d6a7"); }
     else if(it.key==="report"){ boss.hp-=28; burst(boss.x,boss.y-boss.r*0.2,14,"#ffd54f",1.3); shake=Math.max(shake,10); flo(it.x,it.y-34,"📢 通報移除！","#ffd54f"); if(boss.hp<=0){ boss.hp=0; winChapter(); } }
     else if(it.key==="shield"){ hero.invuln=Math.max(hero.invuln,3); flo(it.x,it.y-34,"🛡️ 生態廊道 無敵","#80deea"); } }
@@ -567,6 +591,8 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   document.getElementById("navUpg").onclick=()=>transition(goUpgrade);
   document.getElementById("upgBack").onclick=()=>transition(goLobby);
   document.getElementById("upgReset").onclick=()=>{ setUnlocked(0); try{ localStorage.removeItem("shoutu_upg"); localStorage.removeItem("shoutu_eco"); }catch(e){} goUpgrade(); };
+  document.getElementById("navDaily").onclick=()=>transition(goDaily);
+  document.getElementById("dailyBack").onclick=()=>transition(goLobby);
   document.getElementById("navStats").onclick=()=>transition(goStats);
   document.getElementById("navSet").onclick=()=>transition(goSettings);
   document.getElementById("statsBack").onclick=()=>transition(goLobby);
