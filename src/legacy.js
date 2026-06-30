@@ -194,7 +194,8 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   const canvas=document.getElementById("game"), ctx=canvas.getContext("2d");
   const dock=document.getElementById("dock");
   const titleScr=document.getElementById("title"), mapScr=document.getElementById("map"),
-        resultScr=document.getElementById("result"), storyScr=document.getElementById("story"), dexScr=document.getElementById("dex");
+        resultScr=document.getElementById("result"), storyScr=document.getElementById("story"), dexScr=document.getElementById("dex"),
+        upgradeScr=document.getElementById("upgrade");
   const bSp=document.getElementById("bSp"), bSwap=document.getElementById("bSwap");
   const lobbyScr=document.getElementById("lobby");
   const heroShow=document.getElementById("heroShow"), hctx=heroShow.getContext("2d");
@@ -205,6 +206,11 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   let featured=0, hsW=0, hsH=0;
   function getEco(){ try{ return parseInt(localStorage.getItem("shoutu_eco")||"0",10)||0; }catch(e){ return 0; } }
   function setEco(v){ try{ localStorage.setItem("shoutu_eco",String(v)); }catch(e){} }
+  // 復育（保育值用途）：升級守護者族群 → 血量↑攻擊↑
+  function getUpg(){ try{ return JSON.parse(localStorage.getItem("shoutu_upg")||"{}")||{}; }catch(e){ return {}; } }
+  function setUpg(o){ try{ localStorage.setItem("shoutu_upg",JSON.stringify(o)); }catch(e){} }
+  function upgLv(key){ return getUpg()[key]||0; }
+  function upgCost(lv){ return 50*(lv+1); }
 
   let W=0,H=0,GY=0,dpr=1;
   function resize(){ const r=canvas.getBoundingClientRect(); W=r.width; H=r.height; GY=H*0.82;
@@ -223,7 +229,21 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   const GRAV=1700, JUMP=-620;
   const input={ left:false, right:false };
 
-  function show(scr){ [titleScr,mapScr,resultScr,dexScr,lobbyScr].forEach(s=>s.classList.add("hide")); storyScr.classList.add("hide"); if(scr) scr.classList.remove("hide"); }
+  function show(scr){ [titleScr,mapScr,resultScr,dexScr,lobbyScr,upgradeScr].forEach(s=>s.classList.add("hide")); storyScr.classList.add("hide"); if(scr) scr.classList.remove("hide"); }
+  function goUpgrade(){ state="upgrade"; setBattleUI(false); show(upgradeScr);
+    document.getElementById("upgEco").textContent=getEco();
+    const wrap=document.getElementById("upgCards"); wrap.innerHTML="";
+    HEROES.forEach(h=>{ const lv=upgLv(h.key), cost=upgCost(lv), eco=getEco(), can=eco>=cost;
+      const div=document.createElement("div"); div.className="card";
+      const cv=document.createElement("canvas"); cv.width=104; cv.height=104; div.appendChild(cv); drawCreature(cv.getContext("2d"),h.key,52,60,34,{t:0});
+      const info=document.createElement("div"); info.className="info";
+      info.innerHTML=`<div class="t">${h.name} <span style="color:#ffd54f;font-size:12px">Lv.${lv}</span></div>`+
+        `<div class="d">血量 +${lv*15} · 攻擊 +${lv}　｜　升級花 🌿 ${cost}</div>`;
+      div.appendChild(info);
+      const btn=document.createElement("button"); btn.className="btn"; btn.textContent="🌱 復育"; btn.style.cssText="margin:0;padding:8px 12px;font-size:13px;"+(can?"":"opacity:.4;");
+      btn.onclick=()=>{ if(getEco()>=cost){ setEco(getEco()-cost); const o=getUpg(); o[h.key]=lv+1; setUpg(o); goUpgrade(); } };
+      div.appendChild(btn); wrap.appendChild(div); });
+  }
   function setBattleUI(on){ dock.classList.toggle("hide",!on); }
   function goTitle(){ state="title"; setBattleUI(false); show(titleScr); }
 
@@ -331,7 +351,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     elapsed=0; shake=0; hitstop=0; itemTimer=6; projs=[]; fx=[]; floaters=[]; parts=[]; items=[]; input.left=input.right=false;
     // 隊伍：配對戰可用全部 4 隻；戰役則用已解鎖的
     const cnt = matchMode ? HEROES.length : Math.min(HEROES.length, getUnlocked()+1);
-    team=[]; for(let k=0;k<cnt;k++) team.push({idx:k, hp:100, maxhp:100, fainted:false});
+    team=[]; for(let k=0;k<cnt;k++){ const mh=100+upgLv(HEROES[k].key)*15; team.push({idx:k, hp:mh, maxhp:mh, fainted:false}); }
     active = matchMode ? Math.min(featured, team.length-1) : Math.min(c.hero, team.length-1);
     hero={ x:W*0.22, y:GY-28, vy:0, onGround:true, face:1, hp:100, maxhp:100, atkT:0, atkCd:0, atkHit:false, spCd:0, invuln:0, hitT:0, dashT:0, dashDir:1, foot:28, key:"leopard", type:"forest" };
     loadActive(active,true);
@@ -408,7 +428,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     hero.x=Math.max(20,Math.min(W-20,hero.x));
     hero.vy+=GRAV*dt; hero.y+=hero.vy*dt; const hy=GY-hero.foot;
     if(hero.y>=hy){ if(!hero.onGround&&hero.slamPending){ hero.slamPending=false; if(Math.abs(hero.x-boss.x)<160) hitBoss(20); shake=Math.max(shake,9); } hero.y=hy; hero.vy=0; hero.onGround=true; }
-    if(hero.atkT>0 && !hero.atkHit){ const gap=Math.abs(hero.x-boss.x)-boss.r; const facing=(boss.x-hero.x)*hero.face>=0; if(gap<heroDef.reach && facing){ hitBoss(heroDef.atkDmg); hero.atkHit=true; } }
+    if(hero.atkT>0 && !hero.atkHit){ const gap=Math.abs(hero.x-boss.x)-boss.r; const facing=(boss.x-hero.x)*hero.face>=0; if(gap<heroDef.reach && facing){ hitBoss(heroDef.atkDmg+upgLv(hero.key)); hero.atkHit=true; } }
     if(hero.dashT>0 && !hero.spHit && (hero.key==="leopard"||hero.key==="dragonfly")){ if(Math.abs(hero.x-boss.x)<boss.r+26){ hitBoss(hero.spDmg); hero.spHit=true; } }
     bossUpdate(dt);
     // 防穿模：非衝撞時，英雄不可走進魔王身體（維持在自己這側）
@@ -532,7 +552,9 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   document.getElementById("mapHome").onclick=()=>transition(goLobby);
   document.getElementById("playBtn").onclick=quickMatch;
   document.getElementById("navDex").onclick=()=>transition(goDex);
-  document.getElementById("navReset").onclick=()=>{ setUnlocked(0); updateLobby(); };
+  document.getElementById("navUpg").onclick=()=>transition(goUpgrade);
+  document.getElementById("upgBack").onclick=()=>transition(goLobby);
+  document.getElementById("upgReset").onclick=()=>{ setUnlocked(0); try{ localStorage.removeItem("shoutu_upg"); localStorage.removeItem("shoutu_eco"); }catch(e){} goUpgrade(); };
   window.__tx=transition;
   window.addEventListener("keydown",(e)=>{ if(state==="play"){ if(e.key==="ArrowLeft"||e.key==="a")input.left=true; else if(e.key==="ArrowRight"||e.key==="d")input.right=true;
       else if(e.key==="ArrowUp"||e.key==="w"||e.code==="Space"){ e.preventDefault(); heroJump(); } else if(e.key==="j"||e.key==="Enter")heroAttack(); else if(e.key==="k"||e.key==="Shift")heroSpecial(); else if(e.key==="q"||e.key==="Tab"){ e.preventDefault(); swapHero(); } }

@@ -141,8 +141,8 @@
         <div class="roster" id="roster"></div>
         <button class="play-btn" id="playBtn">⚔ 對 戰</button>
         <div class="lobby-nav">
+          <button class="navb" id="navUpg">🌱 復育</button>
           <button class="navb" id="navDex">📖 圖鑑</button>
-          <button class="navb" id="navReset">↺ 重置</button>
         </div>
       </div>
     </div>
@@ -169,6 +169,17 @@
       <p style="font-size:12px;margin-bottom:4px">認識牠們，是守護的第一步。</p>
       <div class="cards" id="dexCards"></div>
       <button class="btn sec" id="dexBack" style="margin-top:14px">返回</button>
+    </div>
+
+    <div class="scr hide" id="upgrade">
+      <h1 style="font-size:22px">🌱 復育中心</h1>
+      <p style="font-size:12px;margin-bottom:2px">投入保育值，復育守護者的族群，讓牠們更強壯。</p>
+      <p style="font-size:13px;color:#ffd54f;margin-bottom:6px">目前保育值：🌿 <b id="upgEco">0</b></p>
+      <div class="cards" id="upgCards"></div>
+      <div class="row" style="margin-top:14px">
+        <button class="btn sec" id="upgBack">返回</button>
+        <button class="btn sec" id="upgReset">↺ 重置進度</button>
+      </div>
     </div>
 
     <div id="story" class="hide">

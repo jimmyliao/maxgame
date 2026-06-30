@@ -31,6 +31,12 @@ test("載入無錯誤、鐵則齊全、能走完一場戰鬥", async ({ page }) 
   await page.locator("#dexBack").click();
   await expect(page.locator("#playBtn")).toBeVisible();
 
+  // 復育中心：4 隻守護者可升級
+  await page.locator("#navUpg").click();
+  await expect(page.locator("#upgCards .card")).toHaveCount(4);
+  await page.locator("#upgBack").click();
+  await expect(page.locator("#playBtn")).toBeVisible();
+
   // 對戰：直接配對開打（無章節選單）
   await page.locator("#playBtn").click();
   await expect(page.locator("#dock")).toBeVisible();
