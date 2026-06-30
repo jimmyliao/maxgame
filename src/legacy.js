@@ -256,15 +256,25 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     // 聚光
     const spot=g.createRadialGradient(Wd/2,Hd*0.44,8,Wd/2,Hd*0.44,Math.min(Wd,Hd)*0.6); spot.addColorStop(0,"rgba(255,235,150,0.3)"); spot.addColorStop(1,"rgba(255,235,150,0)");
     g.fillStyle=spot; g.fillRect(0,0,Wd,Hd);
+    // 上升光點（螢火/餘燼）
+    g.save(); g.globalCompositeOperation="lighter";
+    for(let i=0;i<28;i++){ const sp=14+(i%5)*6; const yy=Hd-((tt*sp+i*73)%(Hd+40)); const xx=((i*137.5)%Wd)+Math.sin(tt*0.8+i)*14; const tw=0.3+0.7*(0.5+0.5*Math.sin(tt*3+i)); g.fillStyle=(i%4===0)?"rgba(255,213,120,"+(tw*0.85).toFixed(3)+")":"rgba(170,230,150,"+(tw*0.6).toFixed(3)+")"; g.beginPath(); g.arc(xx,yy,1.4+1.3*tw,0,7); g.fill(); }
+    g.restore();
     // 台座
     const py=Hd*0.7, pr=Math.min(Wd,Hd)*0.24;
     g.fillStyle="rgba(0,0,0,0.34)"; g.beginPath(); g.ellipse(Wd/2,py,pr,pr*0.22,0,0,7); g.fill();
     g.strokeStyle="rgba(255,213,79,0.65)"; g.lineWidth=3; g.beginPath(); g.ellipse(Wd/2,py,pr,pr*0.22,0,0,7); g.stroke();
     g.strokeStyle="rgba(255,213,79,0.22)"; g.lineWidth=2; g.beginPath(); g.ellipse(Wd/2,py,pr*1.25,pr*0.28,0,0,7); g.stroke();
-    // 角色（站台座上）
-    const s=Math.min(Wd,Hd)*0.2, h=HEROES[featured];
-    g.save(); g.translate(Wd/2, py - s*0.62); g.rotate(Math.sin(tt*1.2)*0.035);
+    // 角色（站台座上）+ 脈動光環
+    const s=Math.min(Wd,Hd)*0.2, h=HEROES[featured], cy=py-s*0.62, pl=0.5+0.5*Math.sin(tt*2);
+    const aura=g.createRadialGradient(Wd/2,cy,s*0.2,Wd/2,cy,s*1.8);
+    aura.addColorStop(0,"rgba(255,228,130,"+(0.22+0.18*pl).toFixed(3)+")"); aura.addColorStop(1,"rgba(255,228,130,0)");
+    g.fillStyle=aura; g.beginPath(); g.arc(Wd/2,cy,s*1.8,0,7); g.fill();
+    g.save(); g.translate(Wd/2,cy); g.rotate(Math.sin(tt*1.2)*0.05); const sc=1+0.035*Math.sin(tt*2.2); g.scale(sc,sc);
     drawCreature(g, h.key, 0, 0, s, {t:tt, mood:"happy"}); g.restore();
+    g.save(); g.globalCompositeOperation="lighter";
+    for(let i=0;i<9;i++){ const a=tt*1.4+i*0.7, rr=s*(1.05+0.18*Math.sin(tt*2+i)); const sx=Wd/2+Math.cos(a)*rr, sy=cy+Math.sin(a)*rr*0.62; const tw=0.4+0.6*(0.5+0.5*Math.sin(tt*4+i*2)); g.fillStyle="rgba(255,245,180,"+tw.toFixed(3)+")"; g.beginPath(); g.arc(sx,sy,1.6+1.7*tw,0,7); g.fill(); }
+    g.restore();
     // 跑馬燈輪播
     const ti=Math.floor(tt/4)%TICKERS.length, el=document.getElementById("lbTicker");
     if(el && el.dataset.i!==String(ti)){ el.dataset.i=String(ti); el.textContent=TICKERS[ti]; }
@@ -452,7 +462,16 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   tap("bJump",heroJump); tap("bAtk",heroAttack); tap("bSp",heroSpecial); tap("bSwap",swapHero);
   canvas.addEventListener("pointerdown",(e)=>{ if(state!=="play")return; e.preventDefault(); heroAttack(); },{passive:false});
   const xf=document.getElementById("xfade");
-  function transition(fn){ xf.classList.add("on"); setTimeout(()=>{ try{ fn(); }catch(e){} setTimeout(()=>xf.classList.remove("on"),90); }, 220); }
+  function xfOff(){ xf.classList.remove("on"); }
+  function transition(fn){
+    xf.classList.add("on"); let done=false;
+    const run=()=>{ if(done) return; done=true; try{ fn(); }catch(e){} setTimeout(xfOff,70); };
+    setTimeout(run, 220);
+    setTimeout(xfOff, 1200); // 失效保險：遮罩最多存在 1.2 秒，絕不卡黑屏
+  }
+  // 防卡死：點到遮罩、或頁面回到前景，一律強制清除
+  xf.addEventListener("pointerdown", xfOff);
+  document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) xfOff(); });
   document.getElementById("toMap").onclick=()=>transition(goMap); document.getElementById("rMap").onclick=()=>transition(goLobby);
   document.getElementById("toDex").onclick=()=>transition(goDex); document.getElementById("dexBack").onclick=()=>transition(goLobby);
   document.getElementById("mapHome").onclick=()=>transition(goLobby);
