@@ -67,36 +67,42 @@
   #story .box .tx{ flex:1; } #story .box .nm{ font-size:14px; font-weight:800; color:#ffd54f; margin-bottom:4px; }
   #story .box .ln{ font-size:15px; line-height:1.6; color:#e8f5e9; min-height:46px; }
   #story .tap{ position:absolute; right:16px; bottom:8px; font-size:11px; color:#90a4ae; }
-  /* ===== 大廳 Lobby（遊戲介面，荒野亂鬥式）===== */
-  #lobby{ justify-content:flex-start; padding:0; overflow:hidden;
-    background:radial-gradient(120% 80% at 50% 32%, #2f8a39 0%, #154d24 58%, #0a2414 100%); }
-  #lobby .topbar{ width:100%; display:flex; align-items:center; justify-content:space-between; gap:8px;
-    padding:10px 14px; padding-top:max(10px,env(safe-area-inset-top)); }
-  #lobby .logo{ font-size:15px; font-weight:900; color:#fff; text-shadow:0 2px 6px rgba(0,0,0,.55); letter-spacing:1px; }
-  #lobby .stat{ background:linear-gradient(#1f6b27,#0f3d18); border:1px solid rgba(255,255,255,.2); border-radius:20px;
-    padding:5px 12px; font-size:13px; font-weight:800; color:#e8f5e9; box-shadow:0 2px 0 rgba(0,0,0,.35); white-space:nowrap; }
-  #lobby .stat b{ color:#ffd54f; }
-  #lobby .hero-stage{ position:relative; flex:1; width:100%; display:flex; flex-direction:column;
-    align-items:center; justify-content:center; min-height:0; }
-  #lobby .hero-stage::before{ content:""; position:absolute; width:78vmin; height:78vmin; border-radius:50%;
-    top:40%; transform:translateY(-50%); pointer-events:none;
-    background:radial-gradient(closest-side, rgba(255,235,130,.28), rgba(255,235,130,0) 70%); }
-  #lobby #heroShow{ width:min(74vw,380px); height:min(44vh,360px); position:relative; z-index:1; }
-  #lobby .hero-name{ font-size:26px; font-weight:900; color:#fff; text-shadow:0 3px 8px rgba(0,0,0,.55); z-index:1; }
+  /* ===== 大廳 Lobby（遊戲介面，荒野亂鬥式氛圍）===== */
+  #lobby{ padding:0; overflow:hidden; display:block; position:absolute; inset:0; }
+  #lobby #heroShow{ position:absolute; inset:0; width:100%; height:100%; z-index:0; }
+  #lobby .lb-top{ position:absolute; top:0; left:0; right:0; z-index:2; display:flex; align-items:flex-start;
+    justify-content:space-between; gap:8px; padding:10px 12px; padding-top:max(10px,env(safe-area-inset-top)); }
+  #lobby .lb-profile{ display:flex; align-items:center; gap:8px; background:rgba(8,24,16,.6); border:1px solid rgba(255,255,255,.18);
+    border-radius:30px; padding:5px 12px 5px 5px; box-shadow:0 2px 8px rgba(0,0,0,.4); }
+  #lobby .lb-ava{ width:34px; height:34px; border-radius:50%; background:linear-gradient(#43a047,#1b5e20);
+    display:flex; align-items:center; justify-content:center; font-size:18px; border:2px solid #ffd54f; }
+  #lobby .lb-name{ font-size:13px; font-weight:900; color:#fff; line-height:1.1; }
+  #lobby .lb-lv{ font-size:11px; color:#a5d6a7; }
+  #lobby .lb-curr{ display:flex; gap:6px; }
+  #lobby .lb-pill{ background:rgba(8,24,16,.6); border:1px solid rgba(255,255,255,.18); border-radius:20px;
+    padding:6px 12px; font-size:13px; font-weight:800; color:#e8f5e9; box-shadow:0 2px 8px rgba(0,0,0,.4); white-space:nowrap; }
+  #lobby .lb-pill b{ color:#ffd54f; }
+  #lobby .lb-ticker{ position:absolute; top:max(58px,calc(env(safe-area-inset-top) + 50px)); left:0; right:0; z-index:2;
+    background:rgba(8,24,16,.45); padding:5px 14px; font-size:12px; color:#d4ecc4; white-space:nowrap; overflow:hidden;
+    border-top:1px solid rgba(255,255,255,.08); border-bottom:1px solid rgba(255,255,255,.08); }
+  #lobby .lb-ticker span{ display:inline-block; }
+  #lobby .lb-bottom{ position:absolute; left:0; right:0; bottom:0; z-index:2; display:flex; flex-direction:column;
+    align-items:center; padding:0 16px 14px; padding-bottom:max(14px,env(safe-area-inset-bottom));
+    background:linear-gradient(rgba(7,20,12,0), rgba(7,20,12,.55) 30%, rgba(7,20,12,.85)); }
+  #lobby .hero-name{ font-size:26px; font-weight:900; color:#fff; text-shadow:0 3px 10px rgba(0,0,0,.7); }
   #lobby .hero-name .ht{ font-size:15px; color:#ffd54f; margin-left:8px; }
-  #lobby .hero-tag{ font-size:13px; color:#d4ecc4; margin-top:5px; z-index:1; text-align:center; padding:0 22px; }
-  #lobby .roster{ display:flex; gap:10px; justify-content:center; padding:12px; z-index:1; flex-wrap:wrap; }
-  #lobby .rb{ width:58px; height:58px; border-radius:16px; border:2px solid rgba(255,255,255,.2);
-    background:rgba(0,0,0,.28); cursor:pointer; padding:0; overflow:hidden; }
-  #lobby .rb.sel{ border-color:#ffd54f; box-shadow:0 0 14px rgba(255,213,79,.6); }
+  #lobby .hero-tag{ font-size:13px; color:#d4ecc4; margin-top:4px; text-align:center; padding:0 12px; text-shadow:0 1px 4px rgba(0,0,0,.6); }
+  #lobby .roster{ display:flex; gap:9px; justify-content:center; padding:11px 0 12px; flex-wrap:wrap; }
+  #lobby .rb{ width:56px; height:56px; border-radius:16px; border:2px solid rgba(255,255,255,.22);
+    background:rgba(0,0,0,.35); cursor:pointer; padding:0; overflow:hidden; box-shadow:0 2px 6px rgba(0,0,0,.4); }
+  #lobby .rb.sel{ border-color:#ffd54f; box-shadow:0 0 16px rgba(255,213,79,.7); transform:translateY(-2px); }
   #lobby .rb canvas{ width:100%; height:100%; display:block; }
-  #lobby .play-btn{ width:calc(100% - 40px); max-width:420px; margin:6px 20px 8px; border:none; border-radius:30px;
-    background:linear-gradient(#ffd54f,#ffb300); color:#3e2723; font-size:22px; font-weight:900; letter-spacing:2px;
-    padding:16px; cursor:pointer; box-shadow:0 6px 0 #e09400, 0 8px 22px rgba(0,0,0,.45); z-index:1; }
-  #lobby .play-btn:active{ transform:translateY(3px); box-shadow:0 3px 0 #e09400, 0 4px 12px rgba(0,0,0,.45); }
-  #lobby .lobby-nav{ display:flex; gap:10px; justify-content:center; padding:0 20px 16px;
-    padding-bottom:max(16px,env(safe-area-inset-bottom)); z-index:1; }
-  #lobby .navb{ flex:1; max-width:200px; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.2);
+  #lobby .play-btn{ width:100%; max-width:420px; border:none; border-radius:30px;
+    background:linear-gradient(#ffe082,#ffb300); color:#3e2723; font-size:22px; font-weight:900; letter-spacing:2px;
+    padding:16px; cursor:pointer; box-shadow:0 6px 0 #e09400, 0 10px 24px rgba(0,0,0,.5); }
+  #lobby .play-btn:active{ transform:translateY(3px); box-shadow:0 3px 0 #e09400, 0 4px 12px rgba(0,0,0,.5); }
+  #lobby .lobby-nav{ display:flex; gap:10px; justify-content:center; margin-top:10px; width:100%; max-width:420px; }
+  #lobby .navb{ flex:1; background:rgba(255,255,255,.13); border:1px solid rgba(255,255,255,.22);
     color:#e8f5e9; font-size:14px; font-weight:800; border-radius:20px; padding:11px; cursor:pointer; }
   #lobby .navb:active{ filter:brightness(1.25); }
 </style>
@@ -107,21 +113,24 @@
     <canvas id="game"></canvas>
 
     <div class="scr" id="lobby">
-      <div class="topbar">
-        <div class="stat">🌿 保育值 <b id="ecoVal">0</b></div>
-        <div class="logo">守土 · 福爾摩沙衛士</div>
-        <div class="stat">🏆 <b id="trophyVal">0</b></div>
+      <canvas id="heroShow"></canvas>
+      <div class="lb-top">
+        <div class="lb-profile">
+          <div class="lb-ava">🛡️</div>
+          <div class="lb-meta"><div class="lb-name">守護者</div><div class="lb-lv">進度 <span id="trophyVal">0</span> / 4 章</div></div>
+        </div>
+        <div class="lb-curr"><span class="lb-pill">🌿 保育值 <b id="ecoVal">0</b></span></div>
       </div>
-      <div class="hero-stage">
-        <canvas id="heroShow"></canvas>
+      <div class="lb-ticker"><span id="lbTicker">　</span></div>
+      <div class="lb-bottom">
         <div class="hero-name"><span id="hsName">石虎</span><span class="ht" id="hsType">🌲山林</span></div>
         <div class="hero-tag" id="hsTag"></div>
-      </div>
-      <div class="roster" id="roster"></div>
-      <button class="play-btn" id="playBtn">▶ 開始守護</button>
-      <div class="lobby-nav">
-        <button class="navb" id="navDex">📖 保育圖鑑</button>
-        <button class="navb" id="navReset">↺ 重置進度</button>
+        <div class="roster" id="roster"></div>
+        <button class="play-btn" id="playBtn">▶ 開始守護</button>
+        <div class="lobby-nav">
+          <button class="navb" id="navDex">📖 圖鑑</button>
+          <button class="navb" id="navReset">↺ 重置</button>
+        </div>
       </div>
     </div>
 

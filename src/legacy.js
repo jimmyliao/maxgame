@@ -3,10 +3,28 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
 (() => {
   "use strict";
 
-  /* ===== 卡通動物（程式畫）===== */
+  /* ===== 寫實圖檔（sprite）載入：有圖用圖、沒圖 fallback 程式畫 ===== */
+  const SPRITES={};
+  const SPRITE_SRC={
+    leopard:"assets/heroes/leopard.png", bear:"assets/heroes/bear.png",
+    cicada:"assets/heroes/cicada.png", dragonfly:"assets/heroes/dragonfly.png",
+    snail:"assets/bosses/snail.png", iguana:"assets/bosses/iguana.png",
+    frog:"assets/bosses/frog.png", ibis:"assets/bosses/ibis.png"
+  };
+  function loadSprites(){ for(const k in SPRITE_SRC){ const img=new Image(); img.onload=()=>{ if(img.naturalWidth>0) SPRITES[k]=img; }; img.src=SPRITE_SRC[k]; } }
+  loadSprites();
+
+  /* ===== 角色繪製（優先用寫實圖，否則程式畫）===== */
   function drawCreature(cMain, kind, x, y, s, o){
     o=o||{}; const t=o.t||0, mood=o.mood||"happy", flip=o.flip;
     const bob=Math.sin(t*3+(o.ph||0))*s*0.04;
+    const sp=SPRITES[kind];
+    if(sp && sp.naturalWidth>0){ const ar=sp.naturalWidth/sp.naturalHeight, hh=s*2.7, ww=hh*ar;
+      cMain.save(); cMain.translate(x,y+bob);
+      cMain.fillStyle="rgba(0,0,0,0.25)"; cMain.beginPath(); cMain.ellipse(0,s*0.86,s*0.55,s*0.13,0,0,7); cMain.fill();
+      if(flip) cMain.scale(-1,1);
+      cMain.drawImage(sp, -ww/2, s*0.92-hh, ww, hh);
+      cMain.restore(); return; }
     // 離屏畫布：立體上色(source-atop)只作用在角色本身，避免污染背景
     const R=Math.ceil(s*1.7), SS=2;
     const oc=drawCreature._oc||(drawCreature._oc=document.createElement("canvas"));
@@ -217,11 +235,40 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     document.getElementById("trophyVal").textContent=getUnlocked();
     [...document.querySelectorAll("#roster .rb")].forEach((b,i)=>b.classList.toggle("sel",i===featured)); }
   function goLobby(){ state="lobby"; setBattleUI(false); show(lobbyScr); buildRoster(); updateLobby(); resizeHeroShow(); }
-  function drawLobby(ts){ if(!hsW) resizeHeroShow(); if(!hsW) return; hctx.clearRect(0,0,hsW,hsH);
-    const tt=ts/1000, h=HEROES[featured], s=Math.min(hsW,hsH)*0.34;
-    hctx.fillStyle="rgba(0,0,0,0.22)"; hctx.beginPath(); hctx.ellipse(hsW/2,hsH*0.9,s*0.85,s*0.16,0,0,7); hctx.fill();
-    hctx.save(); hctx.translate(hsW/2,hsH*0.58); hctx.rotate(Math.sin(tt*1.2)*0.04);
-    drawCreature(hctx, h.key, 0, 0, s, {t:tt, mood:"happy"}); hctx.restore(); }
+  const TICKERS=["🌿 石虎全台僅存數百隻，路殺是最大威脅之一","🐻 台灣黑熊胸前的白色 V 是月亮的印記","💧 福壽螺來自南美，是稻田的大害","🦎 綠鬣蜥棄養野化，正衝擊南部生態","🕊 埃及聖䴉搶佔黑面琵鷺的濕地","🪲 爺蟬幼蟲在地下蟄伏多年才羽化"];
+  function drawLobby(ts){ if(!hsW) resizeHeroShow(); if(!hsW) return;
+    const g=hctx, Wd=hsW, Hd=hsH, tt=ts/1000;
+    // 霓虹黃昏天空
+    const sky=g.createLinearGradient(0,0,0,Hd); sky.addColorStop(0,"#15233f"); sky.addColorStop(.4,"#244b5e"); sky.addColorStop(.68,"#3f7a4e"); sky.addColorStop(1,"#1d5a2b");
+    g.fillStyle=sky; g.fillRect(0,0,Wd,Hd);
+    // 月亮光暈
+    const moon=g.createRadialGradient(Wd*0.76,Hd*0.15,4,Wd*0.76,Hd*0.15,Hd*0.2); moon.addColorStop(0,"rgba(255,247,210,0.95)"); moon.addColorStop(.3,"rgba(255,240,180,0.5)"); moon.addColorStop(1,"rgba(255,240,180,0)");
+    g.fillStyle=moon; g.fillRect(0,0,Wd,Hd);
+    // 星 / 螢火
+    for(let i=0;i<46;i++){ const x=(i*89.7)%Wd, y=(i*47.3)%(Hd*0.52); const tw=0.4+0.6*(0.5+0.5*Math.sin(tt*2+i*1.3)); g.globalAlpha=tw*0.8; g.fillStyle=i%5===0?"#fff59d":"#ffffff"; g.beginPath(); g.arc(x,y,i%7===0?1.8:1.1,0,7); g.fill(); }
+    g.globalAlpha=1;
+    // 多層遠山
+    const ridge=(yB,amp,col)=>{ g.fillStyle=col; g.beginPath(); g.moveTo(0,yB); for(let x=0;x<=Wd;x+=Wd/8){ g.lineTo(x, yB - amp*Math.sin(x/Wd*3.14159) - amp*0.4*Math.sin(x/Wd*9+1)); } g.lineTo(Wd,Hd); g.lineTo(0,Hd); g.closePath(); g.fill(); };
+    ridge(Hd*0.5,Hd*0.07,"rgba(30,55,60,0.55)"); ridge(Hd*0.57,Hd*0.06,"rgba(18,52,38,0.7)"); ridge(Hd*0.64,Hd*0.05,"rgba(10,40,26,0.88)");
+    // 樹剪影
+    g.fillStyle="rgba(6,28,18,0.92)";
+    for(const tx of [0.07,0.19,0.85,0.94]){ const bx=Wd*tx, by=Hd*0.66; g.beginPath(); g.moveTo(bx,by); g.lineTo(bx-Hd*0.035,by-Hd*0.14); g.lineTo(bx+Hd*0.035,by-Hd*0.14); g.closePath(); g.moveTo(bx,by-Hd*0.08); g.lineTo(bx-Hd*0.05,by-Hd*0.2); g.lineTo(bx+Hd*0.05,by-Hd*0.2); g.closePath(); g.fill(); g.fillRect(bx-2,by-Hd*0.14,4,Hd*0.14); }
+    // 聚光
+    const spot=g.createRadialGradient(Wd/2,Hd*0.44,8,Wd/2,Hd*0.44,Math.min(Wd,Hd)*0.6); spot.addColorStop(0,"rgba(255,235,150,0.3)"); spot.addColorStop(1,"rgba(255,235,150,0)");
+    g.fillStyle=spot; g.fillRect(0,0,Wd,Hd);
+    // 台座
+    const py=Hd*0.7, pr=Math.min(Wd,Hd)*0.24;
+    g.fillStyle="rgba(0,0,0,0.34)"; g.beginPath(); g.ellipse(Wd/2,py,pr,pr*0.22,0,0,7); g.fill();
+    g.strokeStyle="rgba(255,213,79,0.65)"; g.lineWidth=3; g.beginPath(); g.ellipse(Wd/2,py,pr,pr*0.22,0,0,7); g.stroke();
+    g.strokeStyle="rgba(255,213,79,0.22)"; g.lineWidth=2; g.beginPath(); g.ellipse(Wd/2,py,pr*1.25,pr*0.28,0,0,7); g.stroke();
+    // 角色（站台座上）
+    const s=Math.min(Wd,Hd)*0.2, h=HEROES[featured];
+    g.save(); g.translate(Wd/2, py - s*0.62); g.rotate(Math.sin(tt*1.2)*0.035);
+    drawCreature(g, h.key, 0, 0, s, {t:tt, mood:"happy"}); g.restore();
+    // 跑馬燈輪播
+    const ti=Math.floor(tt/4)%TICKERS.length, el=document.getElementById("lbTicker");
+    if(el && el.dataset.i!==String(ti)){ el.dataset.i=String(ti); el.textContent=TICKERS[ti]; }
+  }
   window.addEventListener("resize",()=>{ if(state==="lobby") resizeHeroShow(); });
 
   function goMap(){ state="map"; setBattleUI(false); show(mapScr);

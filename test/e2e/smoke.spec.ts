@@ -3,8 +3,12 @@ import { test, expect } from "@playwright/test";
 // 冒煙 + 回歸測試：守住「鐵則」與核心玩法不被改壞。
 test("載入無錯誤、鐵則齊全、能走完一場戰鬥", async ({ page }) => {
   const errors: string[] = [];
-  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
-  page.on("pageerror", (e) => errors.push(String(e)));
+  // JS 例外 = 硬失敗
+  page.on("pageerror", (e) => errors.push("PAGEERROR: " + e));
+  // console error，但忽略「資源載入失敗」雜訊（由下方 response 檢查負責）
+  page.on("console", (m) => { if (m.type() === "error" && !m.text().includes("Failed to load resource")) errors.push("CONSOLE: " + m.text()); });
+  // 404：忽略「選用的」角色寫實圖（assets/ 沒放圖時會 404，屬正常 fallback），其餘 404 視為錯誤
+  page.on("response", (r) => { if (r.status() === 404 && !r.url().includes("/assets/")) errors.push("404: " + r.url()); });
 
   await page.goto("/");
 
