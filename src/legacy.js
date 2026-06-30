@@ -215,8 +215,11 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
 
   /* ===== 狀態 ===== */
   let state="title", chapter=0, elapsed=0, shake=0;
-  let matchMode=false, matchLevel=1, hitstop=0;
-  let hero, heroDef, boss, team, active, projs, fx, floaters, parts;
+  let matchMode=false, matchLevel=1, hitstop=0, itemTimer=0;
+  let hero, heroDef, boss, team, active, projs, fx, floaters, parts, items;
+  // 保育道具（玩中學）
+  const ITEMS={ heal:{icon:"🌿",name:"棲地復育",col:"#66bb6a"}, report:{icon:"📢",name:"通報移除",col:"#ffd54f"}, shield:{icon:"🛡️",name:"生態廊道",col:"#4dd0e1"} };
+  const ITEM_KEYS=["heal","report","shield"];
   const GRAV=1700, JUMP=-620;
   const input={ left:false, right:false };
 
@@ -325,7 +328,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   // 配對：按「對戰」→ 用大廳選的角色，對上隨機外來入侵種（隨機星級）
   function quickMatch(){ matchMode=true; chapter=Math.floor(Math.random()*CH.length); matchLevel=1+Math.floor(Math.random()*5); transition(beginBattle); }
   function beginBattle(){ const c=CH[chapter]; state="play"; setBattleUI(true); show(null);
-    elapsed=0; shake=0; hitstop=0; projs=[]; fx=[]; floaters=[]; parts=[]; input.left=input.right=false;
+    elapsed=0; shake=0; hitstop=0; itemTimer=6; projs=[]; fx=[]; floaters=[]; parts=[]; items=[]; input.left=input.right=false;
     // 隊伍：配對戰可用全部 4 隻；戰役則用已解鎖的
     const cnt = matchMode ? HEROES.length : Math.min(HEROES.length, getUnlocked()+1);
     team=[]; for(let k=0;k<cnt;k++) team.push({idx:k, hp:100, maxhp:100, fainted:false});
@@ -418,6 +421,10 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
       else if(p.from==="hero"){ if(Math.abs(p.x-boss.x)<boss.r && Math.abs(p.y-boss.y)<boss.r){ hitBoss(p.dmg,p.stun); p.life=0; } } }
     projs=projs.filter(p=>p.life>0 && p.x>-60 && p.x<W+60);
     for(const f of floaters){ f.life-=dt; f.y-=24*dt; } floaters=floaters.filter(f=>f.life>0);
+    // 保育道具：生成 + 拾取
+    itemTimer-=dt; if(itemTimer<=0){ spawnItem(); itemTimer=8+Math.random()*4; }
+    for(const it of items){ it.life-=dt; it.bob+=dt; if(!it.dead && Math.abs(hero.x-it.x)<32 && hero.y>GY-110){ collectItem(it); it.dead=true; } }
+    items=items.filter(it=>!it.dead && it.life>0);
   }
   function updateSp(){ const r=Math.max(0,hero?hero.spCd:0); const cd=heroDef?heroDef.spCd:5; bSp.querySelector(".fill").style.height=(r/cd*100)+"%"; bSp.classList.toggle("ready", r<=0); }
 
@@ -443,6 +450,11 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   // 碰撞/打擊：火花爆發 + 衝擊環
   function burst(x,y,n,col,power){ power=power||1; for(let i=0;i<n;i++){ const a=Math.random()*6.283, sp=(70+Math.random()*200)*power; parts.push({type:"spark",x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-70,life:0.3+Math.random()*0.25,max:0.55,r:1.4+Math.random()*2.6,col}); } if(parts.length>240) parts.splice(0,parts.length-240); }
   function ringAt(x,y,col,maxr){ parts.push({type:"ring",x,y,life:0.28,max:0.28,r0:6,r1:maxr||40,col}); }
+  function spawnItem(){ const k=ITEM_KEYS[Math.floor(Math.random()*ITEM_KEYS.length)]; items.push({key:k,x:60+Math.random()*(W-120),y:GY-22,life:12,bob:Math.random()*6}); }
+  function collectItem(it){ const d=ITEMS[it.key]; ringAt(it.x,it.y-10,d.col,46); burst(it.x,it.y-10,10,d.col,1);
+    if(it.key==="heal"){ hero.hp=Math.min(hero.maxhp,hero.hp+30); flo(it.x,it.y-34,"🌿 棲地復育 +30","#a5d6a7"); }
+    else if(it.key==="report"){ boss.hp-=28; burst(boss.x,boss.y-boss.r*0.2,14,"#ffd54f",1.3); shake=Math.max(shake,10); flo(it.x,it.y-34,"📢 通報移除！","#ffd54f"); if(boss.hp<=0){ boss.hp=0; winChapter(); } }
+    else if(it.key==="shield"){ hero.invuln=Math.max(hero.invuln,3); flo(it.x,it.y-34,"🛡️ 生態廊道 無敵","#80deea"); } }
 
   /* ===== 背景 ===== */
   function paintBackground(c,w,h,bg){ let top="#1b5e20",bot="#33691e";
@@ -462,6 +474,12 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
       else if(p.from==="boss"){ ctx.fillStyle="#7e57c2"; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,7); ctx.fill(); }
       else if(p.kind==="sonic"){ ctx.strokeStyle="rgba(174,213,129,.9)"; ctx.lineWidth=4; ctx.beginPath(); ctx.arc(p.x,p.y,16,0,7); ctx.stroke(); } }
     ctx.textAlign="center"; ctx.textBaseline="middle";
+    // 保育道具（發光圓盤 + 圖示 + 漂浮）
+    for(const it of items){ const d=ITEMS[it.key], by=it.y-18-Math.sin(it.bob*3)*4, gl=0.5+0.5*Math.sin(it.bob*4);
+      const g2=ctx.createRadialGradient(it.x,by,2,it.x,by,22); g2.addColorStop(0,d.col); g2.addColorStop(1,"rgba(0,0,0,0)");
+      ctx.globalAlpha=0.5+0.4*gl; ctx.fillStyle=g2; ctx.beginPath(); ctx.arc(it.x,by,22,0,7); ctx.fill(); ctx.globalAlpha=1;
+      ctx.font="22px serif"; ctx.fillText(d.icon,it.x,by);
+      ctx.font="bold 10px sans-serif"; ctx.fillStyle="#fff"; ctx.fillText(d.name,it.x,by+22); }
     if(boss.hitT>0) ctx.globalAlpha=0.6; const tele=(boss.st==="tele"); if(tele && Math.floor(elapsed*12)%2===0) ctx.globalAlpha=0.7;
     drawCreature(ctx,boss.kind,boss.x,boss.y,boss.r,{t:elapsed,mood:"angry",flip:boss.face>0}); ctx.globalAlpha=1;
     if(tele){ ctx.fillStyle="#ff5252"; ctx.font="bold 30px sans-serif"; ctx.fillText("!",boss.x,boss.y-boss.r-14); }
