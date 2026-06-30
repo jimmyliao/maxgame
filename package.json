@@ -1,0 +1,23 @@
+{
+  "name": "shoutu-formosa-guardian",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "守土 · 福爾摩沙衛士 — 台灣生態保育對戰遊戲",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 4173 --strictPort",
+    "typecheck": "tsc --noEmit",
+    "test:unit": "vitest run",
+    "test:smoke": "playwright test",
+    "test": "npm run typecheck && npm run test:unit && npm run build && npm run test:smoke",
+    "ci": "npm run typecheck && npm run test:unit && npm run build"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "typescript": "^6.0.3",
+    "vite": "^8.1.1",
+    "vitest": "^4.1.9"
+  }
+}

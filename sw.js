@@ -1,6 +1,6 @@
 // 守土 Service Worker — 線上優先、離線可玩
-const CACHE = "shoutu-v3";
-const ASSETS = ["./", "./index.html", "./manifest.json", "./icon.svg", "./dino.html"];
+const CACHE = "shoutu-v4";
+const ASSETS = ["./", "./index.html", "./src/legacy.js", "./src/data/types-chart.js", "./manifest.json", "./icon.svg", "./dino.html"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
