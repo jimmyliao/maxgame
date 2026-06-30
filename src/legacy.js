@@ -377,13 +377,19 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     g.save(); g.globalCompositeOperation="lighter";
     for(let i=0;i<28;i++){ const sp=14+(i%5)*6; const yy=Hd-((tt*sp+i*73)%(Hd+40)); const xx=((i*137.5)%Wd)+Math.sin(tt*0.8+i)*14; const tw=0.3+0.7*(0.5+0.5*Math.sin(tt*3+i)); g.fillStyle=(i%4===0)?"rgba(255,213,120,"+(tw*0.85).toFixed(3)+")":"rgba(170,230,150,"+(tw*0.6).toFixed(3)+")"; g.beginPath(); g.arc(xx,yy,1.4+1.3*tw,0,7); g.fill(); }
     g.restore();
-    // 台座（上移，避免角色擋到下方名稱文字）
-    const py=Hd*0.36, pr=Math.min(Wd,Hd)*0.2;
+    // 自適應安全區：量測下方名稱列(.lb-bottom)實際位置，角色一律落在它上方，永不擋字
+    const topBound=Hd*0.13; let lbTop=Hd*0.62;
+    const lbEl=document.querySelector("#lobby .lb-bottom");
+    if(lbEl && heroShow){ const r=lbEl.getBoundingClientRect(), cr=heroShow.getBoundingClientRect();
+      const t=(r.top-cr.top)*(Hd/Math.max(1,cr.height)); if(t>topBound+60) lbTop=t; }
+    const region=Math.max(90, lbTop-topBound);
+    // 角色尺寸與站位都由安全區推導
+    const s=Math.min(Math.min(Wd,Hd)*0.2, region*0.42), h=HEROES[featured];
+    const py=lbTop-region*0.18, pr=s*1.15, cy=py-s*0.62, pl=0.5+0.5*Math.sin(tt*2);
+    // 台座
     g.fillStyle="rgba(0,0,0,0.34)"; g.beginPath(); g.ellipse(Wd/2,py,pr,pr*0.22,0,0,7); g.fill();
     g.strokeStyle="rgba(255,213,79,0.65)"; g.lineWidth=3; g.beginPath(); g.ellipse(Wd/2,py,pr,pr*0.22,0,0,7); g.stroke();
     g.strokeStyle="rgba(255,213,79,0.22)"; g.lineWidth=2; g.beginPath(); g.ellipse(Wd/2,py,pr*1.25,pr*0.28,0,0,7); g.stroke();
-    // 角色（站台座上）+ 脈動光環
-    const s=Math.min(Wd,Hd)*0.17, h=HEROES[featured], cy=py-s*0.62, pl=0.5+0.5*Math.sin(tt*2);
     const aura=g.createRadialGradient(Wd/2,cy,s*0.2,Wd/2,cy,s*1.8);
     aura.addColorStop(0,"rgba(255,228,130,"+(0.22+0.18*pl).toFixed(3)+")"); aura.addColorStop(1,"rgba(255,228,130,0)");
     g.fillStyle=aura; g.beginPath(); g.arc(Wd/2,cy,s*1.8,0,7); g.fill();
