@@ -52,14 +52,20 @@ test("載入無錯誤、鐵則齊全、能走完一場戰鬥", async ({ page }) 
   await page.locator("#setBack").click();
   await expect(page.locator("#playBtn")).toBeVisible();
 
-  // 對戰：直接配對開打（無章節選單）
+  // 對戰：守護台灣神木（俯視角 MOBA）— 選 3v3 / 5v5
   await page.locator("#playBtn").click();
-  await expect(page.locator("#dock")).toBeVisible();
-  await page.locator("#bRight").click();
-  await page.locator("#bAtk").click();
-  await page.locator("#bJump").click();
-  await page.locator("#bSp").click();
-  await page.waitForTimeout(300);
+  await expect(page.locator("#mpick")).toBeVisible();
+  await expect(page.locator("#pick3")).toBeVisible();
+  await page.locator("#pick3").click();
+  // 進入 MOBA：覆蓋層、搖桿、技能鈕都在
+  await expect(page.locator("#moba")).toBeVisible();
+  await expect(page.locator("#mstick")).toBeVisible();
+  await expect(page.locator("#mSp")).toBeVisible();
+  // 操作一下（技能 / 回神木）並讓引擎跑幾秒，確保 0 runtime error
+  await page.locator("#mSp").click();
+  await page.locator("#mBack").click();
+  await page.waitForTimeout(1500);
+  await expect(page.locator("#mhpAlly")).toBeVisible();
 
   // 一票否決：全程 0 runtime / console error
   expect(errors, "不可有 runtime/console 錯誤").toEqual([]);

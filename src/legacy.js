@@ -713,6 +713,13 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   document.getElementById("setBack").onclick=()=>transition(goLobby);
   document.getElementById("setShare").onclick=()=>{ const url="https://jimmyliao.github.io/maxgame/"; if(navigator.share){ navigator.share({title:"守土 · 福爾摩沙衛士", text:"一起來守護台灣特有種！", url}).catch(()=>{}); } else { try{ navigator.clipboard.writeText(url); }catch(e){} alert("遊戲連結已複製，分享給朋友一起守護台灣生態！\n"+url); } };
   window.__tx=transition;
+  // ===== 守護神木 MOBA 模組接點（不改既有合約，只導出唯讀資訊與回大廳刷新） =====
+  window.__featuredKey=()=> (HEROES[featured]&&HEROES[featured].key)||"leopard";
+  window.__unlockedKeys=()=> HEROES.filter(h=>isHeroUnlocked(h.key)).map(h=>h.key);
+  window.__awardEco=(n)=>{ setEco(getEco()+(n|0)); };
+  window.__awardXP=(key,n)=>{ gainXP(key,n|0); };
+  window.__bumpWin=()=>{ try{ localStorage.setItem("shoutu_wins",String(getWins()+1)); }catch(e){} };
+  window.__lobbyRefresh=()=>{ if(state==="lobby"){ updateLobby(); buildRoster(); resizeHeroShow(); } };
   window.addEventListener("keydown",(e)=>{ if(state==="play"){ if(e.key==="ArrowLeft"||e.key==="a")input.left=true; else if(e.key==="ArrowRight"||e.key==="d")input.right=true;
       else if(e.key==="ArrowUp"||e.key==="w"||e.code==="Space"){ e.preventDefault(); heroJump(); } else if(e.key==="j"||e.key==="Enter")heroAttack(); else if(e.key==="k"||e.key==="Shift")heroSpecial(); else if(e.key==="q"||e.key==="Tab"){ e.preventDefault(); swapHero(); } }
     else if(state==="story"&&e.code==="Space"){ e.preventDefault(); advance(); } });

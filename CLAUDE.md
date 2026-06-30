@@ -17,7 +17,8 @@
 - **線上可玩**：https://jimmyliao.github.io/maxgame/ （GitHub Pages，從 `main` 根目錄部署）
 - **目前型態**：單一 `index.html`（HTML+CSS+IIFE JS）的即時動作 1v1 對戰；已有屬性相剋、隊伍換手、保育圖鑑、4 章戰役、PWA（可加主畫面、離線）。
 - **進行中**：美術大改版（立體化 + 專屬招式特效）；以及**模組化重構 + 雙平台架構**評估（待技術總監定案，見 SPEC §架構）。
-- **保留**：舊恐龍遊戲在 `dino.html`。
+- **新模式（v1）**：**守護台灣神木**——俯視角 MOBA（傳說對決式），大廳「對戰」即進入；3v3／5v5、虛擬搖桿、跟隨鏡頭、雙方神木+防禦塔+小兵波+AI 隊友/敵人；自含於 `src/moba.js`（獨立 canvas `#mgame` 與控制，**不動** `drawCreature`／dock／既有狀態機）。守住神木不倒、搗毀入侵巢穴即勝。
+- **保留**：舊側視 1v1 對戰（`legacy.js` 內，程式仍在，僅大廳對戰入口改指向 MOBA）；舊恐龍遊戲在 `dino.html`。
 
 ## 分支與部署（重要）
 - 開發分支：**`claude/dinosaur-game-infinite-levels-kpfmbm`**

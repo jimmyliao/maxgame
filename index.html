@@ -37,6 +37,39 @@
   .gb.sp.ready{ animation:glow 1s infinite; }
   @keyframes glow{ 0%,100%{ box-shadow:0 3px 0 rgba(0,0,0,.35);} 50%{ box-shadow:0 0 16px #ce93d8;} }
   .gb .fill{ position:absolute; left:0; bottom:0; width:100%; background:rgba(0,0,0,.5); height:0%; pointer-events:none; }
+  /* ===== MOBA 守護神木 ===== */
+  #moba{ position:fixed; inset:0; z-index:40; background:#10261a; touch-action:none;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+  #moba.mhide{ display:none; }
+  canvas#mgame{ position:absolute; inset:0; width:100%; height:100%; display:block; touch-action:none; }
+  #mhud{ position:absolute; top:max(8px,env(safe-area-inset-top)); left:0; right:0; display:flex; align-items:flex-start;
+    justify-content:space-between; gap:10px; padding:0 12px; pointer-events:none; }
+  .mteam{ flex:1; max-width:42%; }
+  .mt-row{ display:flex; justify-content:space-between; font-size:12px; font-weight:800; color:#fff; text-shadow:0 1px 2px #000; margin-bottom:3px; }
+  .mbar{ height:11px; border-radius:6px; background:rgba(0,0,0,.5); overflow:hidden; border:1px solid rgba(255,255,255,.3); }
+  .mbar i{ display:block; height:100%; width:100%; }
+  .mbar i.ally{ background:linear-gradient(90deg,#66bb6a,#a5d6a7); }
+  .mbar i.foe{ background:linear-gradient(90deg,#ab47bc,#ef5350); margin-left:auto; }
+  #mclock{ font-size:13px; font-weight:800; color:#ffd54f; text-shadow:0 1px 2px #000; padding-top:2px; }
+  #mstick{ position:absolute; left:max(20px,env(safe-area-inset-left)); bottom:max(24px,env(safe-area-inset-bottom));
+    width:130px; height:130px; border-radius:50%; background:rgba(255,255,255,.08); border:2px solid rgba(255,255,255,.18);
+    touch-action:none; }
+  #mknob{ position:absolute; left:50%; top:50%; width:58px; height:58px; margin:-29px 0 0 -29px; border-radius:50%;
+    background:radial-gradient(circle at 40% 35%,#dcedc8,#7cb342); box-shadow:0 3px 8px rgba(0,0,0,.5); }
+  #mbtns{ position:absolute; right:max(20px,env(safe-area-inset-right)); bottom:max(24px,env(safe-area-inset-bottom));
+    display:flex; align-items:flex-end; gap:14px; }
+  .mbtn{ border:none; border-radius:50%; color:#fff; font-size:15px; font-weight:800; position:relative; overflow:hidden;
+    box-shadow:0 3px 0 rgba(0,0,0,.4); cursor:pointer; }
+  .mbtn.sp{ width:84px; height:84px; background:#6a1b9a; font-size:17px; }
+  .mbtn.sp.ready{ animation:glow 1s infinite; }
+  .mbtn.back{ width:60px; height:60px; background:#00897b; font-size:13px; margin-bottom:10px; }
+  .mbtn:active{ transform:translateY(2px); filter:brightness(1.15); }
+  .mbtn .fill{ position:absolute; left:0; bottom:0; width:100%; background:rgba(0,0,0,.55); height:0%; pointer-events:none; }
+  #mtoast{ position:absolute; left:50%; top:24%; transform:translateX(-50%); font-size:20px; font-weight:900; color:#fff;
+    text-shadow:0 2px 6px #000; pointer-events:none; opacity:0; transition:opacity .3s; text-align:center; white-space:nowrap; }
+  #mtoast.show{ opacity:1; }
+  #mpick .row{ margin:6px 0; } #mpick .btn{ min-width:120px; font-size:20px; }
+  #moba, #mpick, #mover{ z-index:40; } #mpick, #mover{ z-index:41; }
   .scr{ position:absolute; inset:0; z-index:10; display:flex; flex-direction:column; align-items:center; justify-content:center;
     text-align:center; padding:20px; background:rgba(7,20,12,.92); overflow:auto; }
   .scr.hide{ display:none; }
@@ -239,6 +272,43 @@
   <div id="xfade"><div class="xe">🛡️</div></div>
 </div>
 
+<!-- ===== 守護台灣神木：俯視角 MOBA（獨立模組，獨立 canvas 與控制） ===== -->
+<div id="moba" class="mhide">
+  <canvas id="mgame"></canvas>
+  <div id="mhud">
+    <div class="mteam">
+      <div class="mt-row"><span>🌳 台灣神木</span><b id="mhpAllyTxt"></b></div>
+      <div class="mbar"><i id="mhpAlly" class="ally"></i></div>
+    </div>
+    <div id="mclock">0:00</div>
+    <div class="mteam">
+      <div class="mt-row"><b id="mhpFoeTxt"></b><span>入侵巢穴 🟣</span></div>
+      <div class="mbar"><i id="mhpFoe" class="foe"></i></div>
+    </div>
+  </div>
+  <div id="mstick"><div id="mknob"></div></div>
+  <div id="mbtns">
+    <button id="mBack" class="mbtn back">回神木</button>
+    <button id="mSp" class="mbtn sp"><span class="fill"></span>技能</button>
+  </div>
+  <div id="mtoast"></div>
+</div>
+<div id="mpick" class="scr hide">
+  <h1>⚔ 守護台灣神木</h1>
+  <h2>外來入侵種要摧毀神木——帶守護者擊退他們，反攻搗毀入侵巢穴！</h2>
+  <div class="row">
+    <button class="btn" id="pick3">3 V 3</button>
+    <button class="btn" id="pick5">5 V 5</button>
+  </div>
+  <button class="btn sec" id="pickBack">返回大廳</button>
+</div>
+<div id="mover" class="scr hide">
+  <h1 id="moverT"></h1><h2 id="moverS"></h2><p id="moverB"></p>
+  <button class="btn" id="moverAgain"></button>
+  <button class="btn sec" id="moverHome">🏠 回大廳</button>
+</div>
+
 <script type="module" src="./src/legacy.js"></script>
+<script type="module" src="./src/moba.js"></script>
 </body>
 </html>
