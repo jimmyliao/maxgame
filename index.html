@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>恐龍跑酷 · 無限過關</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    background: #f7f7f7;
+    font-family: "Segoe UI", "PingFang TC", "Microsoft JhengHei", monospace, sans-serif;
+    overflow: hidden;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
+  }
+  #wrap {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(#fafafa, #ececec);
+  }
+  #game {
+    display: block;
+    background: #f7f7f7;
+    border: 2px solid #535353;
+    border-radius: 8px;
+    max-width: 96vw;
+    max-height: 70vh;
+    box-shadow: 0 10px 30px rgba(0,0,0,.12);
+    image-rendering: pixelated;
+  }
+  #hud {
+    position: absolute;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 18px;
+    font-size: 14px;
+    color: #535353;
+    font-weight: 700;
+    letter-spacing: 1px;
+    pointer-events: none;
+    z-index: 5;
+  }
+  #hint {
+    position: absolute;
+    bottom: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #9a9a9a;
+    font-size: 13px;
+    text-align: center;
+    z-index: 5;
+  }
+  .badge {
+    background: rgba(255,255,255,.7);
+    border-radius: 20px;
+    padding: 4px 12px;
+    backdrop-filter: blur(2px);
+  }
+  #levelFlash {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%,-50%) scale(.6);
+    font-size: 40px;
+    font-weight: 800;
+    color: #2e7d32;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 6;
+    text-shadow: 0 2px 8px rgba(0,0,0,.15);
+    transition: none;
+  }
+  #levelFlash.show {
+    animation: pop 1.1s ease forwards;
+  }
+  @keyframes pop {
+    0%   { opacity: 0; transform: translate(-50%,-50%) scale(.5); }
+    25%  { opacity: 1; transform: translate(-50%,-50%) scale(1.1); }
+    70%  { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%,-80%) scale(1); }
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="hud">
+    <span class="badge">關卡 <span id="level">1</span></span>
+    <span class="badge">分數 <span id="score">0</span></span>
+    <span class="badge">最高 <span id="best">0</span></span>
+  </div>
+  <div id="levelFlash"></div>
+  <canvas id="game" width="900" height="320"></canvas>
+  <div id="hint">空白鍵 / ↑ / 點擊：跳躍　·　↓：下蹲　·　無限過關，越闖越快</div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+  const GROUND_Y = H - 56;
+
+  const elLevel = document.getElementById("level");
+  const elScore = document.getElementById("score");
+  const elBest  = document.getElementById("best");
+  const elFlash = document.getElementById("levelFlash");
+
+  // ---- Persistent best score ----
+  let best = 0;
+  try { best = parseInt(localStorage.getItem("dino_best") || "0", 10) || 0; } catch (e) {}
+  elBest.textContent = best;
+
+  // ---- Game state ----
+  const State = { READY: 0, RUN: 1, DEAD: 2 };
+  let state = State.READY;
+
+  let score, level, distance, speed, baseSpeed;
+  let obstacles, clouds, particles;
+  let spawnTimer, levelDist, nextLevelDist;
+  let groundOffset;
+  let flashTimer = 0;
+
+  // ---- Dino ----
+  const dino = {
+    x: 70, y: GROUND_Y, w: 44, h: 47,
+    vy: 0, onGround: true, ducking: false,
+    runFrame: 0
+  };
+  const GRAVITY = 0.7;
+  const JUMP_V = -13.2;
+
+  function reset() {
+    score = 0;
+    level = 1;
+    distance = 0;
+    baseSpeed = 6;
+    speed = baseSpeed;
+    obstacles = [];
+    clouds = [];
+    particles = [];
+    spawnTimer = 60;
+    levelDist = 0;
+    nextLevelDist = 600;          // distance per level
+    groundOffset = 0;
+    dino.y = GROUND_Y;
+    dino.vy = 0;
+    dino.onGround = true;
+    dino.ducking = false;
+    // seed a few clouds
+    for (let i = 0; i < 4; i++) {
+      clouds.push({ x: Math.random() * W, y: 40 + Math.random() * 90, s: 0.3 + Math.random() * 0.5 });
+    }
+    elLevel.textContent = level;
+    elScore.textContent = 0;
+  }
+
+  // ---- Input ----
+  function jump() {
+    if (state === State.READY) { state = State.RUN; return; }
+    if (state === State.DEAD) { reset(); state = State.RUN; return; }
+    if (dino.onGround) {
+      dino.vy = JUMP_V;
+      dino.onGround = false;
+      dino.ducking = false;
+    }
+  }
+  function duckStart() {
+    if (state === State.RUN && !dino.onGround) {
+      dino.vy += 4; // fast-fall
+    }
+    dino.ducking = true;
+  }
+  function duckEnd() { dino.ducking = false; }
+
+  window.addEventListener("keydown", (e) => {
+    if (e.code === "Space" || e.code === "ArrowUp" || e.code === "KeyW") {
+      e.preventDefault(); jump();
+    } else if (e.code === "ArrowDown" || e.code === "KeyS") {
+      e.preventDefault(); duckStart();
+    }
+  });
+  window.addEventListener("keyup", (e) => {
+    if (e.code === "ArrowDown" || e.code === "KeyS") duckEnd();
+  });
+  // Touch / mouse: top half jump, bottom half duck
+  function pointer(e, down) {
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const cy = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+    const isDuck = cy > rect.height * 0.62;
+    if (down) { isDuck ? duckStart() : jump(); }
+    else { duckEnd(); }
+  }
+  canvas.addEventListener("touchstart", (e) => pointer(e, true), { passive: false });
+  canvas.addEventListener("touchend",   (e) => pointer(e, false), { passive: false });
+  canvas.addEventListener("mousedown",  (e) => pointer(e, true));
+  window.addEventListener("mouseup",    (e) => pointer(e, false));
+
+  // ---- Spawning ----
+  function spawnObstacle() {
+    // chance of flying obstacle grows with level
+    const flyChance = Math.min(0.12 + level * 0.04, 0.5);
+    const fly = level >= 3 && Math.random() < flyChance;
+    if (fly) {
+      // bird at one of two heights
+      const high = Math.random() < 0.5;
+      obstacles.push({
+        type: "bird",
+        x: W + 20,
+        y: high ? GROUND_Y - 70 : GROUND_Y - 30,
+        w: 42, h: 30, flap: 0
+      });
+    } else {
+      // cactus cluster
+      const big = Math.random() < 0.4;
+      const cnt = big ? 1 : (1 + (Math.random() < 0.5 ? 1 : 0));
+      const w = big ? 34 : 20;
+      const h = big ? 52 : 38;
+      obstacles.push({
+        type: "cactus",
+        x: W + 20,
+        y: GROUND_Y - h,
+        w: w * cnt + (cnt - 1) * 4,
+        h: h, segs: cnt, segW: w
+      });
+    }
+  }
+
+  function obstacleGap() {
+    // gap shrinks with speed but stays clearable
+    const min = Math.max(55, 95 - level * 3);
+    const max = Math.max(min + 40, 170 - level * 4);
+    return min + Math.random() * (max - min);
+  }
+
+  // ---- Update ----
+  function update() {
+    if (state !== State.RUN) return;
+
+    // speed ramps slightly within a level too
+    speed += 0.0012;
+    distance += speed;
+    levelDist += speed;
+    groundOffset = (groundOffset + speed) % 40;
+
+    // scoring
+    score = Math.floor(distance / 10);
+    elScore.textContent = score;
+
+    // level up
+    if (levelDist >= nextLevelDist) {
+      levelDist = 0;
+      level++;
+      baseSpeed += 0.6;
+      speed = Math.max(speed, baseSpeed);
+      nextLevelDist += 120;           // each level a bit longer
+      elLevel.textContent = level;
+      showFlash("關卡 " + level + "！");
+    }
+
+    // dino physics
+    dino.vy += GRAVITY;
+    dino.y += dino.vy;
+    if (dino.y >= GROUND_Y) {
+      dino.y = GROUND_Y;
+      dino.vy = 0;
+      if (!dino.onGround) {
+        // landing dust
+        for (let i = 0; i < 6; i++)
+          particles.push({ x: dino.x + 10, y: GROUND_Y, vx: -1 - Math.random() * 2, vy: -Math.random() * 2, life: 18 });
+      }
+      dino.onGround = true;
+    }
+    dino.runFrame += speed * 0.05;
+
+    // clouds
+    for (const c of clouds) {
+      c.x -= c.s * (speed * 0.3);
+      if (c.x < -60) { c.x = W + Math.random() * 80; c.y = 30 + Math.random() * 90; }
+    }
+
+    // spawn
+    spawnTimer -= speed;
+    if (spawnTimer <= 0) {
+      spawnObstacle();
+      spawnTimer = obstacleGap();
+    }
+
+    // obstacles
+    for (const o of obstacles) {
+      o.x -= speed;
+      if (o.type === "bird") o.flap += 0.2;
+    }
+    obstacles = obstacles.filter(o => o.x + o.w > -10);
+
+    // particles
+    for (const p of particles) {
+      p.x += p.vx; p.y += p.vy; p.vy += 0.15; p.life--;
+    }
+    particles = particles.filter(p => p.life > 0);
+
+    // collision
+    const db = dinoBox();
+    for (const o of obstacles) {
+      if (intersect(db, o)) { die(); break; }
+    }
+  }
+
+  function dinoBox() {
+    if (dino.ducking && dino.onGround) {
+      return { x: dino.x + 4, y: dino.y - 26, w: 52, h: 26 };
+    }
+    return { x: dino.x + 6, y: dino.y - dino.h, w: dino.w - 12, h: dino.h };
+  }
+
+  function intersect(a, b) {
+    const pad = 4; // forgiving hitbox
+    return a.x < b.x + b.w - pad &&
+           a.x + a.w > b.x + pad &&
+           a.y < b.y + b.h - pad &&
+           a.y + a.h > b.y + pad;
+  }
+
+  function die() {
+    state = State.DEAD;
+    if (score > best) {
+      best = score;
+      elBest.textContent = best;
+      try { localStorage.setItem("dino_best", String(best)); } catch (e) {}
+    }
+    for (let i = 0; i < 14; i++)
+      particles.push({ x: dino.x + 20, y: dino.y - 20, vx: (Math.random()-0.5)*5, vy: -Math.random()*4 - 1, life: 30 });
+  }
+
+  function showFlash(text) {
+    elFlash.textContent = text;
+    elFlash.classList.remove("show");
+    void elFlash.offsetWidth; // reflow to restart animation
+    elFlash.classList.add("show");
+  }
+
+  // ---- Draw ----
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    // sky tint deepens slightly by level (day -> dusk loop)
+    const phase = (level - 1) % 6;
+    const skyTints = ["#f7f7f7","#f4f1ea","#f0ebe0","#ece4d6","#efe3d0","#f5ecdc"];
+    ctx.fillStyle = skyTints[phase];
+    ctx.fillRect(0, 0, W, H);
+
+    // clouds
+    ctx.fillStyle = "#dcdcdc";
+    for (const c of clouds) drawCloud(c.x, c.y);
+
+    // ground line + dashes
+    ctx.strokeStyle = "#535353";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, GROUND_Y + 2);
+    ctx.lineTo(W, GROUND_Y + 2);
+    ctx.stroke();
+    ctx.fillStyle = "#9a9a9a";
+    for (let x = -groundOffset; x < W; x += 40) {
+      ctx.fillRect(x, GROUND_Y + 8, 14, 3);
+      ctx.fillRect(x + 22, GROUND_Y + 14, 7, 3);
+    }
+
+    // obstacles
+    for (const o of obstacles) {
+      if (o.type === "cactus") drawCactus(o);
+      else drawBird(o);
+    }
+
+    // particles
+    ctx.fillStyle = "#8a8a8a";
+    for (const p of particles) {
+      ctx.globalAlpha = Math.max(0, p.life / 30);
+      ctx.fillRect(p.x, p.y, 3, 3);
+    }
+    ctx.globalAlpha = 1;
+
+    // dino
+    drawDino();
+
+    // overlays
+    ctx.fillStyle = "#535353";
+    ctx.textAlign = "center";
+    if (state === State.READY) {
+      ctx.font = "700 26px sans-serif";
+      ctx.fillText("恐龍跑酷 · 無限過關", W/2, H/2 - 26);
+      ctx.font = "16px sans-serif";
+      ctx.fillText("按 空白鍵 或 點擊畫面 開始", W/2, H/2 + 6);
+    } else if (state === State.DEAD) {
+      ctx.font = "700 30px sans-serif";
+      ctx.fillText("G A M E   O V E R", W/2, H/2 - 20);
+      ctx.font = "16px sans-serif";
+      ctx.fillText("關卡 " + level + "　分數 " + score, W/2, H/2 + 10);
+      ctx.fillText("按 空白鍵 或 點擊 重新開始", W/2, H/2 + 36);
+    }
+    ctx.textAlign = "left";
+  }
+
+  function drawCloud(x, y) {
+    ctx.beginPath();
+    ctx.arc(x, y, 12, 0, Math.PI * 2);
+    ctx.arc(x + 14, y + 4, 10, 0, Math.PI * 2);
+    ctx.arc(x - 14, y + 4, 9, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function drawCactus(o) {
+    ctx.fillStyle = "#4a7c3a";
+    for (let i = 0; i < o.segs; i++) {
+      const x = o.x + i * (o.segW + 4);
+      const w = o.segW, h = o.h;
+      ctx.fillRect(x + w*0.35, o.y, w*0.3, h);            // trunk
+      ctx.fillRect(x + w*0.05, o.y + h*0.3, w*0.3, w*0.18); // left arm base
+      ctx.fillRect(x + w*0.05, o.y + h*0.15, w*0.18, h*0.3);
+      ctx.fillRect(x + w*0.7, o.y + h*0.35, w*0.3, w*0.18); // right arm
+      ctx.fillRect(x + w*0.77, o.y + h*0.2, w*0.18, h*0.3);
+    }
+  }
+
+  function drawBird(o) {
+    ctx.fillStyle = "#535353";
+    const up = Math.floor(o.flap) % 2 === 0;
+    const x = o.x, y = o.y;
+    // body
+    ctx.fillRect(x + 14, y + 10, 20, 8);
+    ctx.fillRect(x + 30, y + 6, 10, 8); // head
+    ctx.fillRect(x + 38, y + 9, 5, 3);  // beak
+    // wing
+    if (up) ctx.fillRect(x + 10, y, 22, 8);
+    else    ctx.fillRect(x + 10, y + 18, 22, 8);
+  }
+
+  function drawDino() {
+    ctx.fillStyle = state === State.DEAD ? "#9a9a9a" : "#535353";
+    const x = dino.x;
+    if (dino.ducking && dino.onGround) {
+      const y = GROUND_Y - 26;
+      ctx.fillRect(x, y, 56, 22);          // long low body
+      ctx.fillRect(x + 44, y - 6, 16, 14); // head
+      ctx.fillRect(x + 56, y - 2, 3, 3);   // (eye gap)
+      ctx.fillStyle = "#f7f7f7";
+      ctx.fillRect(x + 52, y - 3, 3, 3);   // eye
+      // legs
+      ctx.fillStyle = state === State.DEAD ? "#9a9a9a" : "#535353";
+      const step = Math.floor(dino.runFrame) % 2 === 0;
+      ctx.fillRect(x + 8, GROUND_Y - 4, 6, 4);
+      ctx.fillRect(x + 26, GROUND_Y - 4, 6, 4);
+      return;
+    }
+    const y = dino.y - dino.h;
+    // body
+    ctx.fillRect(x + 6, y + 18, 26, 20);   // torso
+    ctx.fillRect(x + 4, y + 30, 10, 12);   // tail
+    // head
+    ctx.fillRect(x + 24, y, 20, 18);
+    ctx.fillRect(x + 42, y + 6, 6, 5);     // snout
+    // eye
+    ctx.fillStyle = "#f7f7f7";
+    ctx.fillRect(x + 38, y + 4, 4, 4);
+    ctx.fillStyle = state === State.DEAD ? "#9a9a9a" : "#535353";
+    // arm
+    ctx.fillRect(x + 28, y + 24, 8, 4);
+    // legs animate when running on ground
+    if (dino.onGround && state === State.RUN) {
+      const step = Math.floor(dino.runFrame) % 2 === 0;
+      if (step) {
+        ctx.fillRect(x + 10, y + 38, 7, 9);
+        ctx.fillRect(x + 22, y + 38, 7, 5);
+      } else {
+        ctx.fillRect(x + 10, y + 38, 7, 5);
+        ctx.fillRect(x + 22, y + 38, 7, 9);
+      }
+    } else {
+      ctx.fillRect(x + 10, y + 38, 7, 9);
+      ctx.fillRect(x + 22, y + 38, 7, 9);
+    }
+  }
+
+  // ---- Loop ----
+  function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  reset();
+  loop();
+})();
+</script>
+</body>
+</html>
