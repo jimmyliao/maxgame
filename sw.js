@@ -1,5 +1,5 @@
 // 守土 Service Worker — 線上優先、離線可玩
-const CACHE = "shoutu-v7";
+const CACHE = "shoutu-v8";
 const ASSETS = ["./", "./index.html", "./src/legacy.js", "./src/data/types-chart.js", "./manifest.json", "./icon.svg", "./dino.html"];
 
 self.addEventListener("install", (e) => {
@@ -17,7 +17,8 @@ self.addEventListener("activate", (e) => {
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
   e.respondWith(
-    fetch(e.request)
+    // 強制略過瀏覽器 HTTP 快取，永遠抓最新（解決 GitHub Pages 快取導致看到舊版）
+    fetch(e.request, { cache: "no-store" })
       .then((res) => {
         const copy = res.clone();
         caches.open(CACHE).then((c) => c.put(e.request, copy)).catch(() => {});
