@@ -195,7 +195,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   const dock=document.getElementById("dock");
   const titleScr=document.getElementById("title"), mapScr=document.getElementById("map"),
         resultScr=document.getElementById("result"), storyScr=document.getElementById("story"), dexScr=document.getElementById("dex"),
-        upgradeScr=document.getElementById("upgrade");
+        upgradeScr=document.getElementById("upgrade"), statsScr=document.getElementById("stats"), settingsScr=document.getElementById("settings");
   const bSp=document.getElementById("bSp"), bSwap=document.getElementById("bSwap");
   const lobbyScr=document.getElementById("lobby");
   const heroShow=document.getElementById("heroShow"), hctx=heroShow.getContext("2d");
@@ -211,6 +211,10 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   function setUpg(o){ try{ localStorage.setItem("shoutu_upg",JSON.stringify(o)); }catch(e){} }
   function upgLv(key){ return getUpg()[key]||0; }
   function upgCost(lv){ return 50*(lv+1); }
+  // 戰績
+  function getWins(){ try{ return parseInt(localStorage.getItem("shoutu_wins")||"0",10)||0; }catch(e){ return 0; } }
+  function getMaxStar(){ try{ return parseInt(localStorage.getItem("shoutu_maxstar")||"0",10)||0; }catch(e){ return 0; } }
+  function bumpWin(){ try{ localStorage.setItem("shoutu_wins",String(getWins()+1)); if(matchLevel>getMaxStar()) localStorage.setItem("shoutu_maxstar",String(matchLevel)); }catch(e){} }
 
   let W=0,H=0,GY=0,dpr=1;
   function resize(){ const r=canvas.getBoundingClientRect(); W=r.width; H=r.height; GY=H*0.82;
@@ -229,7 +233,15 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   const GRAV=1700, JUMP=-620;
   const input={ left:false, right:false };
 
-  function show(scr){ [titleScr,mapScr,resultScr,dexScr,lobbyScr,upgradeScr].forEach(s=>s.classList.add("hide")); storyScr.classList.add("hide"); if(scr) scr.classList.remove("hide"); }
+  function show(scr){ [titleScr,mapScr,resultScr,dexScr,lobbyScr,upgradeScr,statsScr,settingsScr].forEach(s=>s.classList.add("hide")); storyScr.classList.add("hide"); if(scr) scr.classList.remove("hide"); }
+  function goStats(){ state="stats"; setBattleUI(false); show(statsScr);
+    const lv=Math.floor(getEco()/100)+1, ml=getMaxStar();
+    document.getElementById("statsBody").innerHTML=
+      `🌿 保育值：<b>${getEco()}</b><br>🎖️ 保育等級：<b>Lv.${lv}</b><br>🛡️ 驅逐外來種：<b>${getWins()}</b> 次<br>⭐ 最高配對星級：<b>${ml?("★"+ml):"—"}</b><br><br>`+
+      `<span style="color:#ffd54f;font-weight:800">守護者族群復育</span><br>`+
+      HEROES.map(h=>`${h.name}　Lv.${upgLv(h.key)}`).join("　·　");
+  }
+  function goSettings(){ state="settings"; setBattleUI(false); show(settingsScr); }
   function goUpgrade(){ state="upgrade"; setBattleUI(false); show(upgradeScr);
     document.getElementById("upgEco").textContent=getEco();
     const wrap=document.getElementById("upgCards"); wrap.innerHTML="";
@@ -449,7 +461,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   function updateSp(){ const r=Math.max(0,hero?hero.spCd:0); const cd=heroDef?heroDef.spCd:5; bSp.querySelector(".fill").style.height=(r/cd*100)+"%"; bSp.classList.toggle("ready", r<=0); }
 
   function winChapter(){ if(state!=="play")return;
-    if(matchMode){ state="post"; setBattleUI(false); const gain=matchLevel*10; setEco(getEco()+gain);
+    if(matchMode){ state="post"; setBattleUI(false); bumpWin(); const gain=matchLevel*10; setEco(getEco()+gain);
       const tip="🌱 <b>你可以這樣幫：</b><br>"+CONS_INV[boss.kind]+"<br>"+CONS_END[HEROES[featured].key];
       showResult("🛡️ 驅逐成功！", boss.name+" 被擊退，棲地 +"+gain+" 保育值", tip, "⚔ 再來一場", quickMatch); return; }
     state="post"; setBattleUI(false);
@@ -555,6 +567,12 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   document.getElementById("navUpg").onclick=()=>transition(goUpgrade);
   document.getElementById("upgBack").onclick=()=>transition(goLobby);
   document.getElementById("upgReset").onclick=()=>{ setUnlocked(0); try{ localStorage.removeItem("shoutu_upg"); localStorage.removeItem("shoutu_eco"); }catch(e){} goUpgrade(); };
+  document.getElementById("navStats").onclick=()=>transition(goStats);
+  document.getElementById("navSet").onclick=()=>transition(goSettings);
+  document.getElementById("statsBack").onclick=()=>transition(goLobby);
+  document.getElementById("setBack").onclick=()=>transition(goLobby);
+  document.getElementById("setReset").onclick=()=>{ try{ ["shoutu_unlocked","shoutu_eco","shoutu_upg","shoutu_wins","shoutu_maxstar"].forEach(k=>localStorage.removeItem(k)); }catch(e){} goSettings(); };
+  document.getElementById("setShare").onclick=()=>{ const url="https://jimmyliao.github.io/maxgame/"; if(navigator.share){ navigator.share({title:"守土 · 福爾摩沙衛士", text:"一起來守護台灣特有種！", url}).catch(()=>{}); } else { try{ navigator.clipboard.writeText(url); }catch(e){} alert("遊戲連結已複製，分享給朋友一起守護台灣生態！\n"+url); } };
   window.__tx=transition;
   window.addEventListener("keydown",(e)=>{ if(state==="play"){ if(e.key==="ArrowLeft"||e.key==="a")input.left=true; else if(e.key==="ArrowRight"||e.key==="d")input.right=true;
       else if(e.key==="ArrowUp"||e.key==="w"||e.code==="Space"){ e.preventDefault(); heroJump(); } else if(e.key==="j"||e.key==="Enter")heroAttack(); else if(e.key==="k"||e.key==="Shift")heroSpecial(); else if(e.key==="q"||e.key==="Tab"){ e.preventDefault(); swapHero(); } }

@@ -106,8 +106,8 @@
   #lobby .play-btn:active{ transform:translateY(3px); }
   @keyframes playPulse{ 0%,100%{ box-shadow:0 6px 0 #e09400, 0 10px 24px rgba(0,0,0,.5), 0 0 0 rgba(255,213,79,0);} 50%{ box-shadow:0 6px 0 #e09400, 0 10px 30px rgba(0,0,0,.5), 0 0 26px rgba(255,213,79,.85);} }
   @keyframes playShine{ 0%{ left:-70%;} 55%,100%{ left:150%;} }
-  #lobby .lobby-nav{ display:flex; gap:10px; justify-content:center; margin-top:10px; width:100%; max-width:420px; }
-  #lobby .navb{ flex:1; background:rgba(255,255,255,.13); border:1px solid rgba(255,255,255,.22);
+  #lobby .lobby-nav{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:10px; width:100%; max-width:420px; }
+  #lobby .navb{ flex:1 1 44%; background:rgba(255,255,255,.13); border:1px solid rgba(255,255,255,.22);
     color:#e8f5e9; font-size:14px; font-weight:800; border-radius:20px; padding:11px; cursor:pointer; }
   #lobby .navb:active{ filter:brightness(1.25); }
   /* ===== 場景轉場 ===== */
@@ -143,6 +143,8 @@
         <div class="lobby-nav">
           <button class="navb" id="navUpg">🌱 復育</button>
           <button class="navb" id="navDex">📖 圖鑑</button>
+          <button class="navb" id="navStats">🏆 戰績</button>
+          <button class="navb" id="navSet">⚙️ 設定</button>
         </div>
       </div>
     </div>
@@ -169,6 +171,23 @@
       <p style="font-size:12px;margin-bottom:4px">認識牠們，是守護的第一步。</p>
       <div class="cards" id="dexCards"></div>
       <button class="btn sec" id="dexBack" style="margin-top:14px">返回</button>
+    </div>
+
+    <div class="scr hide" id="stats">
+      <h1 style="font-size:22px">🏆 戰績</h1>
+      <div id="statsBody" style="font-size:15px;line-height:2.1;color:#e8f5e9;max-width:420px;width:100%"></div>
+      <button class="btn sec" id="statsBack" style="margin-top:16px">返回</button>
+    </div>
+
+    <div class="scr hide" id="settings">
+      <h1 style="font-size:22px">⚙️ 設定</h1>
+      <div style="max-width:440px;font-size:14px;line-height:1.8;color:#c8e6c9">
+        <p style="color:#ffd54f;font-weight:800">🌏 守土 · 福爾摩沙衛士</p>
+        <p>一款用「玩」來認識台灣生態保育與特有種的遊戲。<br>每一場對戰，都是在守護真實、正在消失的台灣生命。</p>
+      </div>
+      <button class="btn" id="setShare" style="margin-top:14px">📣 分享給朋友一起守護</button>
+      <button class="btn sec" id="setReset" style="margin-top:10px">↺ 重置所有進度</button>
+      <button class="btn sec" id="setBack" style="margin-top:10px">返回</button>
     </div>
 
     <div class="scr hide" id="upgrade">

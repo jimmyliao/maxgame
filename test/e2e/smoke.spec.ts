@@ -37,6 +37,15 @@ test("載入無錯誤、鐵則齊全、能走完一場戰鬥", async ({ page }) 
   await page.locator("#upgBack").click();
   await expect(page.locator("#playBtn")).toBeVisible();
 
+  // 戰績 / 設定
+  await page.locator("#navStats").click();
+  await expect(page.locator("#statsBack")).toBeVisible();
+  await page.locator("#statsBack").click();
+  await page.locator("#navSet").click();
+  await expect(page.locator("#setBack")).toBeVisible();
+  await page.locator("#setBack").click();
+  await expect(page.locator("#playBtn")).toBeVisible();
+
   // 對戰：直接配對開打（無章節選單）
   await page.locator("#playBtn").click();
   await expect(page.locator("#dock")).toBeVisible();
