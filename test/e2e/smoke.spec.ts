@@ -32,10 +32,11 @@ test("載入無錯誤、鐵則齊全、能走完一場戰鬥", async ({ page }) 
   // 圖鑑：8 個物種卡（4 守護者 + 4 入侵者）全部能畫出（涵蓋 8 個 kind）
   await page.locator("#toDex").click();
   await expect(page.locator("#dexCards .card")).toHaveCount(8);
-  await page.locator("#dexBack").click();
+  await page.locator("#dexBack").click(); // 回大廳
 
-  // 返回後已在地圖；進入第一章（chapter 0 恆解鎖）戰鬥
-  await expect(page.locator("#map")).toBeVisible();
+  // 對戰 → 第一章（chapter 0 恆解鎖）
+  await expect(page.locator("#playBtn")).toBeVisible();
+  await page.locator("#playBtn").click();
   await page.locator("#cards .card").first().click();
 
   // 跳過開場對話

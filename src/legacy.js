@@ -279,7 +279,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
       info.innerHTML=`<div class="t">第${i+1}章 · ${c.place}</div><div class="d">${HEROES[c.hero].name}（${TYPE[HEROES[c.hero].type]}） VS ${c.boss.name}（${TYPE[c.boss.type]}）</div>`;
       div.appendChild(info); const st=document.createElement("div"); st.className="st"; st.textContent=i<unlocked?"✅":(i>unlocked?"🔒":"▶"); div.appendChild(st);
       drawCreature(cv.getContext("2d"),HEROES[c.hero].key,52,60,36,{t:0});
-      if(i<=unlocked) div.onclick=()=>startChapter(i); cards.appendChild(div); });
+      if(i<=unlocked) div.onclick=()=>transition(()=>startChapter(i)); cards.appendChild(div); });
   }
 
   function goDex(){ state="dex"; setBattleUI(false); show(dexScr); const wrap=document.getElementById("dexCards"); wrap.innerHTML="";
@@ -306,7 +306,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   storyScr.addEventListener("pointerdown",(e)=>{ e.preventDefault(); if(state==="story") advance(); },{passive:false});
 
   /* ===== 開始戰鬥 ===== */
-  function startChapter(i){ chapter=i; playStory(CH[i].intro, beginBattle); }
+  function startChapter(i){ chapter=i; playStory(CH[i].intro, ()=>transition(beginBattle)); }
   function beginBattle(){ const c=CH[chapter]; state="play"; setBattleUI(true); show(null);
     elapsed=0; shake=0; projs=[]; fx=[]; floaters=[]; input.left=input.right=false;
     // 隊伍：所有已解鎖的特有種，各自獨立血量
@@ -394,12 +394,12 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     playStory(CH[chapter].outro, ()=>{ const last=chapter>=CH.length-1;
       showResult("🏆 打倒 "+CH[chapter].boss.name+"！", last?"全戰役完成！":"章節過關",
         last?"你打倒了所有入侵種的王，守住了台灣每一個家。<br>打開『保育圖鑑』，把這些真實的台灣生命記在心裡。":"新夥伴加入隊伍！之後可在任何章節換手出戰。",
-        last?"再玩一次":"下一章 ▶", last?goMap:()=>startChapter(chapter+1)); }); }
+        last?"回大廳":"下一章 ▶", last?goLobby:()=>startChapter(chapter+1)); }); }
   function loseChapter(){ if(state!=="play")return; state="lose"; setBattleUI(false);
     showResult("全隊被擊倒了…", CH[chapter].boss.name+"太強了", "撐住！等魔王出招『後』再反擊；按『換手』用屬性剋制牠（🌲>💧>🌪>🪲>🌲）。", "再挑戰一次", ()=>startChapter(chapter)); }
   function showResult(title,sub,body,mainTxt,mainFn){ state="result"; show(resultScr);
     document.getElementById("rTitle").textContent=title; document.getElementById("rSub").textContent=sub;
-    document.getElementById("rBody").innerHTML=body; const mb=document.getElementById("rMain"); mb.textContent=mainTxt; mb.onclick=mainFn; }
+    document.getElementById("rBody").innerHTML=body; const mb=document.getElementById("rMain"); mb.textContent=mainTxt; mb.onclick=()=>transition(mainFn); }
   function flo(x,y,txt,col){ floaters.push({x,y,txt,col,life:0.8}); }
 
   /* ===== 背景 ===== */
@@ -451,12 +451,15 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   const tap=(id,fn)=>document.getElementById(id).addEventListener("pointerdown",(e)=>{ e.preventDefault(); fn(); },{passive:false});
   tap("bJump",heroJump); tap("bAtk",heroAttack); tap("bSp",heroSpecial); tap("bSwap",swapHero);
   canvas.addEventListener("pointerdown",(e)=>{ if(state!=="play")return; e.preventDefault(); heroAttack(); },{passive:false});
-  document.getElementById("toMap").onclick=goMap; document.getElementById("rMap").onclick=goMap;
-  document.getElementById("toDex").onclick=goDex; document.getElementById("dexBack").onclick=goMap;
-  document.getElementById("resetProg").onclick=()=>{ setUnlocked(0); goMap(); };
-  document.getElementById("playBtn").onclick=goMap;
-  document.getElementById("navDex").onclick=goDex;
+  const xf=document.getElementById("xfade");
+  function transition(fn){ xf.classList.add("on"); setTimeout(()=>{ try{ fn(); }catch(e){} setTimeout(()=>xf.classList.remove("on"),90); }, 220); }
+  document.getElementById("toMap").onclick=()=>transition(goMap); document.getElementById("rMap").onclick=()=>transition(goLobby);
+  document.getElementById("toDex").onclick=()=>transition(goDex); document.getElementById("dexBack").onclick=()=>transition(goLobby);
+  document.getElementById("mapHome").onclick=()=>transition(goLobby);
+  document.getElementById("playBtn").onclick=()=>transition(goMap);
+  document.getElementById("navDex").onclick=()=>transition(goDex);
   document.getElementById("navReset").onclick=()=>{ setUnlocked(0); updateLobby(); };
+  window.__tx=transition;
   window.addEventListener("keydown",(e)=>{ if(state==="play"){ if(e.key==="ArrowLeft"||e.key==="a")input.left=true; else if(e.key==="ArrowRight"||e.key==="d")input.right=true;
       else if(e.key==="ArrowUp"||e.key==="w"||e.code==="Space"){ e.preventDefault(); heroJump(); } else if(e.key==="j"||e.key==="Enter")heroAttack(); else if(e.key==="k"||e.key==="Shift")heroSpecial(); else if(e.key==="q"||e.key==="Tab"){ e.preventDefault(); swapHero(); } }
     else if(state==="story"&&e.code==="Space"){ e.preventDefault(); advance(); } });

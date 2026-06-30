@@ -68,7 +68,7 @@
   #story .box .ln{ font-size:15px; line-height:1.6; color:#e8f5e9; min-height:46px; }
   #story .tap{ position:absolute; right:16px; bottom:8px; font-size:11px; color:#90a4ae; }
   /* ===== 大廳 Lobby（遊戲介面，荒野亂鬥式氛圍）===== */
-  #lobby{ padding:0; overflow:hidden; display:block; position:absolute; inset:0; }
+  #lobby{ padding:0; overflow:hidden; }
   #lobby #heroShow{ position:absolute; inset:0; width:100%; height:100%; z-index:0; }
   #lobby .lb-top{ position:absolute; top:0; left:0; right:0; z-index:2; display:flex; align-items:flex-start;
     justify-content:space-between; gap:8px; padding:10px 12px; padding-top:max(10px,env(safe-area-inset-top)); }
@@ -105,6 +105,14 @@
   #lobby .navb{ flex:1; background:rgba(255,255,255,.13); border:1px solid rgba(255,255,255,.22);
     color:#e8f5e9; font-size:14px; font-weight:800; border-radius:20px; padding:11px; cursor:pointer; }
   #lobby .navb:active{ filter:brightness(1.25); }
+  /* ===== 場景轉場 ===== */
+  #xfade{ position:fixed; inset:0; z-index:50; opacity:0; pointer-events:none;
+    background:radial-gradient(circle at 50% 45%, #14422a, #06170d);
+    display:flex; align-items:center; justify-content:center; transition:opacity .22s ease; }
+  #xfade.on{ opacity:1; pointer-events:all; }
+  #xfade .xe{ font-size:46px; filter:drop-shadow(0 4px 10px rgba(0,0,0,.5)); opacity:0; transition:opacity .22s ease; }
+  #xfade.on .xe{ opacity:1; animation:xspin .9s ease-in-out infinite; }
+  @keyframes xspin{ 0%{ transform:rotate(-12deg) scale(.92);} 50%{ transform:rotate(12deg) scale(1.05);} 100%{ transform:rotate(-12deg) scale(.92);} }
 </style>
 </head>
 <body>
@@ -126,7 +134,7 @@
         <div class="hero-name"><span id="hsName">石虎</span><span class="ht" id="hsType">🌲山林</span></div>
         <div class="hero-tag" id="hsTag"></div>
         <div class="roster" id="roster"></div>
-        <button class="play-btn" id="playBtn">▶ 開始守護</button>
+        <button class="play-btn" id="playBtn">⚔ 對 戰</button>
         <div class="lobby-nav">
           <button class="navb" id="navDex">📖 圖鑑</button>
           <button class="navb" id="navReset">↺ 重置</button>
@@ -146,8 +154,8 @@
       <h1 style="font-size:23px">選擇章節</h1>
       <div class="cards" id="cards"></div>
       <div class="row" style="margin-top:16px">
+        <button class="btn sec" id="mapHome">🏠 回大廳</button>
         <button class="btn sec" id="toDex">📖 保育圖鑑</button>
-        <button class="btn sec" id="resetProg">重置進度</button>
       </div>
     </div>
 
@@ -170,7 +178,7 @@
     <div class="scr hide" id="result">
       <h1 id="rTitle"></h1><h2 id="rSub"></h2><p id="rBody"></p>
       <button class="btn" id="rMain"></button>
-      <button class="btn sec" id="rMap">回章節地圖</button>
+      <button class="btn sec" id="rMap">🏠 回大廳</button>
     </div>
   </div>
 
@@ -186,6 +194,8 @@
       <button class="gb atk" id="bAtk">攻擊</button>
     </div>
   </div>
+
+  <div id="xfade"><div class="xe">🛡️</div></div>
 </div>
 
 <script type="module" src="./src/legacy.js"></script>
