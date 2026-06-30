@@ -199,6 +199,9 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   const lobbyScr=document.getElementById("lobby");
   const heroShow=document.getElementById("heroShow"), hctx=heroShow.getContext("2d");
   const LOBBY_TAG={ leopard:"台灣唯一原生貓科 · 夜行獵手", bear:"台灣唯一原生熊 · 森林守護者", cicada:"台灣最大的蟬 · 鳴聲震場", dragonfly:"台灣最快的蜻蜓 · 空中獵手" };
+  // 保育行動知識（玩中學）
+  const CONS_END={ leopard:"開車經過淺山請減速，避免路殺石虎。", bear:"登山不留廚餘、不餵食野生動物。", cicada:"保留老樹與森林，就是保留昆蟲的家。", dragonfly:"別污染溪流濕地，牠們是水質好壞的指標。" };
+  const CONS_INV={ snail:"看到福壽螺的粉紅色卵塊，撥落水中可阻止孵化。", iguana:"養寵物請養到底——綠鬣蜥是因棄養才氾濫的。", frog:"不要隨意放生，外來蛙會排擠台灣原生種。", ibis:"發現外來入侵種，可通報林業保育署協助移除。" };
   let featured=0, hsW=0, hsH=0;
   function getEco(){ try{ return parseInt(localStorage.getItem("shoutu_eco")||"0",10)||0; }catch(e){ return 0; } }
   function setEco(v){ try{ localStorage.setItem("shoutu_eco",String(v)); }catch(e){} }
@@ -212,8 +215,8 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
 
   /* ===== 狀態 ===== */
   let state="title", chapter=0, elapsed=0, shake=0;
-  let matchMode=false, matchLevel=1;
-  let hero, heroDef, boss, team, active, projs, fx, floaters;
+  let matchMode=false, matchLevel=1, hitstop=0;
+  let hero, heroDef, boss, team, active, projs, fx, floaters, parts;
   const GRAV=1700, JUMP=-620;
   const input={ left:false, right:false };
 
@@ -322,7 +325,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   // 配對：按「對戰」→ 用大廳選的角色，對上隨機外來入侵種（隨機星級）
   function quickMatch(){ matchMode=true; chapter=Math.floor(Math.random()*CH.length); matchLevel=1+Math.floor(Math.random()*5); transition(beginBattle); }
   function beginBattle(){ const c=CH[chapter]; state="play"; setBattleUI(true); show(null);
-    elapsed=0; shake=0; projs=[]; fx=[]; floaters=[]; input.left=input.right=false;
+    elapsed=0; shake=0; hitstop=0; projs=[]; fx=[]; floaters=[]; parts=[]; input.left=input.right=false;
     // 隊伍：配對戰可用全部 4 隻；戰役則用已解鎖的
     const cnt = matchMode ? HEROES.length : Math.min(HEROES.length, getUnlocked()+1);
     team=[]; for(let k=0;k<cnt;k++) team.push({idx:k, hp:100, maxhp:100, fainted:false});
@@ -352,12 +355,17 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     updateSp();
   }
   function hurtHero(base,fromX){ if(hero.invuln>0) return; const mult=eff(boss.type,hero.type); const dmg=Math.round(base*mult);
-    hero.hp-=dmg; hero.invuln=1.0; hero.hitT=0.3; shake=Math.max(shake,10); hero.vy=-260; hero.onGround=false; hero.x+=(hero.x<fromX?-1:1)*30;
+    hero.hp-=dmg; hero.invuln=1.0; hero.hitT=0.3; shake=Math.max(shake,12); hero.vy=-260; hero.onGround=false; hero.x+=(hero.x<fromX?-1:1)*30;
+    burst(hero.x,hero.y-20,14,"#ff8a80",1.3); ringAt(hero.x,hero.y-20,"#ff5252",62); hitstop=Math.max(hitstop,0.06);
     flo(hero.x,hero.y-50,"-"+dmg,"#ff8a80"); if(mult>1) flo(hero.x,hero.y-72,"效果絕佳!","#ffab91");
     if(hero.hp<=0){ hero.hp=0; team[active].hp=0; team[active].fainted=true; flo(hero.x,hero.y-40,HEROES[team[active].idx].name+" 倒下!","#bbb");
       const j=nextAlive(active); if(j<0){ loseChapter(); } else { loadActive(j); } } }
   function hitBoss(base,stun){ const mult=eff(hero.type,boss.type); const dmg=Math.round(base*mult);
     boss.hp-=dmg; boss.hitT=0.18; flo(boss.x,boss.y-boss.r-10,"-"+dmg,"#fff");
+    const ix=boss.x+(hero.x<boss.x?-boss.r*0.7:boss.r*0.7), iy=boss.y-boss.r*0.15;
+    burst(ix,iy, mult>1?18:11, mult>1?"#fff59d":"#ffffff", mult>1?1.5:1);
+    ringAt(ix,iy, mult>1?"#ffe082":"#ffffff", boss.r*0.95);
+    shake=Math.max(shake, mult>1?14:9); hitstop=Math.max(hitstop, mult>1?0.075:0.045);
     if(mult>1) flo(boss.x,boss.y-boss.r-30,"效果絕佳!","#a5d6a7"); else if(mult<1) flo(boss.x,boss.y-boss.r-30,"效果不佳…","#cfd8dc");
     if(stun){ boss.stun=Math.max(boss.stun,1.3); boss.st="idle"; boss.danger=false; }
     if(boss.hp<=0){ boss.hp=0; winChapter(); } }
@@ -385,7 +393,11 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   }
 
   /* ===== 更新 ===== */
-  function update(dt){ elapsed+=dt; if(shake>0) shake=Math.max(0,shake-dt*40);
+  function update(dt){
+    // 打擊頓挫：命中瞬間凍格（仍持續整合粒子讓火花動）
+    if(hitstop>0){ hitstop=Math.max(0,hitstop-dt); for(const p of parts){ p.life-=dt; if(p.type==="spark"){ p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy+=900*dt; } } parts=parts.filter(p=>p.life>0); if(shake>0) shake=Math.max(0,shake-dt*40); return; }
+    elapsed+=dt; if(shake>0) shake=Math.max(0,shake-dt*40);
+    for(const p of parts){ p.life-=dt; if(p.type==="spark"){ p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy+=900*dt; } } parts=parts.filter(p=>p.life>0);
     if(hero.atkCd>0)hero.atkCd-=dt; if(hero.atkT>0)hero.atkT-=dt; if(hero.spCd>0){hero.spCd-=dt; updateSp();}
     if(hero.invuln>0)hero.invuln-=dt; if(hero.hitT>0)hero.hitT-=dt;
     let mv=0; if(input.left)mv-=1; if(input.right)mv+=1; if(mv!==0) hero.face=mv;
@@ -411,7 +423,8 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
 
   function winChapter(){ if(state!=="play")return;
     if(matchMode){ state="post"; setBattleUI(false); const gain=matchLevel*10; setEco(getEco()+gain);
-      showResult("🛡️ 驅逐成功！", boss.name+" 被擊退", "棲地復原了 🌿 保育值 +"+gain+"。", "⚔ 再來一場", quickMatch); return; }
+      const tip="🌱 <b>你可以這樣幫：</b><br>"+CONS_INV[boss.kind]+"<br>"+CONS_END[HEROES[featured].key];
+      showResult("🛡️ 驅逐成功！", boss.name+" 被擊退，棲地 +"+gain+" 保育值", tip, "⚔ 再來一場", quickMatch); return; }
     state="post"; setBattleUI(false);
     const was=getUnlocked(); if(chapter+1>was) setUnlocked(Math.min(CH.length,chapter+1));
     playStory(CH[chapter].outro, ()=>{ const last=chapter>=CH.length-1;
@@ -420,13 +433,16 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
         last?"回大廳":"下一章 ▶", last?goLobby:()=>startChapter(chapter+1)); }); }
   function loseChapter(){ if(state!=="play")return;
     if(matchMode){ state="lose"; setBattleUI(false);
-      showResult("被擊退了…", boss.name+" 太強", "換隻角色、用對屬性(🌲>💧>🌪>🪲>🌲)再來！", "⚔ 再配對", quickMatch); return; }
+      showResult("被擊退了…", boss.name+" 太強", "換隻角色、用對屬性(🌲>💧>🌪>🪲>🌲)再來！<br><br>🌱 "+CONS_INV[boss.kind], "⚔ 再配對", quickMatch); return; }
     state="lose"; setBattleUI(false);
     showResult("全隊被擊倒了…", CH[chapter].boss.name+"太強了", "撐住！等魔王出招『後』再反擊；按『換手』用屬性剋制牠（🌲>💧>🌪>🪲>🌲）。", "再挑戰一次", ()=>startChapter(chapter)); }
   function showResult(title,sub,body,mainTxt,mainFn){ state="result"; show(resultScr);
     document.getElementById("rTitle").textContent=title; document.getElementById("rSub").textContent=sub;
     document.getElementById("rBody").innerHTML=body; const mb=document.getElementById("rMain"); mb.textContent=mainTxt; mb.onclick=()=>transition(mainFn); }
   function flo(x,y,txt,col){ floaters.push({x,y,txt,col,life:0.8}); }
+  // 碰撞/打擊：火花爆發 + 衝擊環
+  function burst(x,y,n,col,power){ power=power||1; for(let i=0;i<n;i++){ const a=Math.random()*6.283, sp=(70+Math.random()*200)*power; parts.push({type:"spark",x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-70,life:0.3+Math.random()*0.25,max:0.55,r:1.4+Math.random()*2.6,col}); } if(parts.length>240) parts.splice(0,parts.length-240); }
+  function ringAt(x,y,col,maxr){ parts.push({type:"ring",x,y,life:0.28,max:0.28,r0:6,r1:maxr||40,col}); }
 
   /* ===== 背景 ===== */
   function paintBackground(c,w,h,bg){ let top="#1b5e20",bot="#33691e";
@@ -453,6 +469,11 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     let ha=1; if(hero.invuln>0 && Math.floor(elapsed*16)%2===0) ha=0.4; ctx.globalAlpha=ha;
     drawCreature(ctx,hero.key,hero.x,hero.y,32,{t:elapsed,mood:hero.hitT>0?"angry":"happy",flip:hero.face<0}); ctx.globalAlpha=1;
     if(hero.atkT>0){ ctx.strokeStyle="rgba(255,255,255,.85)"; ctx.lineWidth=5; ctx.beginPath(); ctx.arc(hero.x+hero.face*36,hero.y-6,26,-0.8,0.8); ctx.stroke(); }
+    // 碰撞火花 + 衝擊環
+    for(const p of parts){ const a=Math.max(0,p.life/p.max);
+      if(p.type==="spark"){ ctx.globalAlpha=a; ctx.fillStyle=p.col; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,7); ctx.fill(); }
+      else { const rr=p.r0+(p.r1-p.r0)*(1-a); ctx.globalAlpha=a*0.9; ctx.strokeStyle=p.col; ctx.lineWidth=3.5; ctx.beginPath(); ctx.arc(p.x,p.y,rr,0,7); ctx.stroke(); } }
+    ctx.globalAlpha=1;
     for(const f of floaters){ ctx.globalAlpha=Math.min(1,f.life*1.6); ctx.fillStyle=f.col; ctx.font="bold 15px sans-serif"; ctx.fillText(f.txt,f.x,f.y); ctx.globalAlpha=1; }
     // 血條
     hpBar(14,30,W*0.40,hero.hp/hero.maxhp,"#66bb6a",HEROES[team[active].idx].name+" "+TYPE[hero.type]);
