@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>守土 · 福爾摩沙衛士</title>
 <meta name="theme-color" content="#1b5e20">
-<!-- iOS 加到主畫面、全螢幕 -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -13,430 +12,514 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.svg">
 <style>
-  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  *{ margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html,body{ height:100%; overflow:hidden; background:#0d2818;
     font-family:"PingFang TC","Microsoft JhengHei","Noto Sans TC",system-ui,sans-serif;
-    -webkit-user-select:none; user-select:none; touch-action:none; }
+    -webkit-user-select:none; user-select:none; touch-action:none; color:#e8f5e9; }
   #app{ position:fixed; inset:0; display:flex; flex-direction:column;
     padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
-  /* 頂部資訊列 */
-  #hud{ display:flex; align-items:center; gap:8px; padding:8px 12px; color:#e8f5e9;
-    font-weight:700; font-size:13px; flex-wrap:wrap; }
+  #hud{ display:flex; align-items:center; gap:8px; padding:8px 12px; font-weight:700; font-size:13px; flex-wrap:wrap; }
+  #hud.hide{ display:none; }
   .pill{ background:rgba(255,255,255,.1); padding:4px 10px; border-radius:20px; white-space:nowrap; }
-  #hp{ color:#ff8a80; }
-  #wave{ color:#fff59d; }
-  #score{ color:#a5d6a7; }
-  #time{ color:#90caf9; }
-  /* 畫布 */
+  #wave{ color:#fff59d; } #score{ color:#a5d6a7; } #chap{ color:#90caf9; }
   #stage{ flex:1; position:relative; min-height:0; }
-  canvas{ display:block; width:100%; height:100%; touch-action:none; }
-  /* 底部控制列 */
-  #dock{ display:flex; gap:6px; padding:8px; padding-bottom:max(8px,env(safe-area-inset-bottom));
-    background:rgba(0,0,0,.25); }
-  .hero{ position:relative; flex:1; border:none; border-radius:14px; overflow:hidden;
-    background:#2e7d32; color:#fff; padding:8px 2px 6px; cursor:pointer;
-    display:flex; flex-direction:column; align-items:center; gap:2px;
+  canvas#game{ display:block; width:100%; height:100%; touch-action:none; }
+  #dock{ display:flex; gap:6px; padding:8px; padding-bottom:max(8px,env(safe-area-inset-bottom)); background:rgba(0,0,0,.25); }
+  #dock.hide{ display:none; }
+  .hero{ position:relative; flex:1; border:none; border-radius:14px; overflow:hidden; background:#2e7d32; color:#fff;
+    padding:6px 2px; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:1px;
     box-shadow:0 2px 0 rgba(0,0,0,.3); transition:transform .05s; }
   .hero:active{ transform:translateY(1px); }
   .hero.sel{ background:#66bb6a; outline:3px solid #fff; }
-  .hero .emoji{ font-size:24px; line-height:1; }
+  .hero.lock{ background:#37474f; opacity:.5; }
+  .hero canvas{ width:34px; height:34px; }
   .hero .nm{ font-size:11px; font-weight:700; }
-  .hero .key{ font-size:9px; opacity:.6; }
   .hero .cd{ position:absolute; left:0; bottom:0; width:100%; background:rgba(0,0,0,.45); height:0%; pointer-events:none; }
   #fusion{ flex:1.2; background:linear-gradient(#455a64,#37474f); }
-  #fusion.ready{ background:linear-gradient(#ffd54f,#ffb300); color:#3e2723;
-    animation:glow 1s ease-in-out infinite; }
-  @keyframes glow{ 0%,100%{ box-shadow:0 0 0 rgba(255,193,7,0); } 50%{ box-shadow:0 0 16px rgba(255,193,7,.9);} }
+  #fusion.ready{ background:linear-gradient(#ffd54f,#ffb300); color:#3e2723; animation:glow 1s ease-in-out infinite; }
+  @keyframes glow{ 0%,100%{ box-shadow:0 0 0 rgba(255,193,7,0);} 50%{ box-shadow:0 0 16px rgba(255,193,7,.9);} }
   #fusion .fill{ position:absolute; left:0; bottom:0; width:100%; background:rgba(255,213,79,.35); height:0%; pointer-events:none; }
-  /* 覆蓋畫面（開始/結束） */
-  #overlay{ position:absolute; inset:0; display:flex; flex-direction:column;
-    align-items:center; justify-content:center; text-align:center; color:#e8f5e9;
-    background:rgba(7,20,12,.82); padding:20px; z-index:5; }
-  #overlay.hide{ display:none; }
-  #overlay h1{ font-size:30px; margin-bottom:6px; letter-spacing:2px; }
-  #overlay h2{ font-size:18px; color:#a5d6a7; margin-bottom:14px; }
-  #overlay p{ font-size:14px; line-height:1.7; color:#c8e6c9; max-width:440px; margin-bottom:8px; }
-  #overlay .big{ margin-top:14px; background:#43a047; color:#fff; border:none;
-    padding:14px 34px; font-size:18px; font-weight:800; border-radius:30px; cursor:pointer;
-    box-shadow:0 4px 0 #2e7d32; }
-  #overlay .big:active{ transform:translateY(2px); box-shadow:0 2px 0 #2e7d32; }
-  .roster{ display:flex; gap:14px; flex-wrap:wrap; justify-content:center; margin:10px 0 4px; font-size:13px; }
-  .roster b{ font-size:20px; display:block; }
+  .scr{ position:absolute; inset:0; z-index:10; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; padding:22px; background:rgba(7,20,12,.9); overflow:auto; }
+  .scr.hide{ display:none; }
+  .scr h1{ font-size:30px; letter-spacing:2px; margin-bottom:6px; }
+  .scr h2{ font-size:17px; color:#a5d6a7; margin-bottom:16px; }
+  .scr p{ font-size:14px; line-height:1.7; color:#c8e6c9; max-width:460px; margin-bottom:8px; }
+  .btn{ margin-top:14px; background:#43a047; color:#fff; border:none; padding:13px 30px; font-size:17px; font-weight:800;
+    border-radius:30px; cursor:pointer; box-shadow:0 4px 0 #2e7d32; }
+  .btn:active{ transform:translateY(2px); box-shadow:0 2px 0 #2e7d32; }
+  .btn.sec{ background:#546e7a; box-shadow:0 4px 0 #37474f; font-size:14px; padding:10px 22px; }
+  /* 章節地圖 */
+  #map .cards{ display:flex; flex-direction:column; gap:12px; width:100%; max-width:460px; margin-top:8px; }
+  .card{ display:flex; align-items:center; gap:12px; background:rgba(255,255,255,.08); border-radius:16px; padding:12px 14px;
+    cursor:pointer; text-align:left; border:2px solid transparent; }
+  .card.locked{ opacity:.45; cursor:not-allowed; }
+  .card.cleared{ border-color:#66bb6a; }
+  .card canvas{ width:54px; height:54px; flex:none; }
+  .card .info{ flex:1; }
+  .card .info .t{ font-size:15px; font-weight:800; color:#fff; }
+  .card .info .d{ font-size:12px; color:#b0bec5; margin-top:2px; }
+  .card .st{ font-size:22px; }
+  /* 對話 */
+  #story{ position:absolute; inset:0; z-index:12; display:flex; flex-direction:column; justify-content:flex-end; }
+  #story.hide{ display:none; }
+  #story .sky{ position:absolute; inset:0; }
+  #story .box{ position:relative; margin:14px; margin-bottom:max(14px,env(safe-area-inset-bottom));
+    background:rgba(10,26,16,.94); border:2px solid #66bb6a; border-radius:18px; padding:14px 16px; display:flex; gap:12px; align-items:flex-start; }
+  #story .box canvas{ width:64px; height:64px; flex:none; background:rgba(255,255,255,.06); border-radius:12px; }
+  #story .box .tx{ flex:1; }
+  #story .box .nm{ font-size:14px; font-weight:800; color:#ffd54f; margin-bottom:4px; }
+  #story .box .ln{ font-size:15px; line-height:1.6; color:#e8f5e9; min-height:48px; }
+  #story .tap{ position:absolute; right:16px; bottom:8px; font-size:11px; color:#90a4ae; }
 </style>
 </head>
 <body>
 <div id="app">
-  <div id="hud">
-    <span class="pill">棲地 <span id="hp">❤❤❤</span></span>
+  <div id="hud" class="hide">
+    <span class="pill" id="chap">第一章</span>
+    <span class="pill">棲地 <span id="hp">❤</span></span>
     <span class="pill" id="wave">第 1 波</span>
     <span class="pill">守退 <span id="score">0</span></span>
-    <span class="pill">⏱ <span id="time">0:00</span></span>
   </div>
   <div id="stage">
     <canvas id="game"></canvas>
-    <div id="overlay">
+
+    <!-- 標題 -->
+    <div class="scr" id="title">
       <h1>守土 · 福爾摩沙衛士</h1>
-      <h2>守護台灣特有種的最後棲地</h2>
-      <p>外來入侵種正湧入家園。你操控台灣特有種，點畫面施放技能，擋下三波攻勢、守住中央的巢！</p>
-      <div class="roster">
-        <span><b>🐆</b>石虎<br>衝刺突刺</span>
-        <span><b>🐻</b>黑熊<br>震地重擊</span>
-        <span><b>🦗</b>爺蟬<br>音波震暈</span>
-        <span><b>🪰</b>勾蜓<br>高速掃場</span>
+      <h2>守護台灣特有種的家園</h2>
+      <p>外來入侵種正在蔓延，台灣的原生動物決定挺身而出。<br>操控特有種、守住棲地，把入侵種擋回去！</p>
+      <p style="color:#ffd54f">一場有故事的卡通保衛戰 🐾</p>
+      <button class="btn" id="toMap">開始冒險</button>
+    </div>
+
+    <!-- 章節地圖 -->
+    <div class="scr hide" id="map">
+      <h1 style="font-size:24px">選擇章節</h1>
+      <div class="cards" id="cards"></div>
+      <button class="btn sec" id="resetProg" style="margin-top:18px">重置進度</button>
+    </div>
+
+    <!-- 對話 -->
+    <div id="story" class="hide">
+      <canvas class="sky" id="storybg"></canvas>
+      <div class="box">
+        <canvas id="portrait" width="128" height="128"></canvas>
+        <div class="tx"><div class="nm" id="spk"></div><div class="ln" id="line"></div></div>
+        <div class="tap">點擊繼續 ▼</div>
       </div>
-      <p style="color:#ffd54f">集滿能量按「融合」→ 四獸合體，一招清場！</p>
-      <button class="big" id="startBtn">開始守土</button>
-      <p style="font-size:12px;opacity:.7;margin-top:14px">點下方切換角色，點畫面施放技能　·　桌機：1234 切換、點擊施放、F 融合</p>
+    </div>
+
+    <!-- 結算 -->
+    <div class="scr hide" id="result">
+      <h1 id="rTitle"></h1>
+      <h2 id="rSub"></h2>
+      <p id="rBody"></p>
+      <button class="btn" id="rMain"></button>
+      <button class="btn sec" id="rMap">回章節地圖</button>
     </div>
   </div>
-  <div id="dock">
-    <button class="hero sel" data-i="0"><div class="cd"></div><span class="emoji">🐆</span><span class="nm">石虎</span><span class="key">1</span></button>
-    <button class="hero" data-i="1"><div class="cd"></div><span class="emoji">🐻</span><span class="nm">黑熊</span><span class="key">2</span></button>
-    <button class="hero" data-i="2"><div class="cd"></div><span class="emoji">🦗</span><span class="nm">爺蟬</span><span class="key">3</span></button>
-    <button class="hero" data-i="3"><div class="cd"></div><span class="emoji">🪰</span><span class="nm">勾蜓</span><span class="key">4</span></button>
-    <button class="hero" id="fusion"><div class="fill"></div><span class="emoji">✨</span><span class="nm">融合</span><span class="key">F</span></button>
+
+  <div id="dock" class="hide">
+    <button class="hero sel" data-i="0"><div class="cd"></div><canvas width="68" height="68"></canvas><span class="nm">石虎</span></button>
+    <button class="hero" data-i="1"><div class="cd"></div><canvas width="68" height="68"></canvas><span class="nm">黑熊</span></button>
+    <button class="hero" data-i="2"><div class="cd"></div><canvas width="68" height="68"></canvas><span class="nm">爺蟬</span></button>
+    <button class="hero" data-i="3"><div class="cd"></div><canvas width="68" height="68"></canvas><span class="nm">勾蜓</span></button>
+    <button class="hero" id="fusion"><div class="fill"></div><canvas width="68" height="68"></canvas><span class="nm">融合</span></button>
   </div>
 </div>
 
 <script>
 (() => {
   "use strict";
-  const canvas = document.getElementById("game");
-  const ctx = canvas.getContext("2d");
-  const elHp = document.getElementById("hp");
-  const elWave = document.getElementById("wave");
-  const elScore = document.getElementById("score");
-  const elTime = document.getElementById("time");
-  const overlay = document.getElementById("overlay");
-  const startBtn = document.getElementById("startBtn");
-  const heroBtns = [...document.querySelectorAll(".hero[data-i]")];
-  const fusionBtn = document.getElementById("fusion");
 
-  let W = 0, H = 0, dpr = 1;
-  function resize() {
-    const r = canvas.getBoundingClientRect();
-    W = r.width; H = r.height;
-    dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = Math.round(W * dpr);
-    canvas.height = Math.round(H * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  /* ========== 卡通動物繪製（程式畫，可用於任何 canvas 2D context）========== */
+  function drawCreature(c, kind, x, y, s, o){
+    o = o || {}; const t = o.t||0, mood = o.mood||"happy", flip = o.flip;
+    const bob = Math.sin(t*3 + (o.ph||0))*s*0.04;
+    c.save(); c.translate(x, y+bob); if(flip) c.scale(-1,1);
+    c.lineJoin="round"; c.lineCap="round";
+    const eye=(ex,ey,r,ang)=>{ c.fillStyle="#fff"; c.beginPath(); c.arc(ex,ey,r,0,7); c.fill();
+      c.fillStyle="#222"; c.beginPath(); c.arc(ex+Math.cos(ang||0)*r*0.3, ey+Math.sin(ang||0)*r*0.3, r*0.55,0,7); c.fill(); };
+    const brow=(ex,ey,w,down)=>{ c.strokeStyle="#3e2723"; c.lineWidth=s*0.05; c.beginPath();
+      c.moveTo(ex-w,ey-(down?-2:2)); c.lineTo(ex+w,ey+(down?-2:2)*0.4); c.stroke(); };
+
+    if(kind==="leopard"){ // 石虎
+      c.fillStyle="#e8a55c"; c.beginPath(); c.ellipse(0,s*0.35,s*0.55,s*0.5,0,0,7); c.fill();
+      c.fillStyle="#caa"; // tail
+      c.strokeStyle="#e8a55c"; c.lineWidth=s*0.16; c.beginPath(); c.moveTo(s*0.45,s*0.5); c.quadraticCurveTo(s*0.9,s*0.4,s*0.8,s*0.0); c.stroke();
+      c.fillStyle="#e8a55c"; c.beginPath(); c.arc(0,-s*0.3,s*0.5,0,7); c.fill(); // head
+      // ears
+      c.beginPath(); c.moveTo(-s*0.45,-s*0.6); c.lineTo(-s*0.2,-s*0.75); c.lineTo(-s*0.15,-s*0.45); c.fill();
+      c.beginPath(); c.moveTo(s*0.45,-s*0.6); c.lineTo(s*0.2,-s*0.75); c.lineTo(s*0.15,-s*0.45); c.fill();
+      c.fillStyle="#3e2723"; c.beginPath(); c.arc(-s*0.32,-s*0.62,s*0.07,0,7); c.arc(s*0.32,-s*0.62,s*0.07,0,7); c.fill();
+      // spots
+      c.fillStyle="#5d4037"; for(const p of [[-.3,.3],[.32,.28],[0,.55],[-.15,.1],[.18,.05]]){ c.beginPath(); c.arc(p[0]*s,(p[1]+0.1)*s,s*0.06,0,7); c.fill(); }
+      // forehead stripes
+      c.strokeStyle="#5d4037"; c.lineWidth=s*0.05; c.beginPath(); c.moveTo(-s*0.12,-s*0.55); c.lineTo(-s*0.1,-s*0.3); c.moveTo(s*0.12,-s*0.55); c.lineTo(s*0.1,-s*0.3); c.stroke();
+      // muzzle
+      c.fillStyle="#fff8f0"; c.beginPath(); c.ellipse(0,-s*0.12,s*0.26,s*0.2,0,0,7); c.fill();
+      eye(-s*0.18,-s*0.32,s*0.1); eye(s*0.18,-s*0.32,s*0.1);
+      if(mood==="angry"){ brow(-s*0.18,-s*0.46,s*0.12,true); brow(s*0.18,-s*0.46,s*0.12,true); }
+      c.fillStyle="#e57373"; c.beginPath(); c.arc(0,-s*0.16,s*0.05,0,7); c.fill();
+      c.strokeStyle="#5d4037"; c.lineWidth=s*0.03; c.beginPath(); c.moveTo(0,-s*0.11); c.lineTo(0,-s*0.04); c.stroke();
+
+    } else if(kind==="bear"){ // 台灣黑熊
+      c.fillStyle="#2b2b2b"; c.beginPath(); c.ellipse(0,s*0.35,s*0.6,s*0.55,0,0,7); c.fill();
+      c.fillStyle="#fafafa"; c.beginPath(); c.moveTo(-s*0.18,s*0.1); c.lineTo(0,s*0.5); c.lineTo(s*0.18,s*0.1); c.closePath(); c.fill(); // V
+      c.fillStyle="#2b2b2b"; c.beginPath(); c.arc(0,-s*0.28,s*0.5,0,7); c.fill();
+      c.beginPath(); c.arc(-s*0.42,-s*0.55,s*0.18,0,7); c.arc(s*0.42,-s*0.55,s*0.18,0,7); c.fill(); // round ears
+      c.fillStyle="#8d6e63"; c.beginPath(); c.ellipse(0,-s*0.1,s*0.28,s*0.22,0,0,7); c.fill();
+      c.fillStyle="#222"; c.beginPath(); c.ellipse(0,-s*0.18,s*0.09,s*0.07,0,0,7); c.fill();
+      eye(-s*0.2,-s*0.34,s*0.09); eye(s*0.2,-s*0.34,s*0.09);
+      if(mood==="angry"){ brow(-s*0.2,-s*0.48,s*0.12,true); brow(s*0.2,-s*0.48,s*0.12,true); }
+
+    } else if(kind==="cicada"){ // 台灣爺蟬
+      c.fillStyle="rgba(220,240,200,.55)"; // wings
+      c.beginPath(); c.ellipse(-s*0.35,s*0.1,s*0.5,s*0.24,-0.5,0,7); c.fill();
+      c.beginPath(); c.ellipse(s*0.35,s*0.1,s*0.5,s*0.24,0.5,0,7); c.fill();
+      c.strokeStyle="rgba(120,160,90,.6)"; c.lineWidth=s*0.02; c.stroke();
+      c.fillStyle="#7cb342"; c.beginPath(); c.ellipse(0,s*0.05,s*0.3,s*0.5,0,0,7); c.fill(); // body
+      c.fillStyle="#558b2f"; c.beginPath(); c.arc(0,-s*0.35,s*0.32,0,7); c.fill(); // head
+      eye(-s*0.2,-s*0.38,s*0.12); eye(s*0.2,-s*0.38,s*0.12);
+      if(mood==="angry"){ brow(-s*0.2,-s*0.54,s*0.12,true); brow(s*0.2,-s*0.54,s*0.12,true); }
+      c.strokeStyle="#33691e"; c.lineWidth=s*0.04; for(let i=-1;i<=1;i++){ c.beginPath(); c.moveTo(0,s*0.2+i*0.12*s); c.lineTo(0,s*0.2+i*0.12*s); c.stroke(); }
+
+    } else if(kind==="dragonfly"){ // 無霸勾蜓
+      c.fillStyle="rgba(180,235,245,.5)";
+      for(const a of [-0.6,0.6,-1.0,1.0]){ c.save(); c.rotate(a); c.beginPath(); c.ellipse(s*0.45,0,s*0.42,s*0.13,0,0,7); c.fill(); c.restore(); }
+      c.fillStyle="#26c6da"; c.beginPath(); c.ellipse(0,s*0.2,s*0.13,s*0.6,0,0,7); c.fill(); // long body
+      c.strokeStyle="#00838f"; c.lineWidth=s*0.03; for(let i=0;i<5;i++){ c.beginPath(); c.moveTo(-s*0.13,(i*0.16-0.1)*s); c.lineTo(s*0.13,(i*0.16-0.1)*s); c.stroke(); }
+      c.fillStyle="#00acc1"; c.beginPath(); c.arc(0,-s*0.42,s*0.26,0,7); c.fill();
+      eye(-s*0.16,-s*0.46,s*0.14); eye(s*0.16,-s*0.46,s*0.14);
+      if(mood==="angry"){ brow(-s*0.16,-s*0.62,s*0.12,true); brow(s*0.16,-s*0.62,s*0.12,true); }
+
+    } else if(kind==="snail"){ // 福壽螺（入侵）
+      c.fillStyle="#c79a6b"; c.beginPath(); c.ellipse(-s*0.15,s*0.35,s*0.5,s*0.28,0,0,7); c.fill(); // foot
+      c.fillStyle="#8d5524"; c.beginPath(); c.arc(s*0.15,-s*0.05,s*0.42,0,7); c.fill(); // shell
+      c.strokeStyle="#5d3a17"; c.lineWidth=s*0.06; c.beginPath();
+      for(let a=0;a<7;a+=0.2){ const rr=s*0.05*a; const px=s*0.15+Math.cos(a*1.6)*rr, py=-s*0.05+Math.sin(a*1.6)*rr; a===0?c.moveTo(px,py):c.lineTo(px,py);} c.stroke();
+      c.strokeStyle="#c79a6b"; c.lineWidth=s*0.05; // eyestalks
+      c.beginPath(); c.moveTo(-s*0.4,s*0.2); c.lineTo(-s*0.52,-s*0.15); c.moveTo(-s*0.28,s*0.18); c.lineTo(-s*0.34,-s*0.18); c.stroke();
+      c.fillStyle="#222"; c.beginPath(); c.arc(-s*0.52,-s*0.17,s*0.06,0,7); c.arc(-s*0.34,-s*0.2,s*0.06,0,7); c.fill();
+      brow(-s*0.45,-s*0.3,s*0.1,true);
+
+    } else if(kind==="iguana"){ // 綠鬣蜥（入侵）
+      c.fillStyle="#7cb342"; c.beginPath(); c.ellipse(0,s*0.3,s*0.58,s*0.32,0,0,7); c.fill();
+      c.strokeStyle="#558b2f"; c.lineWidth=s*0.14; c.beginPath(); c.moveTo(s*0.5,s*0.35); c.quadraticCurveTo(s*0.95,s*0.3,s*1.0,s*0.0); c.stroke();
+      c.fillStyle="#689f38"; for(let i=-2;i<=3;i++){ c.beginPath(); c.moveTo(i*s*0.16,s*0.0); c.lineTo(i*s*0.16+s*0.05,-s*0.16); c.lineTo(i*s*0.16+s*0.1,s*0.0); c.fill(); } // spikes
+      c.fillStyle="#7cb342"; c.beginPath(); c.ellipse(-s*0.5,s*0.15,s*0.3,s*0.26,0,0,7); c.fill(); // head
+      c.fillStyle="#aed581"; c.beginPath(); c.ellipse(-s*0.55,s*0.4,s*0.16,s*0.12,0,0,7); c.fill(); // dewlap
+      eye(-s*0.6,s*0.05,s*0.1);
+      brow(-s*0.6,-s*0.08,s*0.1,true);
+
+    } else if(kind==="frog"){ // 斑腿樹蛙（入侵）
+      c.fillStyle="#8d6e63"; c.beginPath(); c.ellipse(0,s*0.3,s*0.55,s*0.42,0,0,7); c.fill();
+      c.fillStyle="#6d4c41"; for(const p of [[-.3,.45],[.3,.45],[-.1,.55],[.15,.3]]){ c.beginPath(); c.arc(p[0]*s,p[1]*s,s*0.07,0,7); c.fill(); }
+      c.fillStyle="#a1887f"; c.beginPath(); c.arc(-s*0.28,-s*0.18,s*0.2,0,7); c.arc(s*0.28,-s*0.18,s*0.2,0,7); c.fill(); // eye bumps
+      eye(-s*0.28,-s*0.2,s*0.13); eye(s*0.28,-s*0.2,s*0.13);
+      if(mood!=="happy"){ brow(-s*0.28,-s*0.38,s*0.13,true); brow(s*0.28,-s*0.38,s*0.13,true); }
+      c.strokeStyle="#5d4037"; c.lineWidth=s*0.04; c.beginPath(); c.arc(0,s*0.05,s*0.2,0.1,Math.PI-0.1); c.stroke();
+
+    } else if(kind==="ibis"){ // 埃及聖䴉（入侵）
+      c.fillStyle="#fafafa"; c.beginPath(); c.ellipse(0,s*0.25,s*0.5,s*0.4,0,0,7); c.fill();
+      c.fillStyle="#eee"; c.beginPath(); c.moveTo(s*0.3,s*0.4); c.lineTo(s*0.7,s*0.6); c.lineTo(s*0.3,s*0.55); c.fill(); // tail
+      c.fillStyle="#222"; c.beginPath(); c.arc(-s*0.2,-s*0.3,s*0.26,0,7); c.fill(); // black head
+      c.strokeStyle="#222"; c.lineWidth=s*0.08; c.beginPath(); c.moveTo(-s*0.4,-s*0.28); c.quadraticCurveTo(-s*0.85,-s*0.2,-s*0.8,s*0.15); c.stroke(); // curved beak
+      eye(-s*0.18,-s*0.34,s*0.08);
+      brow(-s*0.18,-s*0.46,s*0.1,true);
+
+    } else if(kind==="nest"){ // 棲地巢
+      c.fillStyle="#6d4c41"; c.beginPath(); c.ellipse(0,s*0.2,s*0.7,s*0.4,0,0,7); c.fill();
+      c.strokeStyle="#4e342e"; c.lineWidth=s*0.06;
+      for(let i=0;i<6;i++){ c.beginPath(); c.ellipse(0,s*0.2,s*0.7-i*0.02*s,s*0.4-i*0.03*s,i*0.3,0.2,Math.PI-0.2); c.stroke(); }
+      c.fillStyle="#fffde7"; for(const dx of [-0.22,0,0.22]){ c.beginPath(); c.ellipse(dx*s,s*0.12,s*0.14,s*0.18,0,0,7); c.fill(); }
+    }
+    c.restore();
   }
-  window.addEventListener("resize", resize);
 
-  // ---- 角色（台灣特有種）----
+  /* ========== 資料 ========== */
   const HEROES = [
-    { name:"石虎", emoji:"🐆", cd:0.5,  dmg:2, color:"#ffb74d", type:"dash" },
-    { name:"黑熊", emoji:"🐻", cd:2.2,  dmg:2, color:"#8d6e63", type:"slam" },
-    { name:"爺蟬", emoji:"🦗", cd:3.0,  dmg:1, color:"#aed581", type:"sonic" },
-    { name:"勾蜓", emoji:"🪰", cd:2.5,  dmg:1, color:"#4dd0e1", type:"sweep" },
+    { key:"leopard", name:"石虎", cd:0.55, dmg:2, type:"dash"  },
+    { key:"bear",    name:"黑熊", cd:2.2,  dmg:3, type:"slam"  },
+    { key:"cicada",  name:"爺蟬", cd:3.0,  dmg:1, type:"sonic" },
+    { key:"dragonfly",name:"勾蜓",cd:2.4,  dmg:1, type:"sweep" },
   ];
-  // ---- 敵人（外來入侵種）----
   const ENEMIES = {
-    snail:  { name:"福壽螺", emoji:"🐌", hp:1, speed:26, r:16, dmg:1, energy:7 },
-    iguana: { name:"綠鬣蜥", emoji:"🦎", hp:4, speed:34, r:20, dmg:1, energy:12 },
-    frog:   { name:"斑腿樹蛙", emoji:"🐸", hp:1, speed:60, r:15, dmg:1, energy:8 },
-    ibis:   { name:"埃及聖䴉", emoji:"🦤", hp:2, speed:50, r:18, dmg:2, energy:12 },
+    snail:  { kind:"snail",  name:"福壽螺",   hp:1, speed:20, r:20, dmg:1, energy:8 },
+    iguana: { kind:"iguana", name:"綠鬣蜥",   hp:5, speed:28, r:24, dmg:1, energy:14 },
+    frog:   { kind:"frog",   name:"斑腿樹蛙", hp:2, speed:46, r:18, dmg:1, energy:9 },
+    ibis:   { kind:"ibis",   name:"埃及聖䴉", hp:3, speed:40, r:22, dmg:2, energy:13 },
   };
-  // ---- 三波攻勢 ----
-  const WAVES = [
-    [ {t:"snail",n:8} ],
-    [ {t:"snail",n:6}, {t:"iguana",n:5} ],
-    [ {t:"iguana",n:5}, {t:"frog",n:8}, {t:"ibis",n:5} ],
+  // 章節戰役
+  const CH = [
+    { name:"第一章 · 稻田保衛戰", place:"稻田", bg:"paddy", habHp:14,
+      waves:[{snail:6},{snail:9}],
+      intro:[
+        {s:0,m:"happy",t:"嗨！我是石虎，淺山的夜行獵手，身上的斑點是我的招牌。"},
+        {s:0,m:"angry",t:"糟了——福壽螺爬滿了稻田，把秧苗都啃光了！這些是從南美洲來的入侵種。"},
+        {s:0,m:"happy",t:"別怕，跟著我！點畫面，我就衝過去把牠們撞飛！守住中央的巢就贏了。"},
+      ],
+      outro:[ {s:0,m:"happy",t:"呼～稻田守住了！但入侵種不只這些…我們往淺山去看看。"} ] },
+
+    { name:"第二章 · 淺山的大個子", place:"淺山", bg:"hill", habHp:16,
+      waves:[{snail:5},{snail:4,iguana:3},{iguana:4}],
+      intro:[
+        {s:1,m:"happy",t:"我是台灣黑熊，胸口這個白色的「V」是月亮的印記。"},
+        {s:1,m:"angry",t:"綠鬣蜥又肥又硬，石虎一隻撞不倒。看我的——重拳震地，一次清一片！"},
+        {s:0,m:"happy",t:"我也在！下面可以切換我們兩個，石虎打小的、黑熊清大的，搭配起來最強。"},
+      ],
+      outro:[ {s:1,m:"happy",t:"哈哈，這點重量難不倒我。聽說溪流那邊也出事了…"} ] },
+
+    { name:"第三章 · 溪流的歌聲", place:"溪流", bg:"stream", habHp:16,
+      waves:[{frog:6},{snail:4,frog:6},{iguana:3,frog:6}],
+      intro:[
+        {s:2,m:"happy",t:"吱————！我是台灣爺蟬，全世界最大的蟬，叫聲能傳好幾百公尺。"},
+        {s:2,m:"angry",t:"斑腿樹蛙跳得又快又多，正在搶我們原生青蛙的家。"},
+        {s:2,m:"happy",t:"交給我的音波吧！我一叫，整片青蛙都會被震得頭暈，動彈不得！"},
+      ],
+      outro:[ {s:2,m:"happy",t:"安靜下來了…謝謝大家。最後一個地方——濕地，可能最難。"} ] },
+
+    { name:"第四章 · 濕地決戰", place:"濕地", bg:"wetland", habHp:18,
+      waves:[{iguana:3,frog:5},{ibis:4,frog:4},{ibis:5,iguana:3}],
+      intro:[
+        {s:3,m:"happy",t:"嗡嗡嗡！我是無霸勾蜓，台灣飛最快的蜻蜓，天空是我的地盤！"},
+        {s:3,m:"angry",t:"埃及聖䴉從天上來，搶黑面琵鷺的棲地。我來高速掃場，清掉整排！"},
+        {s:0,m:"happy",t:"四隻夥伴到齊了！能量集滿就按『融合』——我們合體，一招清空全場！"},
+      ],
+      outro:[
+        {s:0,m:"happy",t:"我們守住了濕地，也守住了台灣每一個家。"},
+        {s:1,m:"happy",t:"這些動物都是真的，正在消失中。記得牠們的名字，就是最好的守護。"},
+      ] },
   ];
 
   const FUSION_MAX = 100;
-  const HAB_HP = 12;
 
-  let state, hero, cools, enemies, effects, floaters;
-  let habHp, score, energy, fusionReady, shake, elapsed;
-  let waveIdx, spawnQueue, spawnTimer, betweenTimer, waveBanner;
-  let hab; // habitat position
+  /* ========== DOM ========== */
+  const canvas=document.getElementById("game"), ctx=canvas.getContext("2d");
+  const hud=document.getElementById("hud"), dock=document.getElementById("dock");
+  const elHp=document.getElementById("hp"), elWave=document.getElementById("wave"),
+        elScore=document.getElementById("score"), elChap=document.getElementById("chap");
+  const titleScr=document.getElementById("title"), mapScr=document.getElementById("map"),
+        resultScr=document.getElementById("result"), storyScr=document.getElementById("story");
+  const heroBtns=[...document.querySelectorAll(".hero[data-i]")], fusionBtn=document.getElementById("fusion");
 
-  function reset() {
-    state = "menu";
-    hero = 0;
-    cools = [0,0,0,0];
-    enemies = []; effects = []; floaters = [];
-    habHp = HAB_HP; score = 0; energy = 0; fusionReady = false;
-    shake = 0; elapsed = 0;
-    waveIdx = 0; spawnQueue = []; spawnTimer = 0; betweenTimer = 0; waveBanner = 0;
-    selectHero(0);
+  // 在 dock 與選單畫角色頭像
+  heroBtns.forEach((b,i)=>{ const cc=b.querySelector("canvas").getContext("2d");
+    drawCreature(cc,HEROES[i].key,34,40,28,{t:0}); });
+  { const fc=fusionBtn.querySelector("canvas").getContext("2d"); fc.font="34px serif"; fc.textAlign="center"; fc.textBaseline="middle"; fc.fillText("✨",34,36); }
+
+  let W=0,H=0,dpr=1;
+  function resize(){ const r=canvas.getBoundingClientRect(); W=r.width; H=r.height;
+    dpr=Math.min(window.devicePixelRatio||1,2); canvas.width=Math.round(W*dpr); canvas.height=Math.round(H*dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0); }
+  window.addEventListener("resize",resize);
+
+  /* ========== 進度 ========== */
+  function getUnlocked(){ try{ return parseInt(localStorage.getItem("shoutu_unlocked")||"0",10)||0; }catch(e){ return 0; } }
+  function setUnlocked(v){ try{ localStorage.setItem("shoutu_unlocked", String(v)); }catch(e){} }
+
+  /* ========== 狀態 ========== */
+  let state="title", chapter=0;
+  let hero, cools, enemies, effects, floaters, habHp, habMax, score, energy, fusionReady, shake, elapsed;
+  let spawnQueue, spawnTimer, waveIdx, waves, betweenTimer, waveBanner, unlockedHeroes, hab;
+
+  /* ========== 場景切換 ========== */
+  function show(scr){ [titleScr,mapScr,resultScr].forEach(s=>s.classList.add("hide"));
+    storyScr.classList.add("hide"); if(scr) scr.classList.remove("hide"); }
+  function setBattleUI(on){ hud.classList.toggle("hide",!on); dock.classList.toggle("hide",!on); }
+
+  function goTitle(){ state="title"; setBattleUI(false); show(titleScr); }
+
+  function goMap(){
+    state="map"; setBattleUI(false); show(mapScr);
+    const cards=document.getElementById("cards"); cards.innerHTML="";
+    const unlocked=getUnlocked();
+    CH.forEach((c,i)=>{
+      const div=document.createElement("div"); div.className="card"+(i>unlocked?" locked":"")+(i<unlocked?" cleared":"");
+      const cv=document.createElement("canvas"); cv.width=108; cv.height=108;
+      div.appendChild(cv);
+      const info=document.createElement("div"); info.className="info";
+      info.innerHTML=`<div class="t">${c.name}</div><div class="d">棲地：${c.place}　新夥伴：${HEROES[i].name}</div>`;
+      div.appendChild(info);
+      const st=document.createElement("div"); st.className="st"; st.textContent=i<unlocked?"✅":(i>unlocked?"🔒":"▶"); div.appendChild(st);
+      drawCreature(cv.getContext("2d"),HEROES[i].key,54,62,40,{t:0});
+      if(i<=unlocked) div.onclick=()=>startChapter(i);
+      cards.appendChild(div);
+    });
+  }
+
+  /* ========== 對話 ========== */
+  let dlg=null, dlgIdx=0, dlgAfter=null;
+  function playStory(lines, after){
+    state="story"; setBattleUI(false); show(null); storyScr.classList.remove("hide");
+    drawStoryBg(); dlg=lines; dlgIdx=0; dlgAfter=after; renderLine();
+  }
+  function renderLine(){
+    const ln=dlg[dlgIdx]; const h=HEROES[ln.s];
+    document.getElementById("spk").textContent=h.name;
+    document.getElementById("line").textContent=ln.t;
+    const pc=document.getElementById("portrait"); const px=pc.getContext("2d");
+    px.clearRect(0,0,128,128); drawCreature(px,h.key,64,72,46,{t:0,mood:ln.m});
+  }
+  function advance(){ dlgIdx++; if(dlgIdx>=dlg.length){ const a=dlgAfter; dlg=null; if(a)a(); } else renderLine(); }
+  function drawStoryBg(){ const sb=document.getElementById("storybg"); const r=storyScr.getBoundingClientRect();
+    sb.width=r.width; sb.height=r.height; const g=sb.getContext("2d"); paintBackground(g,r.width,r.height, CH[chapter].bg, 0); }
+  storyScr.addEventListener("pointerdown",(e)=>{ e.preventDefault(); if(state==="story") advance(); },{passive:false});
+
+  /* ========== 開始章節 / 戰鬥 ========== */
+  function startChapter(i){ chapter=i; playStory(CH[i].intro, beginBattle); }
+
+  function beginBattle(){
+    const c=CH[chapter];
+    state="play"; setBattleUI(true); show(null);
+    hero=0; cools=[0,0,0,0]; enemies=[]; effects=[]; floaters=[];
+    habMax=c.habHp; habHp=c.habHp; score=0; energy=0; fusionReady=false; fusionBtn.classList.remove("ready");
+    shake=0; elapsed=0; waves=c.waves; waveIdx=-1; betweenTimer=0; waveBanner=0; spawnQueue=[]; spawnTimer=0;
+    unlockedHeroes=chapter+1;
+    heroBtns.forEach((b,k)=>{ b.classList.toggle("lock",k>=unlockedHeroes); b.classList.toggle("sel",k===0); });
+    elChap.textContent=c.name.split(" · ")[0];
+    nextWave();
+  }
+  function nextWave(){
+    waveIdx++;
+    if(waveIdx>=waves.length){ return; }
+    const w=waves[waveIdx]; spawnQueue=[];
+    for(const k in w) for(let n=0;n<w[k];n++) spawnQueue.push(k);
+    for(let a=spawnQueue.length-1;a>0;a--){ const b=Math.floor((elapsed*131+a*17)%(a+1)); const tmp=spawnQueue[a]; spawnQueue[a]=spawnQueue[b]; spawnQueue[b]=tmp; }
+    spawnTimer=0.5; waveBanner=1.6; elWave.textContent="第 "+(waveIdx+1)+" / "+waves.length+" 波";
+  }
+
+  function selectHero(i){ if(i>=unlockedHeroes) return; hero=i; heroBtns.forEach((b,k)=>b.classList.toggle("sel",k===i)); }
+
+  function spawnEnemy(type){ const def=ENEMIES[type]; let x,y; const m=36;
+    const edge = type==="ibis" ? 2 : Math.floor((elapsed*53+enemies.length*31)%3);
+    if(edge===0){x=-m;y=Math.random()*H*0.85;} else if(edge===1){x=W+m;y=Math.random()*H*0.85;} else {x=Math.random()*W;y=-m;}
+    enemies.push({type,x,y,hp:def.hp,maxhp:def.hp,r:def.r,stun:0,hitFlash:0,ph:Math.random()*6}); }
+
+  function cast(px,py){ if(state!=="play"||cools[hero]>0) return; const h=HEROES[hero]; cools[hero]=h.cd;
+    if(h.type==="dash"){ let best=null,bd=90*90; for(const e of enemies){const dx=e.x-px,dy=e.y-py,d=dx*dx+dy*dy; if(d<bd){bd=d;best=e;}}
+      if(best){ damage(best,h.dmg); effects.push({type:"dash",x1:hab.x,y1:hab.y,x2:best.x,y2:best.y,life:0.18,max:0.18}); }
+      else effects.push({type:"dash",x1:hab.x,y1:hab.y,x2:px,y2:py,life:0.12,max:0.12}); }
+    else if(h.type==="slam"){ const R=95; effects.push({type:"slam",x:px,y:py,r:R,life:0.35,max:0.35});
+      for(const e of enemies){ const dx=e.x-px,dy=e.y-py; if(dx*dx+dy*dy<R*R){ damage(e,h.dmg); const d=Math.hypot(dx,dy)||1; e.x+=dx/d*28; e.y+=dy/d*28; } } shake=Math.max(shake,9); }
+    else if(h.type==="sonic"){ effects.push({type:"sonic",x:hab.x,y:hab.y,r:Math.max(W,H),life:0.55,max:0.55});
+      for(const e of enemies){ damage(e,h.dmg); e.stun=1.4; e.hitFlash=0.2; } }
+    else if(h.type==="sweep"){ const band=50; effects.push({type:"sweep",y:py,life:0.22,max:0.22});
+      for(const e of enemies) if(Math.abs(e.y-py)<band) damage(e,h.dmg); } }
+
+  function damage(e,d){ e.hp-=d; e.hitFlash=0.15; if(e.hp<=0&&!e.dead){ const def=ENEMIES[e.type]; score++; addEnergy(def.energy);
+    floaters.push({x:e.x,y:e.y,txt:"守退!",life:0.7,col:"#a5d6a7"}); effects.push({type:"pop",x:e.x,y:e.y,life:0.3,max:0.3}); e.dead=true; } }
+  function addEnergy(v){ if(fusionReady) return; energy=Math.min(FUSION_MAX,energy+v); if(energy>=FUSION_MAX){ fusionReady=true; fusionBtn.classList.add("ready"); } }
+  function doFusion(){ if(state!=="play"||!fusionReady) return; fusionReady=false; energy=0; fusionBtn.classList.remove("ready");
+    effects.push({type:"fusion",x:hab.x,y:hab.y,r:Math.max(W,H)*1.2,life:0.7,max:0.7});
+    score+=enemies.length; enemies=[]; habHp=Math.min(habMax,habHp+3); shake=14;
+    floaters.push({x:hab.x,y:hab.y-50,txt:"融合 · 守土！",life:1.3,col:"#ffd54f",big:true}); }
+
+  /* ========== 更新 ========== */
+  function update(dt){ elapsed+=dt; hab={x:W/2,y:H*0.58,r:34};
+    for(let i=0;i<4;i++) if(cools[i]>0) cools[i]=Math.max(0,cools[i]-dt);
+    if(waveBanner>0) waveBanner-=dt; if(shake>0) shake=Math.max(0,shake-dt*40);
+    if(spawnQueue.length){ spawnTimer-=dt; if(spawnTimer<=0){ spawnEnemy(spawnQueue.shift()); spawnTimer=Math.max(0.45,1.2-chapter*0.12); } }
+    for(const e of enemies){ const def=ENEMIES[e.type]; if(e.hitFlash>0)e.hitFlash-=dt; let sp=def.speed; if(e.stun>0){e.stun-=dt;sp=0;}
+      const dx=hab.x-e.x,dy=hab.y-e.y,d=Math.hypot(dx,dy)||1; e.x+=dx/d*sp*dt; e.y+=dy/d*sp*dt;
+      if(d<hab.r+e.r){ habHp-=def.dmg; e.dead=true; shake=Math.max(shake,7); floaters.push({x:hab.x,y:hab.y-30,txt:"-"+def.dmg,life:0.7,col:"#ff8a80"}); } }
+    enemies=enemies.filter(e=>!e.dead);
+    for(const ef of effects) ef.life-=dt; effects=effects.filter(ef=>ef.life>0);
+    for(const f of floaters){ f.life-=dt; f.y-=22*dt; } floaters=floaters.filter(f=>f.life>0);
+    if(spawnQueue.length===0&&enemies.length===0&&betweenTimer<=0&&waveBanner<=0){
+      if(waveIdx<waves.length-1) betweenTimer=1.3; else return winChapter(); }
+    if(betweenTimer>0){ betweenTimer-=dt; if(betweenTimer<=0) nextWave(); }
+    if(habHp<=0){ habHp=0; loseChapter(); }
     updateHud();
   }
+  function updateHud(){ const hearts=Math.ceil(habHp/2); elHp.textContent= habHp>0? "❤".repeat(hearts):"💀";
+    elScore.textContent=score;
+    for(let i=0;i<4;i++) heroBtns[i].querySelector(".cd").style.height=(cools[i]/HEROES[i].cd*100)+"%";
+    fusionBtn.querySelector(".fill").style.height=(energy/FUSION_MAX*100)+"%"; }
 
-  function startGame() {
-    reset();
-    state = "play";
-    overlay.classList.add("hide");
-    startWave(0);
+  function winChapter(){ if(state!=="play") return; state="storywin"; setBattleUI(false);
+    const wasMax=getUnlocked(); if(chapter+1>wasMax) setUnlocked(Math.min(CH.length, chapter+1));
+    playStory(CH[chapter].outro, ()=>{
+      const last=chapter>=CH.length-1;
+      showResult("🌿 "+CH[chapter].place+"守住了！", last?"全戰役完成！":"章節過關",
+        last? "你守護了台灣每一個棲地，集滿四隻夥伴。<br>這些動物都是真實存在、正在消失的生命——你記住牠們了。"
+            : "守退 "+score+" 隻入侵種，新夥伴加入了隊伍！",
+        last?"再玩一次":"下一章 ▶", last? ()=>goMap() : ()=>startChapter(chapter+1));
+    }); }
+  function loseChapter(){ if(state!=="play") return; state="lose"; setBattleUI(false);
+    showResult("棲地失守…", CH[chapter].place+"被攻破了", "守退了 "+score+" 隻。<br>試試切換不同夥伴，能量滿了早點按『融合』大絕！",
+      "再挑戰一次", ()=>startChapter(chapter)); }
+  function showResult(title,sub,body,mainTxt,mainFn){ state="result"; show(resultScr);
+    document.getElementById("rTitle").textContent=title; document.getElementById("rSub").textContent=sub;
+    document.getElementById("rBody").innerHTML=body; const mb=document.getElementById("rMain");
+    mb.textContent=mainTxt; mb.onclick=mainFn; }
+
+  /* ========== 背景 ========== */
+  function paintBackground(c,w,h,bg,t){
+    let top="#1b5e20",bot="#33691e";
+    if(bg==="paddy"){top="#aed581";bot="#7cb342";}
+    else if(bg==="hill"){top="#81c784";bot="#558b2f";}
+    else if(bg==="stream"){top="#4fc3f7";bot="#0288d1";}
+    else if(bg==="wetland"){top="#80cbc4";bot="#00695c";}
+    const g=c.createLinearGradient(0,0,0,h); g.addColorStop(0,top); g.addColorStop(1,bot); c.fillStyle=g; c.fillRect(0,0,w,h);
+    c.globalAlpha=0.12; c.fillStyle="#fff";
+    if(bg==="paddy"){ for(let y=h*0.5;y<h;y+=22){ c.fillRect(0,y,w,2);} }
+    else if(bg==="hill"){ c.beginPath(); c.moveTo(0,h*0.6); c.quadraticCurveTo(w*0.3,h*0.4,w*0.6,h*0.62); c.quadraticCurveTo(w*0.85,h*0.78,w,h*0.55); c.lineTo(w,h); c.lineTo(0,h); c.fill(); }
+    else if(bg==="stream"){ for(let i=0;i<5;i++){ c.beginPath(); c.ellipse((i*0.27)*w,(0.5+0.1*i)*h%h,40,8,0,0,7); c.fill(); } }
+    else if(bg==="wetland"){ for(let x=0;x<w;x+=40){ c.fillRect(x,h*0.65,4,h*0.35);} }
+    c.globalAlpha=1;
   }
 
-  function startWave(i) {
-    waveIdx = i;
-    spawnQueue = [];
-    for (const grp of WAVES[i]) for (let k=0;k<grp.n;k++) spawnQueue.push(grp.t);
-    // 洗牌，讓敵人混著出現
-    for (let a=spawnQueue.length-1;a>0;a--){ const b=(elapsed*97+a*13)%(a+1)|0; const t=spawnQueue[a]; spawnQueue[a]=spawnQueue[b]; spawnQueue[b]=t; }
-    spawnTimer = 0.4;
-    waveBanner = 1.6;
-    elWave.textContent = "第 " + (i+1) + " 波";
-  }
-
-  function selectHero(i) {
-    hero = i;
-    heroBtns.forEach((b,k)=> b.classList.toggle("sel", k===i));
-  }
-
-  // ---- 生成敵人 ----
-  function spawnEnemy(type) {
-    const def = ENEMIES[type];
-    let x, y;
-    const edge = type==="ibis" ? 2 : (Math.floor((elapsed*53 + enemies.length*31) % 3));
-    const m = 30;
-    if (edge===0){ x=-m; y=Math.random()*H; }           // 左
-    else if (edge===1){ x=W+m; y=Math.random()*H; }      // 右
-    else { x=Math.random()*W; y=-m; }                    // 上
-    enemies.push({ type, x, y, hp:def.hp, maxhp:def.hp, r:def.r, stun:0, hitFlash:0 });
-  }
-
-  // ---- 施放技能 ----
-  function cast(px, py) {
-    if (state!=="play") return;
-    if (cools[hero] > 0) return;
-    const h = HEROES[hero];
-    cools[hero] = h.cd;
-    if (h.type==="dash") {
-      // 找離點擊處最近的敵人，衝過去秒擊
-      let best=null, bd=80*80;
-      for (const e of enemies){ const dx=e.x-px, dy=e.y-py, d=dx*dx+dy*dy; if(d<bd){bd=d;best=e;} }
-      if (best){ damage(best, h.dmg); effects.push({type:"dash", x1:hab.x,y1:hab.y,x2:best.x,y2:best.y,life:0.18,max:0.18}); }
-      else { effects.push({type:"dash", x1:hab.x,y1:hab.y,x2:px,y2:py,life:0.12,max:0.12}); }
-    } else if (h.type==="slam") {
-      const R=85; effects.push({type:"slam",x:px,y:py,r:R,life:0.35,max:0.35});
-      for (const e of enemies){ const dx=e.x-px,dy=e.y-py; if(dx*dx+dy*dy < R*R){ damage(e,h.dmg);
-        const d=Math.hypot(dx,dy)||1; e.x+=dx/d*30; e.y+=dy/d*30; } }
-      shake = Math.max(shake, 8);
-    } else if (h.type==="sonic") {
-      const R=Math.max(W,H); effects.push({type:"sonic",x:hab.x,y:hab.y,r:R,life:0.55,max:0.55});
-      for (const e of enemies){ damage(e,h.dmg); e.stun=1.2; e.hitFlash=0.2; }
-    } else if (h.type==="sweep") {
-      const band=46; effects.push({type:"sweep",y:py,life:0.22,max:0.22});
-      for (const e of enemies){ if(Math.abs(e.y-py)<band){ damage(e,h.dmg); } }
-    }
-  }
-
-  function damage(e, d) {
-    e.hp -= d; e.hitFlash = 0.15;
-    if (e.hp <= 0) {
-      const def = ENEMIES[e.type];
-      score++; addEnergy(def.energy);
-      floaters.push({x:e.x,y:e.y,txt:"+1",life:0.7,col:"#a5d6a7"});
-      effects.push({type:"pop",x:e.x,y:e.y,life:0.3,max:0.3});
-      e.dead = true;
-    }
-  }
-
-  function addEnergy(v) {
-    if (fusionReady) return;
-    energy = Math.min(FUSION_MAX, energy + v);
-    if (energy >= FUSION_MAX){ fusionReady = true; fusionBtn.classList.add("ready"); }
-  }
-
-  function doFusion() {
-    if (state!=="play" || !fusionReady) return;
-    fusionReady = false; energy = 0; fusionBtn.classList.remove("ready");
-    effects.push({type:"fusion",x:hab.x,y:hab.y,r:Math.max(W,H)*1.1,life:0.7,max:0.7});
-    for (const e of enemies){ score++; }
-    enemies = [];
-    habHp = Math.min(HAB_HP, habHp+2);
-    shake = 14;
-    floaters.push({x:hab.x,y:hab.y-40,txt:"融合·守土！",life:1.2,col:"#ffd54f",big:true});
-    updateHud();
-  }
-
-  // ---- 主迴圈 ----
-  let last = 0;
-  function frame(ts) {
-    const dt = Math.min(0.04, (ts - last)/1000 || 0); last = ts;
-    if (state==="play") update(dt);
-    draw();
-    requestAnimationFrame(frame);
-  }
-
-  function update(dt) {
-    elapsed += dt;
-    hab = { x: W/2, y: H*0.56, r: 30 };
-
-    for (let i=0;i<4;i++) if (cools[i]>0) cools[i]=Math.max(0,cools[i]-dt);
-    if (waveBanner>0) waveBanner-=dt;
-    if (shake>0) shake=Math.max(0,shake-dt*40);
-
-    // 生成
-    if (spawnQueue.length){
-      spawnTimer -= dt;
-      if (spawnTimer<=0){ spawnEnemy(spawnQueue.shift()); spawnTimer = Math.max(0.35, 1.1 - waveIdx*0.18); }
-    }
-
-    // 敵人移動
-    for (const e of enemies){
-      const def = ENEMIES[e.type];
-      if (e.hitFlash>0) e.hitFlash-=dt;
-      let sp = def.speed; if (e.stun>0){ e.stun-=dt; sp=0; }
-      const dx=hab.x-e.x, dy=hab.y-e.y, d=Math.hypot(dx,dy)||1;
-      e.x += dx/d*sp*dt; e.y += dy/d*sp*dt;
-      if (d < hab.r + e.r){ // 攻到棲地
-        habHp -= def.dmg; e.dead=true; shake=Math.max(shake,7);
-        floaters.push({x:hab.x,y:hab.y,txt:"-"+def.dmg,life:0.7,col:"#ff8a80"});
-      }
-    }
-    enemies = enemies.filter(e=>!e.dead);
-
-    // 特效 / 浮字
-    for (const ef of effects) ef.life-=dt;
-    effects = effects.filter(ef=>ef.life>0);
-    for (const f of floaters){ f.life-=dt; f.y-=20*dt; }
-    floaters = floaters.filter(f=>f.life>0);
-
-    // 波次結束判定
-    if (spawnQueue.length===0 && enemies.length===0 && betweenTimer<=0 && waveBanner<=0){
-      if (waveIdx < WAVES.length-1){ betweenTimer = 1.4; }
-      else { win(); }
-    }
-    if (betweenTimer>0){ betweenTimer-=dt; if (betweenTimer<=0) startWave(waveIdx+1); }
-
-    if (habHp<=0){ habHp=0; lose(); }
-    updateHud();
-  }
-
-  function win(){ state="win"; showOverlay(
-    "🌿 守住家園！", "你成功擊退三波入侵種",
-    `守退 ${score} 隻外來種，棲地保住了 ${habHp} 點生命。<br>台灣特有種的家，因為你而安全了一天。`,
-    "再守一次"); }
-  function lose(){ state="lose"; showOverlay(
-    "棲地失守…", "外來種攻破了巢",
-    `你守退了 ${score} 隻入侵種。<br>再試一次，這次換隻角色、早點用融合大絕！`,
-    "重新守土"); }
-
-  function showOverlay(h1,h2,p,btn){
-    overlay.innerHTML = `<h1>${h1}</h1><h2>${h2}</h2><p>${p}</p>`+
-      `<button class="big" id="againBtn">${btn}</button>`+
-      `<p style="font-size:12px;opacity:.7;margin-top:14px">提示：石虎秒小怪、黑熊清成堆、爺蟬震暈一片、勾蜓掃整排</p>`;
-    overlay.classList.remove("hide");
-    document.getElementById("againBtn").onclick = startGame;
-  }
-
-  function updateHud(){
-    elHp.textContent = habHp>0 ? "❤".repeat(Math.ceil(habHp/2)) : "💀";
-    elScore.textContent = score;
-    const s=Math.floor(elapsed); elTime.textContent = Math.floor(s/60)+":"+String(s%60).padStart(2,"0");
-    for (let i=0;i<4;i++){ const cd=heroBtns[i].querySelector(".cd");
-      cd.style.height = (cools[i]/HEROES[i].cd*100)+"%"; }
-    fusionBtn.querySelector(".fill").style.height = (energy/FUSION_MAX*100)+"%";
-  }
-
-  // ---- 繪製 ----
-  function draw(){
-    ctx.save();
-    let ox=0, oy=0;
-    if (shake>0){ ox=(Math.random()-0.5)*shake; oy=(Math.random()-0.5)*shake; ctx.translate(ox,oy); }
-
-    // 背景：森林漸層 + 地面紋理
-    const g=ctx.createLinearGradient(0,0,0,H);
-    g.addColorStop(0,"#1b5e20"); g.addColorStop(1,"#33691e");
-    ctx.fillStyle=g; ctx.fillRect(-20,-20,W+40,H+40);
-    ctx.globalAlpha=0.06; ctx.fillStyle="#fff";
-    for(let i=0;i<6;i++){ ctx.beginPath(); ctx.arc((i*173%W),(i*97%H),60,0,7); ctx.fill(); }
-    ctx.globalAlpha=1;
-
-    if (!hab) hab={x:W/2,y:H*0.56,r:30};
-
-    // 棲地（巢）光環
-    const pulse = 1+0.06*Math.sin(elapsed*4);
-    ctx.beginPath(); ctx.arc(hab.x,hab.y,hab.r*1.7*pulse,0,7);
-    ctx.fillStyle="rgba(255,241,118,.12)"; ctx.fill();
-    ctx.beginPath(); ctx.arc(hab.x,hab.y,hab.r,0,7);
-    ctx.fillStyle="#5d4037"; ctx.fill();
-    ctx.font="30px serif"; ctx.textAlign="center"; ctx.textBaseline="middle";
-    ctx.fillText("🪺", hab.x, hab.y+1);
-
-    // 守護者（目前角色）站在巢上
-    const h=HEROES[hero];
-    ctx.font="34px serif";
-    ctx.fillText(h.emoji, hab.x, hab.y - hab.r - 14);
-
-    // 特效（敵人下方）
-    for (const ef of effects){
-      const a = ef.life/ef.max;
-      if (ef.type==="dash"){ ctx.strokeStyle="rgba(255,183,77,"+a+")"; ctx.lineWidth=6*a+2;
-        ctx.beginPath(); ctx.moveTo(ef.x1,ef.y1); ctx.lineTo(ef.x2,ef.y2); ctx.stroke(); }
-      else if (ef.type==="slam"){ const r=ef.r*(1-a); ctx.strokeStyle="rgba(141,110,99,"+a+")"; ctx.lineWidth=8;
-        ctx.beginPath(); ctx.arc(ef.x,ef.y,r,0,7); ctx.stroke(); }
-      else if (ef.type==="sonic"){ const r=ef.r*(1-a); ctx.strokeStyle="rgba(174,213,129,"+(a*0.9)+")"; ctx.lineWidth=10;
-        ctx.beginPath(); ctx.arc(ef.x,ef.y,r,0,7); ctx.stroke(); }
-      else if (ef.type==="sweep"){ ctx.fillStyle="rgba(77,208,225,"+(a*0.5)+")"; ctx.fillRect(0,ef.y-23,W,46); }
-      else if (ef.type==="fusion"){ const r=ef.r*(1-a); ctx.fillStyle="rgba(255,213,79,"+(a*0.5)+")";
-        ctx.beginPath(); ctx.arc(ef.x,ef.y,r,0,7); ctx.fill(); }
-      else if (ef.type==="pop"){ ctx.fillStyle="rgba(255,255,255,"+a+")";
-        ctx.beginPath(); ctx.arc(ef.x,ef.y,18*(1-a)+4,0,7); ctx.fill(); }
-    }
-
+  /* ========== 繪製戰鬥 ========== */
+  function draw(){ ctx.save(); let ox=0,oy=0; if(shake>0){ ox=(Math.random()-0.5)*shake; oy=(Math.random()-0.5)*shake; ctx.translate(ox,oy); }
+    paintBackground(ctx,W+1,H+1,CH[chapter]?CH[chapter].bg:"paddy",elapsed);
+    if(!hab) hab={x:W/2,y:H*0.58,r:34};
+    // 巢光環
+    const pulse=1+0.06*Math.sin(elapsed*4); ctx.beginPath(); ctx.arc(hab.x,hab.y,hab.r*1.8*pulse,0,7); ctx.fillStyle="rgba(255,241,118,.14)"; ctx.fill();
+    drawCreature(ctx,"nest",hab.x,hab.y-hab.r*0.3,hab.r,{t:0});
+    // 守護者
+    drawCreature(ctx,HEROES[hero].key,hab.x,hab.y-hab.r-30,34,{t:elapsed,mood:"happy"});
+    // 特效（底層）
+    for(const ef of effects){ const a=ef.life/ef.max;
+      if(ef.type==="dash"){ ctx.strokeStyle="rgba(255,183,77,"+a+")"; ctx.lineWidth=7*a+2; ctx.beginPath(); ctx.moveTo(ef.x1,ef.y1); ctx.lineTo(ef.x2,ef.y2); ctx.stroke(); }
+      else if(ef.type==="slam"){ ctx.strokeStyle="rgba(121,85,72,"+a+")"; ctx.lineWidth=8; ctx.beginPath(); ctx.arc(ef.x,ef.y,ef.r*(1-a),0,7); ctx.stroke(); }
+      else if(ef.type==="sonic"){ ctx.strokeStyle="rgba(174,213,129,"+(a*0.9)+")"; ctx.lineWidth=10; ctx.beginPath(); ctx.arc(ef.x,ef.y,ef.r*(1-a),0,7); ctx.stroke(); }
+      else if(ef.type==="sweep"){ ctx.fillStyle="rgba(77,208,225,"+(a*0.5)+")"; ctx.fillRect(0,ef.y-25,W,50); }
+      else if(ef.type==="fusion"){ ctx.fillStyle="rgba(255,213,79,"+(a*0.5)+")"; ctx.beginPath(); ctx.arc(ef.x,ef.y,ef.r*(1-a),0,7); ctx.fill(); }
+      else if(ef.type==="pop"){ ctx.fillStyle="rgba(255,255,255,"+a+")"; ctx.beginPath(); ctx.arc(ef.x,ef.y,20*(1-a)+4,0,7); ctx.fill(); } }
     // 敵人
-    ctx.textAlign="center"; ctx.textBaseline="middle";
-    for (const e of enemies){
-      const def=ENEMIES[e.type];
-      if (e.stun>0){ ctx.font="12px serif"; ctx.fillText("💫", e.x+e.r*0.6, e.y-e.r*0.7); }
-      ctx.font = (e.r*1.9|0)+"px serif";
-      if (e.hitFlash>0){ ctx.globalAlpha=0.5; }
-      ctx.fillText(def.emoji, e.x, e.y);
-      ctx.globalAlpha=1;
-      // 血條（被打過、且不只 1 滴血才顯示）
-      if (e.maxhp>1 && e.hp<e.maxhp){ const w=e.r*1.6, hpw=w*e.hp/e.maxhp;
-        ctx.fillStyle="rgba(0,0,0,.4)"; ctx.fillRect(e.x-w/2,e.y-e.r-8,w,4);
-        ctx.fillStyle="#ff8a80"; ctx.fillRect(e.x-w/2,e.y-e.r-8,hpw,4); }
-    }
-
+    for(const e of enemies){ const def=ENEMIES[e.type]; if(e.hitFlash>0) ctx.globalAlpha=0.55;
+      drawCreature(ctx,def.kind,e.x,e.y,e.r*1.25,{t:elapsed,ph:e.ph,mood:"angry",flip:e.x<hab.x?false:true}); ctx.globalAlpha=1;
+      if(e.stun>0){ ctx.font="14px serif"; ctx.textAlign="center"; ctx.fillText("💫",e.x,e.y-e.r-6); }
+      if(e.maxhp>1&&e.hp<e.maxhp){ const w=e.r*1.6; ctx.fillStyle="rgba(0,0,0,.4)"; ctx.fillRect(e.x-w/2,e.y-e.r-12,w,4); ctx.fillStyle="#ff8a80"; ctx.fillRect(e.x-w/2,e.y-e.r-12,w*e.hp/e.maxhp,4); } }
     // 浮字
-    for (const f of floaters){ const a=Math.min(1,f.life*1.6);
-      ctx.globalAlpha=a; ctx.fillStyle=f.col; ctx.font=(f.big?"bold 22px":"bold 15px")+" sans-serif";
-      ctx.fillText(f.txt,f.x,f.y); ctx.globalAlpha=1; }
-
-    // 波次橫幅
-    if (waveBanner>0 && state==="play"){ const a=Math.min(1,waveBanner);
-      ctx.globalAlpha=a; ctx.fillStyle="#fff59d"; ctx.font="bold 30px sans-serif";
-      ctx.fillText("第 "+(waveIdx+1)+" 波 來襲！", W/2, H*0.28); ctx.globalAlpha=1; }
-
+    ctx.textAlign="center"; ctx.textBaseline="middle";
+    for(const f of floaters){ const a=Math.min(1,f.life*1.6); ctx.globalAlpha=a; ctx.fillStyle=f.col;
+      ctx.font=(f.big?"bold 22px":"bold 14px")+" sans-serif"; ctx.fillText(f.txt,f.x,f.y); ctx.globalAlpha=1; }
+    if(waveBanner>0){ const a=Math.min(1,waveBanner); ctx.globalAlpha=a; ctx.fillStyle="#fff59d"; ctx.font="bold 28px sans-serif"; ctx.fillText("第 "+(waveIdx+1)+" 波 來襲！",W/2,H*0.26); ctx.globalAlpha=1; }
     ctx.restore();
   }
 
-  // ---- 輸入 ----
-  function toCanvas(clientX, clientY){
-    const r=canvas.getBoundingClientRect();
-    return [clientX-r.left, clientY-r.top];
-  }
-  canvas.addEventListener("pointerdown",(e)=>{ e.preventDefault();
-    const [x,y]=toCanvas(e.clientX,e.clientY); cast(x,y); }, {passive:false});
+  /* ========== 主迴圈 ========== */
+  let last=0;
+  function frame(ts){ const dt=Math.min(0.04,(ts-last)/1000||0); last=ts; if(state==="play") update(dt); if(state==="play"||state==="lose"||state==="result") draw(); requestAnimationFrame(frame); }
 
-  heroBtns.forEach(b=> b.addEventListener("pointerdown",(e)=>{ e.preventDefault();
-    selectHero(+b.dataset.i); }, {passive:false}) );
-  fusionBtn.addEventListener("pointerdown",(e)=>{ e.preventDefault(); doFusion(); }, {passive:false});
-  startBtn.addEventListener("click", startGame);
+  /* ========== 輸入 ========== */
+  function toCanvas(cx,cy){ const r=canvas.getBoundingClientRect(); return [cx-r.left,cy-r.top]; }
+  canvas.addEventListener("pointerdown",(e)=>{ if(state!=="play")return; e.preventDefault(); const [x,y]=toCanvas(e.clientX,e.clientY); cast(x,y); },{passive:false});
+  heroBtns.forEach(b=>b.addEventListener("pointerdown",(e)=>{ e.preventDefault(); selectHero(+b.dataset.i); },{passive:false}));
+  fusionBtn.addEventListener("pointerdown",(e)=>{ e.preventDefault(); doFusion(); },{passive:false});
+  document.getElementById("toMap").onclick=goMap;
+  document.getElementById("rMap").onclick=goMap;
+  document.getElementById("resetProg").onclick=()=>{ setUnlocked(0); goMap(); };
+  window.addEventListener("keydown",(e)=>{ if(state==="play"){ if(e.key>="1"&&e.key<="4") selectHero(+e.key-1);
+    else if(e.key==="f"||e.key==="F") doFusion(); else if(e.code==="Space"){ e.preventDefault(); cast(hab.x,hab.y-90);} }
+    else if(state==="story"&&e.code==="Space"){ e.preventDefault(); advance(); } });
 
-  window.addEventListener("keydown",(e)=>{
-    if (e.key>="1" && e.key<="4"){ selectHero(+e.key-1); }
-    else if (e.key==="f"||e.key==="F"){ doFusion(); }
-    else if (e.code==="Space"){ e.preventDefault();
-      if (state==="menu"||state==="win"||state==="lose") startGame();
-      else cast(hab.x, hab.y-80); }
-  });
-
-  // 啟動
-  resize(); reset();
-  requestAnimationFrame(frame);
-
-  // 註冊 Service Worker（離線可玩）
-  if ("serviceWorker" in navigator){
-    window.addEventListener("load",()=> navigator.serviceWorker.register("sw.js").catch(()=>{}));
-  }
+  /* ========== 啟動 ========== */
+  resize(); goTitle(); requestAnimationFrame(frame);
+  if("serviceWorker" in navigator){ window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{})); }
 })();
 </script>
 </body>
