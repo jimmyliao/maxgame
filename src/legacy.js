@@ -201,6 +201,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   const LOBBY_TAG={ leopard:"台灣唯一原生貓科 · 夜行獵手", bear:"台灣唯一原生熊 · 森林守護者", cicada:"台灣最大的蟬 · 鳴聲震場", dragonfly:"台灣最快的蜻蜓 · 空中獵手" };
   let featured=0, hsW=0, hsH=0;
   function getEco(){ try{ return parseInt(localStorage.getItem("shoutu_eco")||"0",10)||0; }catch(e){ return 0; } }
+  function setEco(v){ try{ localStorage.setItem("shoutu_eco",String(v)); }catch(e){} }
 
   let W=0,H=0,GY=0,dpr=1;
   function resize(){ const r=canvas.getBoundingClientRect(); W=r.width; H=r.height; GY=H*0.82;
@@ -211,6 +212,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
 
   /* ===== 狀態 ===== */
   let state="title", chapter=0, elapsed=0, shake=0;
+  let matchMode=false, matchLevel=1;
   let hero, heroDef, boss, team, active, projs, fx, floaters;
   const GRAV=1700, JUMP=-620;
   const input={ left:false, right:false };
@@ -316,17 +318,20 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   storyScr.addEventListener("pointerdown",(e)=>{ e.preventDefault(); if(state==="story") advance(); },{passive:false});
 
   /* ===== 開始戰鬥 ===== */
-  function startChapter(i){ chapter=i; playStory(CH[i].intro, ()=>transition(beginBattle)); }
+  function startChapter(i){ matchMode=false; chapter=i; playStory(CH[i].intro, ()=>transition(beginBattle)); }
+  // 配對：按「對戰」→ 用大廳選的角色，對上隨機外來入侵種（隨機星級）
+  function quickMatch(){ matchMode=true; chapter=Math.floor(Math.random()*CH.length); matchLevel=1+Math.floor(Math.random()*5); transition(beginBattle); }
   function beginBattle(){ const c=CH[chapter]; state="play"; setBattleUI(true); show(null);
     elapsed=0; shake=0; projs=[]; fx=[]; floaters=[]; input.left=input.right=false;
-    // 隊伍：所有已解鎖的特有種，各自獨立血量
-    const availCount=Math.min(HEROES.length, getUnlocked()+1);
-    team=[]; for(let k=0;k<availCount;k++) team.push({idx:k, hp:100, maxhp:100, fainted:false});
-    active = Math.min(c.hero, team.length-1);
+    // 隊伍：配對戰可用全部 4 隻；戰役則用已解鎖的
+    const cnt = matchMode ? HEROES.length : Math.min(HEROES.length, getUnlocked()+1);
+    team=[]; for(let k=0;k<cnt;k++) team.push({idx:k, hp:100, maxhp:100, fainted:false});
+    active = matchMode ? Math.min(featured, team.length-1) : Math.min(c.hero, team.length-1);
     hero={ x:W*0.22, y:GY-28, vy:0, onGround:true, face:1, hp:100, maxhp:100, atkT:0, atkCd:0, atkHit:false, spCd:0, invuln:0, hitT:0, dashT:0, dashDir:1, foot:28, key:"leopard", type:"forest" };
     loadActive(active,true);
-    const b=c.boss; boss={ kind:b.kind, name:b.name, type:b.type, x:W*0.78, y:GY-b.r*0.7, vy:0, onGround:true, face:-1,
-      hp:b.hp, maxhp:b.hp, r:b.r, dmg:b.dmg, foot:b.r*0.7, st:"idle", t:1.0, stun:0, danger:false, atk:null, hitT:0 };
+    const b=c.boss, hpS=matchMode?(0.7+matchLevel*0.18):1, dmgS=matchMode?(0.8+matchLevel*0.08):1;
+    boss={ kind:b.kind, name:b.name+(matchMode?(" ★"+matchLevel):""), type:b.type, x:W*0.78, y:GY-b.r*0.7, vy:0, onGround:true, face:-1,
+      hp:Math.round(b.hp*hpS), maxhp:Math.round(b.hp*hpS), r:b.r, dmg:Math.round(b.dmg*dmgS), foot:b.r*0.7, st:"idle", t:1.0, stun:0, danger:false, atk:null, hitT:0 };
     bSwap.style.display = team.length>1 ? "flex" : "none";
     updateSp();
   }
@@ -391,6 +396,11 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     if(hero.atkT>0 && !hero.atkHit){ const gap=Math.abs(hero.x-boss.x)-boss.r; const facing=(boss.x-hero.x)*hero.face>=0; if(gap<heroDef.reach && facing){ hitBoss(heroDef.atkDmg); hero.atkHit=true; } }
     if(hero.dashT>0 && !hero.spHit && (hero.key==="leopard"||hero.key==="dragonfly")){ if(Math.abs(hero.x-boss.x)<boss.r+26){ hitBoss(hero.spDmg); hero.spHit=true; } }
     bossUpdate(dt);
+    // 防穿模：非衝撞時，英雄不可走進魔王身體（維持在自己這側）
+    { const charging=(boss.st==="attack"&&boss.atk==="charge"); if(!charging){ const minGap=boss.r*0.55+18;
+        if(hero.x<boss.x && hero.x>boss.x-minGap) hero.x=boss.x-minGap;
+        else if(hero.x>=boss.x && hero.x<boss.x+minGap) hero.x=boss.x+minGap;
+        hero.x=Math.max(20,Math.min(W-20,hero.x)); } }
     for(const p of projs){ p.life-=dt; p.x+=p.vx*dt; if(p.grav){ p.vy+=GRAV*dt; p.y+=p.vy*dt; if(p.y>GY){ p.y=GY; p.life=0; } }
       if(p.from==="bossWave"||p.from==="boss"){ if(hero.invuln<=0){ if(p.from==="bossWave"){ if(hero.onGround && Math.abs(hero.x-p.x)<24){ hurtHero(p.dmg,p.x); p.life=0; } } else { if(Math.hypot(hero.x-p.x,hero.y-p.y)<22){ hurtHero(p.dmg,p.x); p.life=0; } } } }
       else if(p.from==="hero"){ if(Math.abs(p.x-boss.x)<boss.r && Math.abs(p.y-boss.y)<boss.r){ hitBoss(p.dmg,p.stun); p.life=0; } } }
@@ -399,13 +409,19 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   }
   function updateSp(){ const r=Math.max(0,hero?hero.spCd:0); const cd=heroDef?heroDef.spCd:5; bSp.querySelector(".fill").style.height=(r/cd*100)+"%"; bSp.classList.toggle("ready", r<=0); }
 
-  function winChapter(){ if(state!=="play")return; state="post"; setBattleUI(false);
+  function winChapter(){ if(state!=="play")return;
+    if(matchMode){ state="post"; setBattleUI(false); const gain=matchLevel*10; setEco(getEco()+gain);
+      showResult("🛡️ 驅逐成功！", boss.name+" 被擊退", "棲地復原了 🌿 保育值 +"+gain+"。", "⚔ 再來一場", quickMatch); return; }
+    state="post"; setBattleUI(false);
     const was=getUnlocked(); if(chapter+1>was) setUnlocked(Math.min(CH.length,chapter+1));
     playStory(CH[chapter].outro, ()=>{ const last=chapter>=CH.length-1;
       showResult("🏆 打倒 "+CH[chapter].boss.name+"！", last?"全戰役完成！":"章節過關",
         last?"你打倒了所有入侵種的王，守住了台灣每一個家。<br>打開『保育圖鑑』，把這些真實的台灣生命記在心裡。":"新夥伴加入隊伍！之後可在任何章節換手出戰。",
         last?"回大廳":"下一章 ▶", last?goLobby:()=>startChapter(chapter+1)); }); }
-  function loseChapter(){ if(state!=="play")return; state="lose"; setBattleUI(false);
+  function loseChapter(){ if(state!=="play")return;
+    if(matchMode){ state="lose"; setBattleUI(false);
+      showResult("被擊退了…", boss.name+" 太強", "換隻角色、用對屬性(🌲>💧>🌪>🪲>🌲)再來！", "⚔ 再配對", quickMatch); return; }
+    state="lose"; setBattleUI(false);
     showResult("全隊被擊倒了…", CH[chapter].boss.name+"太強了", "撐住！等魔王出招『後』再反擊；按『換手』用屬性剋制牠（🌲>💧>🌪>🪲>🌲）。", "再挑戰一次", ()=>startChapter(chapter)); }
   function showResult(title,sub,body,mainTxt,mainFn){ state="result"; show(resultScr);
     document.getElementById("rTitle").textContent=title; document.getElementById("rSub").textContent=sub;
@@ -445,7 +461,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     ctx.textAlign="left"; for(let i=0;i<team.length;i++){ const m=team[i]; const cx=18+i*22, cy=52;
       ctx.globalAlpha=m.fainted?0.3:1; ctx.fillStyle=i===active?"#fff59d":(m.fainted?"#777":"#aed581");
       ctx.beginPath(); ctx.arc(cx,cy,8,0,7); ctx.fill(); if(i===active){ ctx.strokeStyle="#fff"; ctx.lineWidth=2; ctx.stroke(); } ctx.globalAlpha=1; }
-    ctx.fillStyle="rgba(255,255,255,.85)"; ctx.font="bold 12px sans-serif"; ctx.textAlign="center"; ctx.fillText("第"+(chapter+1)+"章 · "+CH[chapter].place,W/2,40);
+    ctx.fillStyle="rgba(255,255,255,.85)"; ctx.font="bold 12px sans-serif"; ctx.textAlign="center"; ctx.fillText(matchMode?("★"+matchLevel+" 配對 · "+CH[chapter].place):("第"+(chapter+1)+"章 · "+CH[chapter].place),W/2,40);
     ctx.restore();
   }
 
@@ -475,7 +491,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   document.getElementById("toMap").onclick=()=>transition(goMap); document.getElementById("rMap").onclick=()=>transition(goLobby);
   document.getElementById("toDex").onclick=()=>transition(goDex); document.getElementById("dexBack").onclick=()=>transition(goLobby);
   document.getElementById("mapHome").onclick=()=>transition(goLobby);
-  document.getElementById("playBtn").onclick=()=>transition(goMap);
+  document.getElementById("playBtn").onclick=quickMatch;
   document.getElementById("navDex").onclick=()=>transition(goDex);
   document.getElementById("navReset").onclick=()=>{ setUnlocked(0); updateLobby(); };
   window.__tx=transition;
