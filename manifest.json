@@ -1,0 +1,14 @@
+{
+  "name": "守土 · 福爾摩沙衛士",
+  "short_name": "守土",
+  "description": "操控台灣特有種，守護棲地、擊退外來入侵種的快節奏防守遊戲。",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0d2818",
+  "theme_color": "#1b5e20",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
