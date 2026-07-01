@@ -236,6 +236,10 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   let featured=0, hsW=0, hsH=0;
   function getEco(){ try{ return parseInt(localStorage.getItem("shoutu_eco")||"0",10)||0; }catch(e){ return 0; } }
   function setEco(v){ try{ localStorage.setItem("shoutu_eco",String(v)); }catch(e){} }
+  // 累積獲得的保育值（終身；只增不減——花費保育值不會扣，保育等級才不會退等）
+  function getEcoEarned(){ let base=0; try{ const v=parseInt(localStorage.getItem("shoutu_ecoearned"),10); base=isNaN(v)?0:v; }catch(e){}
+    const m=Math.max(base,getEco()); if(m!==base){ try{ localStorage.setItem("shoutu_ecoearned",String(m)); }catch(e){} } return m; }
+  function gainEco(n){ n=n|0; const earned=getEcoEarned(); setEco(getEco()+n); try{ localStorage.setItem("shoutu_ecoearned",String(earned+n)); }catch(e){} }
   // 守護者經驗/等級（最高 50，不退級）
   function getXP(){ try{ return JSON.parse(localStorage.getItem("shoutu_xp")||"{}")||{}; }catch(e){ return {}; } }
   function setXP(o){ try{ localStorage.setItem("shoutu_xp",JSON.stringify(o)); }catch(e){} }
@@ -289,12 +293,12 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
       div.appendChild(info);
       const btn=document.createElement("button"); btn.className="btn"; btn.style.cssText="margin:0;padding:8px 12px;font-size:13px;";
       if(claimed){ btn.textContent="已領取"; btn.className="btn sec"; btn.disabled=true; btn.style.opacity=".5"; }
-      else if(done){ btn.textContent="領取"; btn.onclick=()=>{ const oo=getDaily(); if(!oo.claimed[d.id] && (oo.prog[d.id]||0)>=d.goal){ oo.claimed[d.id]=true; saveDaily(oo); setEco(getEco()+d.reward); goDaily(); } }; }
+      else if(done){ btn.textContent="領取"; btn.onclick=()=>{ const oo=getDaily(); if(!oo.claimed[d.id] && (oo.prog[d.id]||0)>=d.goal){ oo.claimed[d.id]=true; saveDaily(oo); gainEco(d.reward); goDaily(); } }; }
       else { btn.textContent="進行中"; btn.className="btn sec"; btn.disabled=true; btn.style.opacity=".5"; }
       div.appendChild(btn); wrap.appendChild(div); });
   }
   function goStats(){ state="stats"; setBattleUI(false); show(statsScr);
-    const lv=Math.floor(getEco()/100)+1, ml=getMaxStar();
+    const lv=Math.floor(getEcoEarned()/100)+1, ml=getMaxStar();
     document.getElementById("statsBody").innerHTML=
       `🌿 保育值：<b>${getEco()}</b><br>🎖️ 保育等級：<b>Lv.${lv}</b><br>🛡️ 驅逐外來種：<b>${getWins()}</b> 次<br>⭐ 最高配對星級：<b>${ml?("★"+ml):"—"}</b><br><br>`+
       `<span style="color:#ffd54f;font-weight:800">守護者族群復育</span><br>`+
@@ -348,7 +352,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     document.getElementById("hsType").textContent=TYPE[h.type];
     document.getElementById("hsTag").textContent=LOBBY_TAG[h.key]||h.status;
     document.getElementById("ecoVal").textContent=getEco();
-    document.getElementById("trophyVal").textContent=Math.floor(getEco()/100)+1;
+    document.getElementById("trophyVal").textContent=Math.floor(getEcoEarned()/100)+1;
     const cl=dailyClaimable(), nd=document.getElementById("navDaily"); if(nd) nd.textContent=cl>0?("📋 任務 ("+cl+")"):"📋 任務";
     [...document.querySelectorAll("#roster .rb")].forEach((b,i)=>b.classList.toggle("sel",i===featured)); }
   function goLobby(){ state="lobby"; setBattleUI(false); show(lobbyScr); buildRoster(); updateLobby(); resizeHeroShow(); }
@@ -545,7 +549,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
 
   function winChapter(){ if(state!=="play")return;
     if(matchMode){ state="post"; setBattleUI(false); bumpWin(); dailyBump("repel",1); if(matchLevel>=3) dailyBump("hard",1);
-      const gain=matchLevel*10; setEco(getEco()+gain); const xpGain=40+matchLevel*15; gainXP(HEROES[featured].key, xpGain);
+      const gain=matchLevel*10; gainEco(gain); const xpGain=40+matchLevel*15; gainXP(HEROES[featured].key, xpGain);
       const tip="🌱 <b>你可以這樣幫：</b><br>"+CONS_INV[boss.kind]+"<br>"+CONS_END[HEROES[featured].key];
       showResult("🛡️ 驅逐成功！", boss.name+" 被擊退　🌿+"+gain+"　"+HEROES[featured].name+" EXP+"+xpGain, tip, "⚔ 再來一場", quickMatch); return; }
     state="post"; setBattleUI(false);
@@ -717,7 +721,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   window.__featuredKey=()=> (HEROES[featured]&&HEROES[featured].key)||"leopard";
   window.__unlockedKeys=()=> HEROES.filter(h=>isHeroUnlocked(h.key)).map(h=>h.key);
   window.__heroLevel=(key)=> heroLevel(key);   // 守護者等級（最高 50、永不退級）
-  window.__awardEco=(n)=>{ setEco(getEco()+(n|0)); };
+  window.__awardEco=(n)=>{ gainEco(n); };
   window.__awardXP=(key,n)=>{ gainXP(key,n|0); };
   window.__bumpWin=()=>{ try{ localStorage.setItem("shoutu_wins",String(getWins()+1)); }catch(e){} };
   window.__lobbyRefresh=()=>{ if(state==="lobby"){ updateLobby(); buildRoster(); resizeHeroShow(); } };
