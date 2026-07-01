@@ -548,6 +548,36 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
           { cost:120, mods:{dr:0.09, speed:0.04}, desc:"減傷 9%、速度 +4%" },
           { cost:240, mods:{dr:0.12}, active:{effect:"cicada_mimic", name:"環境擬態",
             desc:"減傷 12%；施放音爆時先隱身 3 秒，入侵種無法鎖定你"} } ] } },
+    pangolin: { A:{ name:"鋼鱗防禦流", tiers:[
+          { cost:60,  mods:{dr:0.07}, desc:"角質鱗片增厚，減傷 7%" },
+          { cost:120, mods:{dr:0.13}, desc:"層層覆瓦鱗甲，減傷 13%" },
+          { cost:240, mods:{dr:0.20}, active:{effect:"pangolin_fortress", name:"鐵甲堡壘",
+            desc:"減傷 20%；捲甲防禦時間延長、護盾更厚，穩如磐石"} } ] },
+        B:{ name:"掘地重擊流", tiers:[
+          { cost:60,  mods:{dmg:0.07}, desc:"前爪強而有力，攻擊力 +7%" },
+          { cost:120, mods:{dmg:0.12, dr:0.05}, desc:"攻擊力 +12%、減傷 5%" },
+          { cost:240, mods:{dmg:0.18, dr:0.08}, active:{effect:"pangolin_dig", name:"破土重擊",
+            desc:"攻擊力 +18%、減傷 8%；捲甲展開時對周圍造成額外震擊傷害"} } ] } },
+    yellowmarten: { A:{ name:"疾襲刺客流", tiers:[
+          { cost:60,  mods:{speed:0.08}, desc:"林間穿梭如電，速度 +8%" },
+          { cost:120, mods:{speed:0.13, dmg:0.06}, desc:"速度 +13%、攻擊力 +6%" },
+          { cost:240, mods:{speed:0.18, dmg:0.10}, active:{effect:"marten_blitz", name:"閃電獵殺",
+            desc:"速度 +18%、攻擊力 +10%；疾襲連咬段數增加、每段命中回復少量體力"} } ] },
+        B:{ name:"群獵連咬流", tiers:[
+          { cost:60,  mods:{dmg:0.07}, desc:"利齒更尖，攻擊力 +7%" },
+          { cost:120, mods:{dmg:0.12, spCd:-0.06}, desc:"攻擊力 +12%、技能冷卻 -6%" },
+          { cost:240, mods:{dmg:0.17, spCd:-0.12}, active:{effect:"marten_pack", name:"合圍撕咬",
+            desc:"攻擊力 +17%、技能冷卻 -12%；連咬命中的入侵種留下破綻，受創加重"} } ] } },
+    mikado: { A:{ name:"帝羽箭雨流", tiers:[
+          { cost:60,  mods:{dmg:0.07}, desc:"羽箭更銳，攻擊力 +7%" },
+          { cost:120, mods:{dmg:0.12, spCd:-0.06}, desc:"攻擊力 +12%、技能冷卻 -6%" },
+          { cost:240, mods:{dmg:0.18, spCd:-0.10}, active:{effect:"mikado_volley", name:"漫天箭雨",
+            desc:"攻擊力 +18%、技能冷卻 -10%；帝羽箭雨箭數增加、射程更遠"} } ] },
+        B:{ name:"靈羽迴避流", tiers:[
+          { cost:60,  mods:{speed:0.07}, desc:"步伐輕盈，速度 +7%" },
+          { cost:120, mods:{speed:0.12, dr:0.06}, desc:"速度 +12%、減傷 6%" },
+          { cost:240, mods:{speed:0.16, dr:0.12}, active:{effect:"mikado_grace", name:"雲霧靈羽",
+            desc:"速度 +16%、減傷 12%；施放箭雨後短暫加速拉開距離，高山雉的靈巧身法"} } ] } },
   };
   function getTalents(){ try{ return JSON.parse(localStorage.getItem("shoutu_talents")||"{}")||{}; }catch(e){ return {}; } }
   function setTalents(o){ try{ localStorage.setItem("shoutu_talents",JSON.stringify(o)); }catch(e){} }
