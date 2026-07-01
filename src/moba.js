@@ -73,7 +73,8 @@
   /* ---------- 建立 ---------- */
   function mkHero(kind,isPlayer){ return { kind, isPlayer:!!isPlayer, x:0,y:0, r:24, hp:340, maxhp:340,
     dmg:28, range:70, cd:0.6, t:0, spCd:0, speed:isPlayer?172:150, face:0, dead:false, respawn:0, name:KNAME[kind]||kind,
-    hitT:0, anim:0, moving:false, phase:Math.random()*6.28, atkA:0, mood:"n", moodT:0 }; }
+    hitT:0, anim:0, moving:false, phase:Math.random()*6.28, atkA:0, mood:"n", moodT:0,
+    dr:0, invulnT:0, stealthT:0, shieldT:0, talent:null }; }   // dr=天賦減傷 0~1；talent=第3級主動技能旗標
   function mkInvader(kind,elite){ const p=edgePoint(), scale=1+Math.min(1.3,clock/120)*0.6; // 隨時間越來越強
     const hp=Math.round((elite?300:64)*scale);
     return { kind, x:p.x, y:p.y, r:elite?30:16, hp, maxhp:hp, dmg:Math.round((elite?18:10)*scale), range:elite?44:32,
@@ -91,7 +92,16 @@
     healthBonus=(window.__habitatHealth&&window.__habitatHealth(battleRegion))||0;   // 該地區棲地健康度 0~1
     heroes=kinds.map((k,i)=>{ const h=mkHero(k,i===0); const ang=-1.57+(i-(size-1)/2)*0.6; h.x=SHX+Math.cos(ang)*150; h.y=SHY+Math.sin(ang)*150;
       const lv=(window.__heroLevel&&window.__heroLevel(k))||1; h.level=lv; h.maxhp=Math.round(h.maxhp*(1+(lv-1)*0.03)); h.hp=h.maxhp; h.dmg=Math.round(h.dmg*(1+(lv-1)*0.02));
-      h.speed=Math.round(h.speed*(1+healthBonus*0.12)); h.spMax=((SKILL[k]&&SKILL[k].cd)||7)*(1-healthBonus*0.15); return h; });
+      h.speed=Math.round(h.speed*(1+healthBonus*0.12)); h.spMax=((SKILL[k]&&SKILL[k].cd)||7)*(1-healthBonus*0.15);
+      // 天賦加成（復育中心培養出來的分歧路線）：疊加在既有數值合約上，不覆蓋棲地健康度加成
+      const tal=(window.__heroTalent&&window.__heroTalent(k))||null;
+      if(tal && tal.mods){ const m=tal.mods;
+        if(m.dmg) h.dmg=Math.round(h.dmg*(1+m.dmg));
+        if(m.speed) h.speed=Math.round(h.speed*(1+m.speed));
+        if(m.spCd) h.spMax=Math.max(1.5,h.spMax*(1+m.spCd));
+        if(m.dr) h.dr=clamp(m.dr,0,0.6); }
+      h.talent=(tal&&tal.active)?tal.active.effect:null;
+      return h; });
     player=heroes[0];
     cam.x=clamp(player.x-VW/2,0,Math.max(0,MW-VW)); cam.y=clamp(player.y-VH/2,0,Math.max(0,MH-VH));
   }
@@ -100,7 +110,7 @@
   function aliveNurseries(){ return nurseries.filter(n=>n.hp>0); }
   // 入侵種目標：精英直取神木施壓；一般兵近處英雄優先，否則最近苗圃/神木
   function invaderTarget(v){ if(v.elite) return shrine;
-    let bh=null,bd=170; for(const h of heroes){ if(h.dead) continue; const d=dist(v,h); if(d<bd){bd=d;bh=h;} }
+    let bh=null,bd=170; for(const h of heroes){ if(h.dead||h.stealthT>0) continue; const d=dist(v,h); if(d<bd){bd=d;bh=h;} }
     if(bh) return bh;
     let best=shrine, bm=dist(v,shrine); for(const n of aliveNurseries()){ const d=dist(v,n); if(d<bm){bm=d;best=n;} } return best; }
   // 英雄目標：最近入侵種
@@ -108,7 +118,12 @@
 
   /* ---------- 傷害 ---------- */
   function knock(o,fromX,fromY,amt){ if(!('elite' in o)) return; const a=Math.atan2(o.y-fromY,o.x-fromX), k=o.elite?amt*0.3:amt; o.x+=Math.cos(a)*k; o.y+=Math.sin(a)*k; }
-  function hurt(o,amt,by){ if(o.hp<=0) return; o.hp-=amt; o.hitT=0.14; const big=amt>=40;
+  function hurt(o,amt,by){ if(o.hp<=0) return;
+    if(o.isPlayer!==undefined){ // 守護者受傷：天賦無敵/護盾/減傷生效點
+      if(o.invulnT>0){ floats.push({x:o.x,y:o.y-o.r-6,txt:"閃避！",col:"#80deea",life:0.5}); return; }
+      if(o.shieldT>0){ o.shieldT=0; ring(o.x,o.y,44,"#4dd0e1"); floats.push({x:o.x,y:o.y-o.r-6,txt:"護盾抵銷！",col:"#4dd0e1",life:0.6}); return; }
+      if(o.dr>0) amt*=(1-o.dr); }
+    o.hp-=amt; o.hitT=0.14; const big=amt>=40;
     floats.push({x:o.x,y:o.y-o.r-6,txt:"-"+Math.round(amt),col:big?"#fff59d":"#fff",life:0.6,big}); sparks(o.x,o.y,big?9:5,big?"#fff59d":"#fff");
     if(o.hp<=0){ o.hp=0; onDeath(o,by); } }
   function onDeath(o,by){
@@ -170,6 +185,7 @@
     for(const h of heroes){
       if(h.dead){ h.respawn-=dt; if(h.respawn<=0){ h.dead=false; h.hp=h.maxhp; h.x=SHX+(Math.random()*120-60); h.y=SHY+110; ring(h.x,h.y,40,"#66bb6a"); } continue; }
       if(h.t>0) h.t-=dt; if(h.spCd>0) h.spCd-=dt; if(h.hitT>0) h.hitT-=dt; if(h.atkA>0) h.atkA-=dt; if(h.moodT>0) h.moodT-=dt; h.moving=false;
+      if(h.invulnT>0) h.invulnT-=dt; if(h.stealthT>0) h.stealthT-=dt;
       if(h.isPlayer){ updatePlayer(h,dt); continue; }
       // AI 守護者：聽從快捷指令（集合/攻擊/撤退），否則優先打靠近苗圃/神木的入侵種
       const dirOn=directive && directive.t>0;
@@ -225,23 +241,38 @@
   function skDash(h){ const ang=(h.aim&&!h.aim.dead)?Math.atan2(h.aim.y-h.y,h.aim.x-h.x):h.face;
     const ex=clamp(h.x+Math.cos(ang)*210,40,MW-40), ey=clamp(h.y+Math.sin(ang)*210,40,MH-40);
     fx.push({type:"streak",x:h.x,y:h.y,x2:ex,y2:ey,life:0.25,max:0.25,col:"#fff59d"});
-    for(const v of invaders){ if(!v.dead && segDist(v.x,v.y,h.x,h.y,ex,ey)<46){ hurt(v,h.dmg*2.2,h); knock(v,h.x,h.y,34); } }
-    h.x=ex; h.y=ey; ring(ex,ey,60,"#fff59d"); sparks(ex,ey,16,"#fff59d"); }
-  function skDive(h){ const tg=nearestInvader(h,650); const ex=clamp(tg?tg.e.x:h.x+Math.cos(h.face)*180,40,MW-40), ey=clamp(tg?tg.e.y:h.y+Math.sin(h.face)*180,40,MH-40);
-    fx.push({type:"streak",x:h.x,y:h.y,x2:ex,y2:ey,life:0.22,max:0.22,col:"#4fc3f7"}); h.x=ex; h.y=ey; ring(ex,ey,95,"#4fc3f7"); sparks(ex,ey,20,"#81d4fa");
-    for(const v of invaders){ if(!v.dead && dist({x:ex,y:ey},v)<95){ hurt(v,h.dmg*2.6,h); knock(v,ex,ey,30); } } }
-  function skSlam(h){ ring(h.x,h.y,175,"#ffd54f"); ring(h.x,h.y,118,"#ffe082"); sparks(h.x,h.y,26,"#ffd54f"); mshake=Math.max(mshake,11);
-    for(const v of invaders){ if(!v.dead && dist(h,v)<175){ hurt(v,h.dmg*2.4,h); knock(v,h.x,h.y,60); v.stun=Math.max(v.stun,1.2); } } }
-  function skSonic(h){ ring(h.x,h.y,215,"#b3e5fc"); ring(h.x,h.y,150,"#e1f5fe"); sparks(h.x,h.y,24,"#b3e5fc"); mshake=Math.max(mshake,8);
-    for(const v of invaders){ if(!v.dead && dist(h,v)<215){ hurt(v,h.dmg*1.8,h); knock(v,h.x,h.y,40); v.stun=Math.max(v.stun,1.6); } } }
-  function skShoot(h){ for(let i=-1;i<=1;i++){ const a=h.face+i*0.24; hprojs.push({x:h.x+Math.cos(a)*h.r,y:h.y+Math.sin(a)*h.r,vx:Math.cos(a)*540,vy:Math.sin(a)*540,dmg:h.dmg*1.6,life:1.1,hits:[],pierce:3,col:"#b2ff59"}); } }
-  function skHeal(h){ ring(h.x,h.y,210,"#a5d6a7"); sparks(h.x,h.y,22,"#a5d6a7");
-    for(const a of heroes){ if(!a.dead && dist(h,a)<210){ a.hp=Math.min(a.maxhp,a.hp+120); floats.push({x:a.x,y:a.y-a.r-12,txt:"+120",col:"#a5d6a7",life:0.9}); } }
+    const amb=h.talent==="leopard_ambush", dmul=amb?3.0:2.2;   // 夜襲：突刺附加爆擊傷害
+    for(const v of invaders){ if(!v.dead && segDist(v.x,v.y,h.x,h.y,ex,ey)<46){ hurt(v,h.dmg*dmul,h); knock(v,h.x,h.y,34); } }
+    if(h.talent==="leopard_evade"){ h.invulnT=1.5; ring(h.x,h.y,50,"#80deea"); }   // 路殺迴避：突刺瞬間無敵
+    h.x=ex; h.y=ey; ring(ex,ey,60,"#fff59d"); sparks(ex,ey,amb?24:16,"#fff59d"); }
+  function skDive(h){ const swarm=h.talent==="magpie_swarm", nest=h.talent==="magpie_nest", R=swarm?125:95;
+    const tg=nearestInvader(h,650); const ex=clamp(tg?tg.e.x:h.x+Math.cos(h.face)*180,40,MW-40), ey=clamp(tg?tg.e.y:h.y+Math.sin(h.face)*180,40,MH-40);
+    fx.push({type:"streak",x:h.x,y:h.y,x2:ex,y2:ey,life:0.22,max:0.22,col:"#4fc3f7"}); h.x=ex; h.y=ey; ring(ex,ey,R,"#4fc3f7"); sparks(ex,ey,20,"#81d4fa");
+    for(const v of invaders){ if(!v.dead && dist({x:ex,y:ey},v)<R){ hurt(v,h.dmg*2.6,h); knock(v,ex,ey,swarm?42:30); } }
+    if(nest){ for(const a of heroes){ if(!a.dead && dist({x:ex,y:ey},a)<210){ a.shieldT=Math.max(a.shieldT,3); floats.push({x:a.x,y:a.y-a.r-12,txt:"護巢屏障",col:"#4dd0e1",life:0.8}); } } } }
+  function skSlam(h){ const boost=h.talent==="bear_smash", R1=boost?225:175, R2=boost?150:118;
+    ring(h.x,h.y,R1,"#ffd54f"); ring(h.x,h.y,R2,"#ffe082"); sparks(h.x,h.y,26,"#ffd54f"); mshake=Math.max(mshake,11);
+    for(const v of invaders){ if(!v.dead && dist(h,v)<R1){ hurt(v,h.dmg*2.4,h); knock(v,h.x,h.y,boost?85:60); v.stun=Math.max(v.stun,boost?1.6:1.2); } }
+    if(h.talent==="bear_guard"){ h.shieldT=2; ring(h.x,h.y,50,"#4dd0e1"); } }
+  function skSonic(h){ const mimic=h.talent==="cicada_mimic", boom=h.talent==="cicada_boom", R=boom?270:215;
+    if(mimic){ h.stealthT=3; ring(h.x,h.y,60,"#b0bec5"); floats.push({x:h.x,y:h.y-h.r-16,txt:"環境擬態",col:"#b0bec5",life:0.9}); }
+    ring(h.x,h.y,R,"#b3e5fc"); ring(h.x,h.y,R*0.7,"#e1f5fe"); sparks(h.x,h.y,24,"#b3e5fc"); mshake=Math.max(mshake,8);
+    for(const v of invaders){ if(!v.dead && dist(h,v)<R){ hurt(v,h.dmg*1.8,h); knock(v,h.x,h.y,40); v.stun=Math.max(v.stun,boom?2.4:1.6); } } }
+  function skShoot(h){ const pierce=h.talent==="dragonfly_pierce", gust=h.talent==="dragonfly_gust";
+    if(gust){ const ex=clamp(h.x+Math.cos(h.face)*130,40,MW-40), ey=clamp(h.y+Math.sin(h.face)*130,40,MH-40);
+      fx.push({type:"streak",x:h.x,y:h.y,x2:ex,y2:ey,life:0.18,max:0.18,col:"#26c6da"});
+      for(const v of invaders){ if(!v.dead && segDist(v.x,v.y,h.x,h.y,ex,ey)<40){ hurt(v,h.dmg*1.4,h); knock(v,h.x,h.y,24); } }
+      h.x=ex; h.y=ey; sparks(ex,ey,10,"#26c6da"); }
+    for(let i=-1;i<=1;i++){ const a=h.face+i*0.24; hprojs.push({x:h.x+Math.cos(a)*h.r,y:h.y+Math.sin(a)*h.r,vx:Math.cos(a)*(pierce?620:540),vy:Math.sin(a)*(pierce?620:540),dmg:h.dmg*1.6,life:1.1,hits:[],pierce:pierce?5:3,col:"#b2ff59"}); } }
+  function skHeal(h){ const bless=h.talent==="deer_bless", leap=h.talent==="deer_leap", amt=bless?190:120;
+    if(leap){ h.invulnT=1.2; ring(h.x,h.y,44,"#80deea"); }
+    ring(h.x,h.y,210,"#a5d6a7"); sparks(h.x,h.y,22,"#a5d6a7");
+    for(const a of heroes){ if(!a.dead && dist(h,a)<210){ a.hp=Math.min(a.maxhp,a.hp+amt); floats.push({x:a.x,y:a.y-a.r-12,txt:"+"+amt,col:"#a5d6a7",life:0.9}); } }
     for(const v of invaders){ if(!v.dead && dist(h,v)<155) knock(v,h.x,h.y,52); } }
   const SKILL={ leopard:{name:"閃電突進",cd:6,fn:skDash}, bear:{name:"震地",cd:9,fn:skSlam}, cicada:{name:"音爆",cd:9,fn:skSonic},
     dragonfly:{name:"疾風刃",cd:6,fn:skShoot}, magpie:{name:"俯衝啄擊",cd:6,fn:skDive}, deer:{name:"復育號角",cd:8,fn:skHeal} };
   function castSp(h){ const s=SKILL[h.kind]; h.spCd=h.spMax||(s&&s.cd)||7; h.atkA=0.3;
-    if(h.isPlayer){ mshake=Math.max(mshake,6); toast((s?s.name:"技能")+"！"); }
+    if(h.isPlayer){ mshake=Math.max(mshake,6); toast((s?s.name:"技能")+(h.talent?"！🌟":"！")); }
     (s?s.fn:skSlam)(h); }
   function keepIn(h){ h.x=clamp(h.x,40,MW-40); h.y=clamp(h.y,40,MH-40);
     for(const o of [shrine,...nurseries]){ if(o.hp<=0) continue; const d=dist(h,o),min=o.r+h.r; if(d<min&&d>0){ const a=Math.atan2(h.y-o.y,h.x-o.x); h.x=o.x+Math.cos(a)*min; h.y=o.y+Math.sin(a)*min; } } }
@@ -524,7 +555,13 @@
     if(isInv){ if(u.elite){ ctx.fillStyle="#ffca28"; ctx.font="bold 11px sans-serif"; ctx.textAlign="center"; ctx.fillText("👑"+KNAME[u.kind]+"王",u.x,u.y-R-12); }
       if(u.hp<u.maxhp) bar(u.x,u.y-R-8,u.elite?40:26,u.hp/u.maxhp,"#ff8a80");
       if(u.stun>0){ ctx.fillStyle="#ffe082"; for(let s=0;s<3;s++){ const a=clock*7+s*2.1; ctx.beginPath(); ctx.arc(u.x+Math.cos(a)*R*0.9,u.y-R-2+Math.sin(a)*3,2.4,0,7); ctx.fill(); } } } }
-  function drawHero(h){ const r=h.r, R=r*kcfg(h.kind).sz; drawCreatureTop(h,r,"ally");
+  function drawHero(h){ const r=h.r, R=r*kcfg(h.kind).sz;
+    const stealthy=h.stealthT>0; if(stealthy) ctx.globalAlpha=0.4;
+    drawCreatureTop(h,r,"ally");
+    if(stealthy){ ctx.globalAlpha=1; ctx.fillStyle="#b0bec5"; ctx.font="12px sans-serif"; ctx.textAlign="center"; ctx.fillText("👻",h.x,h.y-R-30); }
+    if(h.shieldT>0){ ctx.strokeStyle="rgba(77,208,225,0.85)"; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(h.x,h.y,R*1.25,0,7); ctx.stroke(); }
+    if(h.invulnT>0){ ctx.strokeStyle="rgba(128,222,234,0.7)"; ctx.lineWidth=2; ctx.setLineDash([4,4]); ctx.beginPath(); ctx.arc(h.x,h.y,R*1.15,0,7); ctx.stroke(); ctx.setLineDash([]); }
+    ctx.globalAlpha=1;
     if(h.isPlayer){ const bY=h.y-R*1.8-Math.sin(clock*4)*3; ctx.fillStyle="#ffd54f"; ctx.beginPath(); ctx.moveTo(h.x,bY+10); ctx.lineTo(h.x-7,bY); ctx.lineTo(h.x+7,bY); ctx.fill();
       if(bubble && bubble.t>0){ const a=Math.min(1,bubble.t*2.4), by=bY-30, bw=Math.max(58,bubble.txt.length*13+34);
         ctx.globalAlpha=a; ctx.fillStyle="#fff"; ctx.strokeStyle="rgba(0,0,0,0.5)"; ctx.lineWidth=2;
@@ -606,7 +643,11 @@
   cv.addEventListener("wheel",(e)=>{ if(!running)return; e.preventDefault(); setZoom(zoom-Math.sign(e.deltaY)*0.12); },{passive:false});
 
   /* ---------- 接到大廳「對戰」 ---------- */
-  function openPick(){ const e=document.getElementById("mpick"); if(e) e.classList.remove("hide"); setPickMode(pickMode); setBattleRegion(battleRegion); }
+  function openPick(){ const e=document.getElementById("mpick"); if(e) e.classList.remove("hide"); setPickMode(pickMode); setBattleRegion(battleRegion);
+    const key=(window.__featuredKey&&window.__featuredKey())||"leopard", tal=(window.__heroTalent&&window.__heroTalent(key))||null;
+    const hint=document.getElementById("talentHintInfo");
+    if(hint){ if(tal){ hint.textContent="🌟 "+(KNAME[key]||key)+"　目前天賦："+tal.pathName+" Lv."+tal.tier+(tal.active?"（主動："+tal.active.name+"）":"")+"　出戰時自動生效"; hint.classList.remove("hide"); }
+      else hint.classList.add("hide"); } }
   const pb=document.getElementById("playBtn"); if(pb) pb.onclick=openPick;
   // 復育↔對戰核心循環：戰場選在哪個地區，就吃該地區棲地基地的健康度加成
   function setBattleRegion(r){ battleRegion=r;

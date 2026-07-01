@@ -248,6 +248,86 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   function gainXP(key,amt){ const o=getXP(); o[key]=Math.min((o[key]||0)+amt, 4999); setXP(o); }
   function lvHP(key){ return 100 + (heroLevel(key)-1)*6; }
   function lvAtk(key){ return Math.floor((heroLevel(key)-1)/4); }
+  /* ===== 天賦樹（分歧培養）：每隻守護者 2 條路線二選一，各 3 級，第 3 級解鎖主動技能效果 =====
+     mods 疊加到 MOBA 對戰數值：dmg/speed/spCd（技能冷卻倍率，越小越快）/dr（減傷 0~1）
+     active：第 3 級解鎖，effect 對應 moba.js castSp() 內讀取的旗標字串 */
+  const TALENTS = {
+    leopard: { A:{ name:"夜行夜襲流", tiers:[
+          { cost:60,  mods:{dmg:0.06}, desc:"夜間感官敏銳，攻擊力 +6%" },
+          { cost:120, mods:{dmg:0.10, speed:0.06}, desc:"擅長伏擊，攻擊力 +10%、速度 +6%" },
+          { cost:240, mods:{dmg:0.16, speed:0.10}, active:{effect:"leopard_ambush", name:"夜襲",
+            desc:"攻擊力 +16%、速度 +10%；施放突刺時額外附加一段夜襲爆擊傷害"} } ] },
+        B:{ name:"避險生存流", tiers:[
+          { cost:60,  mods:{dr:0.06}, desc:"提高戒心，減傷 6%" },
+          { cost:120, mods:{dr:0.11}, desc:"熟悉地形陷阱，減傷 11%" },
+          { cost:240, mods:{dr:0.16}, active:{effect:"leopard_evade", name:"路殺迴避",
+            desc:"減傷 16%；施放突刺時獲得 1.5 秒無敵，可安全穿越危險路段"} } ] } },
+    bear: { A:{ name:"蠻力衝撞流", tiers:[
+          { cost:60,  mods:{dmg:0.07}, desc:"前臂力量增強，攻擊力 +7%" },
+          { cost:120, mods:{dmg:0.12, spCd:-0.06}, desc:"攻擊力 +12%、技能冷卻 -6%" },
+          { cost:240, mods:{dmg:0.18, spCd:-0.10}, active:{effect:"bear_smash", name:"怒熊震擊",
+            desc:"攻擊力 +18%、技能冷卻 -10%；震地範圍與擊退力大幅提升"} } ] },
+        B:{ name:"厚皮防禦流", tiers:[
+          { cost:60,  mods:{dr:0.07}, desc:"皮下脂肪增厚，減傷 7%" },
+          { cost:120, mods:{dr:0.13, speed:0.04}, desc:"減傷 13%、速度 +4%" },
+          { cost:240, mods:{dr:0.20}, active:{effect:"bear_guard", name:"不屈厚皮",
+            desc:"減傷 20%；施放震地時獲得 2 秒護盾，抵銷下一波傷害"} } ] } },
+    dragonfly: { A:{ name:"疾風流", tiers:[
+          { cost:60,  mods:{speed:0.08}, desc:"飛行肌群強化，速度 +8%" },
+          { cost:120, mods:{speed:0.14, dmg:0.05}, desc:"速度 +14%、攻擊力 +5%" },
+          { cost:240, mods:{speed:0.20, dmg:0.08}, active:{effect:"dragonfly_gust", name:"音速衝刺",
+            desc:"速度 +20%、攻擊力 +8%；施放疾風刃前先高速衝刺一小段並附加額外傷害"} } ] },
+        B:{ name:"索敵流", tiers:[
+          { cost:60,  mods:{dmg:0.06}, desc:"複眼視野更廣，攻擊力 +6%" },
+          { cost:120, mods:{dmg:0.11, spCd:-0.05}, desc:"攻擊力 +11%、技能冷卻 -5%" },
+          { cost:240, mods:{dmg:0.16, spCd:-0.10}, active:{effect:"dragonfly_pierce", name:"精準捕獵",
+            desc:"攻擊力 +16%、技能冷卻 -10%；疾風刃穿透數與飛行速度提升"} } ] } },
+    magpie: { A:{ name:"群襲流", tiers:[
+          { cost:60,  mods:{spCd:-0.06}, desc:"群體默契，技能冷卻 -6%" },
+          { cost:120, mods:{spCd:-0.10, dmg:0.05}, desc:"技能冷卻 -10%、攻擊力 +5%" },
+          { cost:240, mods:{spCd:-0.15, dmg:0.08}, active:{effect:"magpie_swarm", name:"群鵲俯衝",
+            desc:"技能冷卻 -15%、攻擊力 +8%；俯衝啄擊命中範圍與擊退力提升"} } ] },
+        B:{ name:"護巢流", tiers:[
+          { cost:60,  mods:{dr:0.05}, desc:"護巢警覺，減傷 5%" },
+          { cost:120, mods:{dr:0.09, speed:0.05}, desc:"減傷 9%、速度 +5%" },
+          { cost:240, mods:{dr:0.14}, active:{effect:"magpie_nest", name:"護巢屏障",
+            desc:"減傷 14%；施放俯衝啄擊時，周圍友軍額外獲得短暫護盾"} } ] } },
+    deer: { A:{ name:"敏捷奔躍流", tiers:[
+          { cost:60,  mods:{speed:0.07}, desc:"腿部肌力強化，速度 +7%" },
+          { cost:120, mods:{speed:0.13, dr:0.04}, desc:"速度 +13%、減傷 4%" },
+          { cost:240, mods:{speed:0.18, dr:0.08}, active:{effect:"deer_leap", name:"鹿群疾躍",
+            desc:"速度 +18%、減傷 8%；施放復育號角時自身額外獲得 1.2 秒無敵"} } ] },
+        B:{ name:"復育治癒流", tiers:[
+          { cost:60,  mods:{dmg:0.04}, desc:"族群生命力旺盛，攻擊力 +4%" },
+          { cost:120, mods:{dmg:0.07, spCd:-0.06}, desc:"攻擊力 +7%、技能冷卻 -6%" },
+          { cost:240, mods:{dmg:0.10, spCd:-0.12}, active:{effect:"deer_bless", name:"復育祝福",
+            desc:"攻擊力 +10%、技能冷卻 -12%；復育號角治療量大幅提升"} } ] } },
+    cicada: { A:{ name:"音波震攝流", tiers:[
+          { cost:60,  mods:{dmg:0.06}, desc:"鳴聲共鳴增強，攻擊力 +6%" },
+          { cost:120, mods:{dmg:0.11, spCd:-0.05}, desc:"攻擊力 +11%、技能冷卻 -5%" },
+          { cost:240, mods:{dmg:0.16, spCd:-0.10}, active:{effect:"cicada_boom", name:"共鳴音爆",
+            desc:"攻擊力 +16%、技能冷卻 -10%；音爆範圍加大、暈眩時間延長"} } ] },
+        B:{ name:"潛伏擬態流", tiers:[
+          { cost:60,  mods:{dr:0.05}, desc:"若蟲蟄伏本能，減傷 5%" },
+          { cost:120, mods:{dr:0.09, speed:0.04}, desc:"減傷 9%、速度 +4%" },
+          { cost:240, mods:{dr:0.12}, active:{effect:"cicada_mimic", name:"環境擬態",
+            desc:"減傷 12%；施放音爆時先隱身 3 秒，入侵種無法鎖定你"} } ] } },
+  };
+  function getTalents(){ try{ return JSON.parse(localStorage.getItem("shoutu_talents")||"{}")||{}; }catch(e){ return {}; } }
+  function setTalents(o){ try{ localStorage.setItem("shoutu_talents",JSON.stringify(o)); }catch(e){} }
+  function heroTalent(key){ const o=getTalents(); return o[key]||{path:null,tier:0}; }
+  function talentDef(key){ return TALENTS[key]||null; }
+  function talentPick(key,path){ const o=getTalents(); const cur=o[key]||{path:null,tier:0};
+    if(cur.path && cur.path!==path) return false; // 已選路線需先升到底才能重選（避免混搭）
+    o[key]={path, tier:cur.tier||0}; setTalents(o); return true; }
+  function talentUpgrade(key){ const def=talentDef(key); if(!def) return false; const o=getTalents(); const cur=o[key]; if(!cur||!cur.path) return false;
+    if(cur.tier>=3) return false; const cost=def[cur.path].tiers[cur.tier].cost; if(getEco()<cost) return false;
+    setEco(getEco()-cost); cur.tier++; o[key]=cur; setTalents(o); return true; }
+  // 匯總目前生效的天賦數值加成（供 MOBA 讀取）：dmg/speed/spCd 為疊加倍率、dr 為減傷、active 為第 3 級主動技能旗標
+  function talentSummary(key){ const t=heroTalent(key), def=talentDef(key); if(!def||!t.path||t.tier<=0) return null;
+    const path=def[t.path]; const mods={dmg:0,speed:0,spCd:0,dr:0}; let active=null;
+    for(let i=0;i<t.tier;i++){ const tr=path.tiers[i]; if(tr.mods){ for(const k in tr.mods) mods[k]=(mods[k]||0)+tr.mods[k]; } if(tr.active) active=tr.active; }
+    return { path:t.path, pathName:path.name, tier:t.tier, mods, active }; }
   // 解鎖守護者（基本 4 隻恆解鎖；梅花鹿/藍鵲用保育值解鎖）
   function getUnlockedHeroes(){ try{ return JSON.parse(localStorage.getItem("shoutu_heroes")||"[]")||[]; }catch(e){ return []; } }
   function isHeroUnlocked(key){ const h=HEROES.find(x=>x.key===key); if(!h||!h.locked) return true; return getUnlockedHeroes().includes(key); }
@@ -305,33 +385,79 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
       HEROES.filter(h=>isHeroUnlocked(h.key)).map(h=>`${h.name}　Lv.${heroLevel(h.key)}`).join("　·　");
   }
   function goSettings(){ state="settings"; setBattleUI(false); show(settingsScr); }
+  let talentOpenKey=null; // 目前展開天賦面板的守護者（重繪 goUpgrade 時保持展開狀態）
   function goUpgrade(){ state="upgrade"; setBattleUI(false); show(upgradeScr);
     document.getElementById("upgEco").textContent=getEco();
     const wrap=document.getElementById("upgCards"); wrap.innerHTML="";
     HEROES.forEach((h,idx)=>{ const unlocked=isHeroUnlocked(h.key);
-      const div=document.createElement("div"); div.className="card";
-      const cv=document.createElement("canvas"); cv.width=104; cv.height=104; div.appendChild(cv);
+      const div=document.createElement("div"); div.className="card"; div.style.cssText="flex-direction:column;align-items:stretch;";
+      const top=document.createElement("div"); top.style.cssText="display:flex;align-items:center;gap:12px;width:100%;";
+      const cv=document.createElement("canvas"); cv.width=104; cv.height=104; cv.style.cssText="width:52px;height:52px;flex:none;"; top.appendChild(cv);
       const cc=cv.getContext("2d"); drawCreature(cc,h.key,52,60,34,{t:0}); if(!unlocked){ cc.globalAlpha=0.55; cc.fillStyle="#000"; cc.fillRect(0,0,104,104); cc.globalAlpha=1; cc.font="30px serif"; cc.textAlign="center"; cc.fillText("🔒",52,64); }
       const info=document.createElement("div"); info.className="info";
       if(!unlocked){
         info.innerHTML=`<div class="t">${h.name} 🔒</div><div class="d">${h.status}<br>解鎖花 🌿 ${h.cost}</div>`;
-        div.appendChild(info);
+        top.appendChild(info);
         const btn=document.createElement("button"); btn.className="btn"; btn.style.cssText="margin:0;padding:8px 12px;font-size:13px;"; btn.textContent="解鎖";
         if(getEco()<h.cost){ btn.className="btn sec"; btn.style.opacity=".4"; }
-        btn.onclick=()=>{ if(getEco()>=h.cost){ setEco(getEco()-h.cost); unlockHero(h.key); goUpgrade(); } };
-        div.appendChild(btn);
+        btn.addEventListener("pointerdown",(e)=>{ e.preventDefault(); if(getEco()>=h.cost){ setEco(getEco()-h.cost); unlockHero(h.key); goUpgrade(); } },{passive:false});
+        top.appendChild(btn);
+        div.appendChild(top);
       } else {
         const lv=heroLevel(h.key), xp=heroXP(h.key), inLv=lv>=50?100:(xp%100), max=lv>=50;
+        const ts=talentSummary(h.key);
         info.innerHTML=`<div class="t">${h.name} <span style="color:#ffd54f;font-size:12px">Lv.${lv}${max?" MAX":""}</span></div>`+
           `<div class="d">血量 ${lvHP(h.key)} · 攻擊 +${lvAtk(h.key)}　｜　EXP ${max?"滿級":(inLv+"/100")}</div>`+
-          `<div style="height:6px;background:rgba(0,0,0,.4);border-radius:4px;margin-top:4px;overflow:hidden"><div style="height:100%;width:${inLv}%;background:#ffd54f"></div></div>`;
-        div.appendChild(info);
+          `<div style="height:6px;background:rgba(0,0,0,.4);border-radius:4px;margin-top:4px;overflow:hidden"><div style="height:100%;width:${inLv}%;background:#ffd54f"></div></div>`+
+          (ts?`<div style="font-size:11px;color:#80cbc4;margin-top:3px">🌟 ${ts.pathName} Lv.${ts.tier}${ts.active?"（"+ts.active.name+"）":""}</div>`:"");
+        top.appendChild(info);
         const btn=document.createElement("button"); btn.className="btn"; btn.style.cssText="margin:0;padding:8px 12px;font-size:13px;"; btn.textContent="🌿80→+100EXP";
         if(max || getEco()<80){ btn.className="btn sec"; btn.style.opacity=".4"; }
-        btn.onclick=()=>{ if(!max && getEco()>=80){ setEco(getEco()-80); gainXP(h.key,100); goUpgrade(); } };
-        div.appendChild(btn);
+        btn.addEventListener("pointerdown",(e)=>{ e.preventDefault(); if(!max && getEco()>=80){ setEco(getEco()-80); gainXP(h.key,100); goUpgrade(); } },{passive:false});
+        top.appendChild(btn);
+        div.appendChild(top);
+        const talBtn=document.createElement("button"); talBtn.className="btn sec"; talBtn.style.cssText="margin:8px 0 0;padding:7px 14px;font-size:12px;align-self:flex-start;";
+        talBtn.textContent=(talentOpenKey===h.key?"▲ 收起天賦":"🌟 天賦");
+        talBtn.addEventListener("pointerdown",(e)=>{ e.preventDefault(); talentOpenKey=(talentOpenKey===h.key?null:h.key); goUpgrade(); },{passive:false});
+        div.appendChild(talBtn);
+        if(talentOpenKey===h.key) div.appendChild(buildTalentPanel(h.key));
       }
       wrap.appendChild(div); });
+  }
+  function buildTalentPanel(key){
+    const def=talentDef(key), cur=heroTalent(key);
+    const panel=document.createElement("div");
+    panel.style.cssText="margin-top:10px;padding:10px;background:rgba(0,0,0,.25);border-radius:12px;";
+    if(!def){ panel.innerHTML=`<div style="font-size:12px;color:#b0bec5">此守護者尚無天賦路線。</div>`; return panel; }
+    ["A","B"].forEach(pk=>{
+      const path=def[pk]; const locked=cur.path && cur.path!==pk;
+      const box=document.createElement("div"); box.style.cssText="margin-bottom:8px;padding:8px;border-radius:10px;background:rgba(255,255,255,.05);"+(locked?"opacity:.4;":"");
+      const isCur=cur.path===pk, tier=isCur?cur.tier:0;
+      let html=`<div style="font-size:13px;font-weight:800;color:${isCur?"#ffd54f":"#e0e0e0"}">${path.name}${isCur?"　Lv."+tier+"/3":""}</div>`;
+      path.tiers.forEach((tr,i)=>{ const got=isCur&&tier>i, desc=tr.desc||(tr.active&&tr.active.desc)||"";
+        html+=`<div style="font-size:11px;color:${got?"#a5d6a7":"#90a4ae"};margin-top:2px">`+
+          `${got?"✅":"・"} Lv.${i+1}　${desc}${tr.active?"　【主動："+tr.active.name+"】":""}</div>`; });
+      box.innerHTML=html;
+      if(!locked){
+        const btnWrap=document.createElement("div"); btnWrap.style.cssText="margin-top:6px;";
+        if(!isCur){
+          const pickBtn=document.createElement("button"); pickBtn.className="btn"; pickBtn.style.cssText="margin:0;padding:6px 14px;font-size:12px;";
+          pickBtn.textContent="選擇此路線"; pickBtn.addEventListener("pointerdown",(e)=>{ e.preventDefault(); talentPick(key,pk); goUpgrade(); },{passive:false});
+          btnWrap.appendChild(pickBtn);
+        } else if(tier<3){
+          const cost=path.tiers[tier].cost, canAfford=getEco()>=cost;
+          const upBtn=document.createElement("button"); upBtn.className=canAfford?"btn":"btn sec"; upBtn.style.cssText="margin:0;padding:6px 14px;font-size:12px;"+(canAfford?"":"opacity:.4;");
+          upBtn.textContent=`升級 Lv.${tier+1}（🌿 ${cost}）`;
+          upBtn.addEventListener("pointerdown",(e)=>{ e.preventDefault(); if(talentUpgrade(key)) goUpgrade(); },{passive:false});
+          btnWrap.appendChild(upBtn);
+        } else {
+          const doneEl=document.createElement("div"); doneEl.style.cssText="font-size:11px;color:#ffd54f;margin-top:4px;"; doneEl.textContent="已修煉至最高等級";
+          btnWrap.appendChild(doneEl);
+        }
+        box.appendChild(btnWrap);
+      }
+      panel.appendChild(box); });
+    return panel;
   }
   function setBattleUI(on){ dock.classList.toggle("hide",!on); }
   function goTitle(){ state="title"; setBattleUI(false); show(titleScr); }
@@ -721,6 +847,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   window.__featuredKey=()=> (HEROES[featured]&&HEROES[featured].key)||"leopard";
   window.__unlockedKeys=()=> HEROES.filter(h=>isHeroUnlocked(h.key)).map(h=>h.key);
   window.__heroLevel=(key)=> heroLevel(key);   // 守護者等級（最高 50、永不退級）
+  window.__heroTalent=(key)=> talentSummary(key);   // 天賦加成摘要：{path,pathName,tier,mods:{dmg,speed,spCd,dr},active}|null
   window.__awardEco=(n)=>{ gainEco(n); };
   window.__getEco=()=> getEco();
   window.__awardXP=(key,n)=>{ gainXP(key,n|0); };
