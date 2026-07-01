@@ -78,7 +78,10 @@
   let pickMode="normal", timeAttack=false;
   let battleRegion="paddy", healthBonus=0;   // 復育↔對戰核心循環：戰場棲地健康度影響數值加成
   // 好友連線（選用）：netRole=null 純單機（預設，行為完全不變）；"host" 本機模擬+定期廣播；"guest" 不跑模擬，只接收快照渲染+送出操控
-  let netRole=null, netGuestHero=null, netBroadcastT=0, netLastRecvT=0, netStale=false, netPendingGuestKind=null;
+  let netRole=null, netBroadcastT=0, netLastRecvT=0, netStale=false;
+  // 多人連線：host 端把每個好友 uid 對應到牠操控的守護者(netGuestByUid)、各自的搖桿輸入(netGuestInputs)；
+  // netMyUid=本機玩家 uid（host/guest 都設），guest 端靠它從快照的 h.ctrl 認出「哪一隻是我」。
+  let netMyUid=null, netPendingGuests=[], netGuestByUid={}, netGuestInputs={};
   const NET_BROADCAST_MS=130, NET_TIMEOUT_MS=6000;
   const REGION_LABEL={ paddy:"稻田", hill:"淺山", stream:"溪流", wetland:"濕地" };
 
@@ -161,8 +164,10 @@
     shrine={ x:SHX, y:SHY, r:76, hp:1400, maxhp:1400, kind:"shrine", hitT:0 };
     nurseries=NPOS.map(p=>({ x:p.x, y:p.y, r:34, hp:340, maxhp:340, growth:0.15, contested:false, kind:"nursery" }));
     const myKey=window.__netHostKeyOverride||(window.__featuredKey&&window.__featuredKey())||"leopard";
-    // 好友連線：房間裡朋友實際選的角色一定要排進隊伍名單，不能被下面的固定順序填充蓋掉（這是造成「兩人角色變成同一隻」的根因）
-    const kinds=[myKey]; if(netPendingGuestKind && netPendingGuestKind!==myKey) kinds.push(netPendingGuestKind);
+    // 好友連線：房間裡每個朋友實際選的角色都一定要排進隊伍名單（slot 1..k），不能被固定順序填充蓋掉，
+    // 且順序要跟 netPendingGuests 一致，這樣下面才能把每一隻對應回操控牠的好友 uid（多人各自操控的關鍵）。
+    const kinds=[myKey];
+    for(const g of netPendingGuests){ if(kinds.length>=size) break; if(g.kind && kinds.indexOf(g.kind)<0) kinds.push(g.kind); }
     for(const k of GUARDIANS){ if(kinds.length>=size) break; if(kinds.indexOf(k)<0) kinds.push(k); }
     while(kinds.length<size) kinds.push(GUARDIANS[kinds.length%GUARDIANS.length]);
     healthBonus=(window.__habitatHealth&&window.__habitatHealth(battleRegion))||0;   // 該地區棲地健康度 0~1
@@ -180,6 +185,12 @@
       h.baseSpeed=h.speed;   // 山羌靈奔祝福等暫時加速效果的基準值，避免逐幀疊乘暴走
       return h; });
     player=heroes[0];
+    // 多人連線：把每隻守護者標記操控者 uid——slot0=host、slot1..k 依序對應 netPendingGuests 的好友，其餘為 AI(ctrl=null)。
+    // guest 端靠快照裡的 h.ctrl 認出自己那隻；host 端靠 netGuestByUid 把好友輸入套用到正確的守護者。
+    netGuestByUid={};
+    heroes.forEach(h=>{ h.ctrl=null; });
+    if(netRole==="host"){ if(heroes[0]) heroes[0].ctrl=netMyUid||"host";
+      netPendingGuests.forEach((g,i)=>{ const h=heroes[1+i]; if(h && g.kind && h.kind===g.kind){ h.ctrl=g.uid; netGuestByUid[g.uid]=h; } }); }
     cam.x=clamp(player.x-VW/2,0,Math.max(0,MW-VW)); cam.y=clamp(player.y-VH/2,0,Math.max(0,MH-VH));
     setTimeout(weatherToast,200);   // 讓進場動畫先跑，再顯示天候 toast
     if(pveEvent) setTimeout(()=>toast("🎯 限時防衛戰！驅逐 "+(PVE_NEED[pvePickTarget]||12)+" 隻 "+KNAME[pvePickTarget]),1600);
@@ -316,7 +327,7 @@
       if(h.invulnT>0) h.invulnT-=dt; if(h.stealthT>0) h.stealthT-=dt; if(h.ultCd>0) h.ultCd-=dt;
       if(h.blessT>0){ h.blessT-=dt; h.speed=Math.round((h.baseSpeed||h.speed)*1.22); } else if(h.baseSpeed) h.speed=h.baseSpeed;   // 山羌靈奔祝福：暫時加速，逐幀還原避免疊乘
       if(h.isPlayer){ updatePlayer(h,dt); continue; }
-      if(h===netGuestHero){ updateNetGuestHero(h,dt); continue; }   // 好友連線：這隻由遠端玩家操控，host 端套用其搖桿輸入，不跑 AI
+      if(h.ctrl && netGuestByUid[h.ctrl]===h){ updateNetGuestHero(h,dt,h.ctrl); continue; }   // 好友連線：這隻由某位遠端好友操控，host 端套用該 uid 的搖桿輸入，不跑 AI
       // AI 守護者：聽從快捷指令（集合/攻擊/撤退），否則優先打靠近苗圃/神木的入侵種
       const dirOn=directive && directive.t>0;
       let tg = (dirOn && directive.type==="focus" && directive.target && !directive.target.dead)
@@ -373,7 +384,7 @@
       shrineHp:Math.round(shrine.hp), shrineMax:shrine.maxhp,
       nurseries:nurseries.map(n=>({hp:Math.round(n.hp),max:n.maxhp,growth:Math.round(n.growth*100)/100})),
       heroes:heroes.map((h,i)=>({i, kind:h.kind, x:Math.round(h.x), y:Math.round(h.y), face:Math.round(h.face*100)/100,
-        hp:Math.round(h.hp), max:h.maxhp, dead:h.dead, lv:h.level||1, name:h.name, isPlayer:!!h.isPlayer, isGuest:h===netGuestHero, moving:h.moving, ult:!!h.ult, ultCd:Math.round(h.ultCd*10)/10})),
+        hp:Math.round(h.hp), max:h.maxhp, dead:h.dead, lv:h.level||1, name:h.name, isPlayer:!!h.isPlayer, ctrl:h.ctrl||null, moving:h.moving, ult:!!h.ult, ultCd:Math.round(h.ultCd*10)/10})),
       invaders:invaders.slice(0,60).map(v=>({kind:v.kind, x:Math.round(v.x), y:Math.round(v.y), face:Math.round(v.face*100)/100,
         hp:Math.round(v.hp), max:v.maxhp, elite:!!v.elite, moving:v.moving})),
       relics:relics.map(r=>({x:Math.round(r.x), y:Math.round(r.y), phase:Math.round(r.phase*100)/100})),
@@ -385,16 +396,16 @@
     clock=s.t||0; restore=clamp(s.restore||0,0,1); killCount=s.kills||0;
     if(shrine){ shrine.hp=s.shrineHp||0; shrine.maxhp=s.shrineMax||shrine.maxhp; }
     if(Array.isArray(s.nurseries)) nurseries.forEach((n,i)=>{ const d=s.nurseries[i]; if(!d) return; n.hp=d.hp||0; n.maxhp=d.max||n.maxhp; n.growth=d.growth||0; });
-    netGuestHero=null;
+    let myHero=null;
     if(Array.isArray(s.heroes)) heroes=s.heroes.map(d=>{ const base=mkHero(d.kind,d.isPlayer); base.x=d.x; base.y=d.y; base.face=d.face||0;
       base.hp=d.hp; base.maxhp=d.max||base.maxhp; base.dead=!!d.dead; base.level=d.lv||1; base.name=d.name||base.name; base.moving=!!d.moving;
-      base.ult=!!d.ult; base.ultCd=d.ultCd||0;
-      if(d.isGuest) netGuestHero=base; return base; });
+      base.ult=!!d.ult; base.ultCd=d.ultCd||0; base.ctrl=d.ctrl||null;
+      if(netMyUid && d.ctrl===netMyUid) myHero=base; return base; });
     if(Array.isArray(s.invaders)) invaders=s.invaders.map(d=>{ const v=mkInvader(d.kind,d.elite); v.x=d.x; v.y=d.y; v.face=d.face||0; v.hp=d.hp; v.maxhp=d.max||v.maxhp; v.moving=!!d.moving; return v; });
     relics=Array.isArray(s.relics)? s.relics.map(r=>({x:r.x, y:r.y, phase:r.phase||0})) : [];
-    // guest 端鏡頭/HUD 一定要跟著「我自己選的角色」（isGuest 那隻），不能落到 isPlayer（那是房主的角色）——
-    // 這是造成朋友端「看起來兩人是同一隻」的根因：舊版一律抓 isPlayer，guest 端因此鏡頭黏在房主身上
-    player=netGuestHero||heroes.find(h=>h.isPlayer)||heroes[0]||null;
+    // guest 端鏡頭/HUD 一定要跟著「我自己操控的守護者」（快照裡 ctrl===我的 uid 那隻），不能落到 isPlayer（那是房主的角色）——
+    // 這是造成朋友端「看起來大家都是同一隻」的根因：舊版一律抓 isPlayer，guest 端因此鏡頭黏在房主身上
+    player=myHero||heroes.find(h=>h.isPlayer)||heroes[0]||null;
     if(player){ const vw=VW/zoom, vh=VH/zoom, focus=player.dead?shrine:player;
       cam.x=clamp(focus.x-vw/2,0,Math.max(0,MW-vw)); cam.y=clamp(focus.y-vh/2,0,Math.max(0,MH-vh)); }
     updateHUD();
@@ -403,8 +414,10 @@
         s.win?"你和朋友一起驅逐了外來入侵種、守住台灣神木與復育苗圃！":"別氣餒，再約朋友一起守一次吧。"); }
   }
   window.__netApplySnapshot=applySnapshot;   // net.js 收到 Firebase 資料後呼叫這個把畫面更新成 host 廣播的內容
-  // guest 端：把本機搖桿/技能輸入送給 net.js 節流上傳到 rooms/<code>/inputs/<uid>；host 端收到後寫進 netGuestInput 套用
-  window.__netSetGuestInput=(inp)=>{ if(!inp) return; netGuestInput.mvx=inp.mvx||0; netGuestInput.mvy=inp.mvy||0; if(inp.sp) netGuestInput.sp=true; if(inp.back) netGuestInput.back=true; if(inp.atk) netGuestInput.atk=true; if(inp.ult) netGuestInput.ult=true; };
+  window.__netSetMyUid=(uid)=>{ netMyUid=uid||null; };   // net.js 登入後把本機玩家 uid 告訴 moba（host/guest 都要，用來對應/認出自己那隻）
+  // guest 端：把某位好友(uid)的搖桿/技能輸入寫進 netGuestInputs[uid]；host 每幀從這裡取用套到對應守護者
+  window.__netSetGuestInput=(uid,inp)=>{ if(!uid||!inp) return; const g=netGuestInputs[uid]||(netGuestInputs[uid]={mvx:0,mvy:0,sp:false,back:false,atk:false,ult:false});
+    g.mvx=inp.mvx||0; g.mvy=inp.mvy||0; if(inp.sp) g.sp=true; if(inp.back) g.back=true; if(inp.atk) g.atk=true; if(inp.ult) g.ult=true; };
   window.__netLocalInput=()=>{ const inp={ mvx:mv.x, mvy:mv.y, sp:wantSp, back:wantBack, atk:wantAtk, ult:wantUlt }; wantSp=false; wantBack=false; wantAtk=false; wantAtkT=0; wantUlt=false; return inp; };
   window.__netCheckStale=()=>{ if(netRole!=="guest"||!netLastRecvT) return false; netStale=(performance.now()-netLastRecvT)>NET_TIMEOUT_MS; return netStale; };
 
@@ -422,19 +435,19 @@
     // wantAtk 按下後有 0.28 秒輸入緩衝：稍微搶拍按也不會白按，進入射程/冷卻轉好內會自動補發一次。
     if(wantAtk && tg && tg.d<=h.range+tg.e.r && h.t<=0){ wantAtk=false; wantAtkT=0; meleeHit(h,tg.e,h.dmg); }
   }
-  // 好友連線：host 端套用遠端朋友的搖桿/技能輸入到朋友操控的那隻守護者身上（結構同 updatePlayer，資料來源是 netGuestInput 而非本機 mv/wantSp）
-  let netGuestInput={mvx:0,mvy:0,sp:false,back:false,atk:false,ult:false};
-  function updateNetGuestHero(h,dt){
-    const ix=netGuestInput.mvx||0, iy=netGuestInput.mvy||0, mag=Math.hypot(ix,iy);
+  // 好友連線：host 端套用某位遠端好友(uid)的搖桿/技能輸入到牠操控的守護者身上（結構同 updatePlayer，資料來源是 netGuestInputs[uid] 而非本機 mv/wantSp）
+  function updateNetGuestHero(h,dt,uid){
+    const inp=netGuestInputs[uid]; if(!inp){ keepIn(h); return; }
+    const ix=inp.mvx||0, iy=inp.mvy||0, mag=Math.hypot(ix,iy);
     if(mag>0.12){ const ang=Math.atan2(iy,ix); h.face=ang; const s=h.speed*Math.min(1,mag); h.x+=Math.cos(ang)*s*dt; h.y+=Math.sin(ang)*s*dt; h.moving=true; h.anim+=dt; }
     keepIn(h);
     tryPickRelic(h);
-    if(netGuestInput.back){ netGuestInput.back=false; h.x=shrine.x; h.y=shrine.y+100; h.hp=h.maxhp; ring(h.x,h.y,46,"#80deea"); }
-    if(netGuestInput.sp){ netGuestInput.sp=false; if(h.spCd<=0) castSp(h); }
-    if(netGuestInput.ult){ netGuestInput.ult=false; castUlt(h); }
+    if(inp.back){ inp.back=false; h.x=shrine.x; h.y=shrine.y+100; h.hp=h.maxhp; ring(h.x,h.y,46,"#80deea"); }
+    if(inp.sp){ inp.sp=false; if(h.spCd<=0) castSp(h); }
+    if(inp.ult){ inp.ult=false; castUlt(h); }
     const tg=nearestInvader(h,h.range+60);
     h.aim=(tg && tg.d<=h.range+tg.e.r+40 && !tg.e.dead)? tg.e : null;
-    if(netGuestInput.atk && tg && tg.d<=h.range+tg.e.r && h.t<=0){ netGuestInput.atk=false; meleeHit(h,tg.e,h.dmg); }
+    if(inp.atk && tg && tg.d<=h.range+tg.e.r && h.t<=0){ inp.atk=false; meleeHit(h,tg.e,h.dmg); }
   }
   // 點到線段距離（突進命中判定）
   function segDist(px,py,ax,ay,bx,by){ const dx=bx-ax,dy=by-ay,l2=dx*dx+dy*dy||1; let t=((px-ax)*dx+(py-ay)*dy)/l2; t=clamp(t,0,1); return Math.hypot(px-(ax+t*dx),py-(ay+t*dy)); }
@@ -1079,14 +1092,17 @@
     if(netRole==="guest"){ if(window.__netCheckStale&&window.__netCheckStale()) toast("⚠ 對方已離線…"); render(); }
     else { step(dt); render(); }
     raf=requestAnimationFrame(loop); }
-  function start(size){ netRole=null; netGuestHero=null; root.classList.remove("mhide"); hide("mpick"); hide("mover"); zoom=1; resize(); setup(size); running=true; ended=false; lastT=0; raf=requestAnimationFrame(loop); }
-  // 好友連線：host 端跟 start() 幾乎一樣（照舊本機模擬），但額外標記 netRole 以便定期廣播 + 收朋友輸入；guestKind 指定哪個位置是朋友操控
-  function startNetHost(size,guestKind){ netPendingGuestKind=guestKind||null; start(size); netPendingGuestKind=null; netRole="host"; netBroadcastT=0;
-    netGuestHero=heroes.find(h=>!h.isPlayer && h.kind===guestKind) || heroes.find(h=>!h.isPlayer) || null; }
+  // 共用進場：先把 netRole/netPendingGuests 設好「再」跑 setup()，這樣 setup() 才能正確把每隻守護者對應回操控者 uid
+  // （關鍵：netPendingGuests 一定要在 setup 之前就位，不能被 start 清掉，否則多人 ctrl 對應會全空 → 大家都變同一隻）
+  function _begin(size, role, guests){ netRole=role||null; netPendingGuests=guests||[]; netGuestByUid={}; netGuestInputs={};
+    root.classList.remove("mhide"); hide("mpick"); hide("mover"); zoom=1; resize(); setup(size); running=true; ended=false; lastT=0; raf=requestAnimationFrame(loop); }
+  function start(size){ _begin(size, null, []); }
+  // 多人連線：host 端照舊本機模擬全場，但標記 netRole="host" 以便定期廣播 + 收好友輸入；guests=[{uid,kind}] 依 slot 順序的好友清單。
+  function startNetHost(size,guests){ _begin(size, "host", Array.isArray(guests)?guests.filter(g=>g&&g.uid&&g.kind):[]); netBroadcastT=0; }
   // 好友連線：guest 端不跑本機模擬，畫面完全來自 host 廣播的快照；先用一個佔位場景渲染，等第一份快照送達再覆蓋
-  function startNetGuest(size){ netRole="guest"; netGuestHero=null; root.classList.remove("mhide"); hide("mpick"); hide("mover"); zoom=1; resize(); setup(size); running=true; ended=false; lastT=0; netLastRecvT=performance.now(); netStale=false; raf=requestAnimationFrame(loop); }
+  function startNetGuest(size){ _begin(size, "guest", []); netLastRecvT=performance.now(); netStale=false; }
   function stop(){ running=false; cancelAnimationFrame(raf); }
-  function exitToLobby(){ stop(); const wasNet=!!netRole; netRole=null; netGuestHero=null; root.classList.add("mhide"); hide("mover"); hide("mpick"); mv.x=mv.y=0;
+  function exitToLobby(){ stop(); const wasNet=!!netRole; netRole=null; netPendingGuests=[]; netGuestByUid={}; netGuestInputs={}; root.classList.add("mhide"); hide("mover"); hide("mpick"); mv.x=mv.y=0;
     if(wasNet && window.__netOnExit) window.__netOnExit();   // 好友連線對戰結束/離開：讓 net.js 收尾房間與監聽器
     if(window.__lobbyRefresh) window.__lobbyRefresh(); }
   function endGame(win){ if(ended) return; ended=true; running=false; cancelAnimationFrame(raf);
@@ -1181,6 +1197,7 @@
       else info.classList.add("hide"); }
     const pvR=document.getElementById("pveTargets"); if(pvR) pvR.classList.toggle("hide",m!=="pve"); }
   tap("modeNormal",()=>setPickMode("normal")); tap("modeTime",()=>setPickMode("time")); tap("modePve",()=>setPickMode("pve"));
+  window.__mobaSetPickMode=(m)=>{ if(["normal","time","pve","siege"].indexOf(m)>=0) setPickMode(m); };   // 好友房間房主選的模式帶進對戰
   function setPveTarget(k){ pvePickTarget=k; document.querySelectorAll("#pveTargets .hregion").forEach(b=>b.classList.toggle("on",b.dataset.pv===k)); }
   document.querySelectorAll("#pveTargets .hregion").forEach(b=>b.addEventListener("pointerdown",(e)=>{ e.preventDefault(); setPveTarget(b.dataset.pv); },{passive:false}));
   tap("pick3",()=>start(3)); tap("pick5",()=>start(5)); tap("pickBack",()=>hide("mpick"));
@@ -1190,7 +1207,7 @@
 
   window.MOBA={ start, exit:exitToLobby, startNetHost, startNetGuest,
     // 除錯／QA 用內部狀態快照（不影響玩法，方便無頭瀏覽器驗收天候・PVE 數值是否真的生效）
-    debug:()=>({ weatherBattle, pveEvent, netRole, heroes:heroes.map(h=>({kind:h.kind,speed:h.speed,dmg:h.dmg,isPlayer:!!h.isPlayer,isGuest:h===netGuestHero})), playerKind:player&&player.kind, weatherFxLen:weatherFx.length, invadersLen:invaders.length,
+    debug:()=>({ weatherBattle, pveEvent, netRole, netMyUid, heroes:heroes.map(h=>({kind:h.kind,speed:h.speed,dmg:h.dmg,isPlayer:!!h.isPlayer,ctrl:h.ctrl||null})), playerKind:player&&player.kind, guestCount:Object.keys(netGuestByUid).length, weatherFxLen:weatherFx.length, invadersLen:invaders.length,
       relics:relics.length, playerUlt:!!(player&&player.ult), playerUltCd:player?Math.round((player.ultCd||0)*10)/10:0 }),
     snapshot:()=>snapshot(), applySnapshot:(s)=>applySnapshot(s),   // 除錯／QA 用：無頭瀏覽器模擬「host 廣播 → guest 套用」全流程驗證好友連線鏡頭是否正確
     // 除錯／QA 用：撿拾式必殺技全流程——強制生一顆能量球到玩家腳下、觸發撿拾、施放必殺

@@ -45,6 +45,7 @@
       fbApp=initializeApp(FIREBASE_CONFIG); fbDb=getDatabase(fbApp); fbAuth=getAuth(fbApp);
       await signInAnonymously(fbAuth);
       window.__fb={ ref, set, onValue, update, remove, get, child };
+      if(window.__netSetMyUid) window.__netSetMyUid(fbAuth.currentUser.uid);   // 多人：把本機 uid 交給 moba，用來對應/認出自己那隻守護者
       fbReady=true; return true;
     }catch(err){ netMsg("⚠ 連線服務初始化失敗，請檢查網路或稍後再試。"); console.error("Firebase init failed:",err); return false; }
   }
@@ -62,6 +63,7 @@
     const heroKey=(window.__featuredKey&&window.__featuredKey())||pickDefaultHero(null);
     // mode:"invite"（好友邀請碼房間）——欄位保留給未來「配對中」房型（如 mode:"quickmatch"）共用同一套 rooms/ schema，不寫死只能靠邀請碼
     await set(ref(fbDb,"rooms/"+code),{ host:uid, mode:"invite", status:"waiting", createdAt:Date.now(),
+      config:{ gameMode:"normal", size:3 },   // 房主可在房間內改：gameMode(模式) 與 size(隊伍人數 1~5)
       players:{ [uid]:{ nick, joinedAt:Date.now(), host:true, heroKey, ready:false } } });
     isHost=true; enterRoom(code);
   }
@@ -79,7 +81,7 @@
     await update(ref(fbDb,"rooms/"+code+"/players/"+uid),{ nick, joinedAt:Date.now(), host:false, heroKey, ready:false });
     isHost=false; enterRoom(code);
   }
-  let lastStatus=null, roomPlayersCache={}, myHeroKey=null;
+  let lastStatus=null, roomPlayersCache={}, myHeroKey=null, lastRoomData=null;
   function enterRoom(code){
     currentRoom=code; hide("coop"); show("coopRoom"); lastStatus=null;
     const cEl=$("roomCode"); if(cEl) cEl.textContent=code;
@@ -89,10 +91,10 @@
       const data=snap.val(); if(!data){ // 房間被移除（房主離開/解散）
         if(isNetActive){ netMsg("房間已解散。"); if(window.MOBA) window.MOBA.exit(); else endNetSync(); }
         return; }
-      roomPlayersCache=data.players||{};
+      roomPlayersCache=data.players||{}; lastRoomData=data;
       renderRoom(data);
       // guest 端：偵測 status 由 waiting → playing，自動進場開始接收 host 廣播
-      if(!isHost && data.status==="playing" && lastStatus!=="playing" && !isNetActive){ beginGuestSync(data.size||3, data.guestHeroKey); }
+      if(!isHost && data.status==="playing" && lastStatus!=="playing" && !isNetActive){ beginGuestSync((data.config&&data.config.size)||3); }
       lastStatus=data.status;
     });
   }
@@ -172,40 +174,47 @@
   // 設計理由：MOBA 引擎（AI/入侵種生成/命中判定）已高度耦合在 moba.js 的 step() 內，且非固定 tick 的連續模擬，
   // 要做到雙端各自跑模擬再對帳（lockstep/rollback）風險高、時間內難以收斂到「同步準確又不拖垮單機穩定性」。
   // 因此改採 host-authoritative：guest 完全不跑本地模擬，只負責渲染 host 快照 + 上傳輸入，最小可行且不會累積誤差。
-  let stateListenerOff=null, inputListenerOff=null, netLoopId=0, isNetActive=false;
+  let stateListenerOff=null, inputListenerOffs=[], netLoopId=0, isNetActive=false;
   const NET_BROADCAST_MS=130, NET_INPUT_MS=110;
+  // 多人：房間目前設定（房主可選模式與隊伍人數），與非房主的全部好友清單
+  function roomConfig(){ return (lastRoomData&&lastRoomData.config)||{gameMode:"normal",size:3}; }
+  function allGuests(){ const me=myUid(); return Object.keys(roomPlayersCache||{}).filter(u=>u!==me).map(u=>({uid:u,player:roomPlayersCache[u]})); }
 
   async function startGame(){
     if(!isHost){ netMsg("只有房主可以開始對戰。"); return; }
     if(!currentRoom || !window.__fb || !window.MOBA){ netMsg("連線尚未就緒，請稍後再試。"); return; }
-    const me=roomPlayersCache[myUid()], otherUid=otherPlayerUid(), other=otherUid?roomPlayersCache[otherUid]:null;
-    if(!me||!other){ netMsg("請等朋友加入小隊。"); return; }
-    if(!me.ready||!other.ready){ netMsg("請雙方都按「準備完成」後再開始。"); return; }
-    if(!me.heroKey||!other.heroKey||me.heroKey===other.heroKey){ netMsg("請選擇不同的守護者。"); return; }
+    const me=roomPlayersCache[myUid()]; const guests=allGuests();
+    if(!me){ netMsg("房間狀態異常。"); return; }
+    if(!guests.length){ netMsg("請等朋友加入小隊。"); return; }
+    const everyone=[me, ...guests.map(g=>g.player)];
+    if(everyone.some(p=>!p||!p.ready)){ netMsg("請所有人都按「準備完成」後再開始。"); return; }
+    const keys=everyone.map(p=>p.heroKey);
+    if(keys.some(k=>!k) || new Set(keys).size!==keys.length){ netMsg("每個人要選不同的守護者。"); return; }
+    const cfg=roomConfig(); const gameMode=cfg.gameMode||"normal";
+    const size=Math.min(5, Math.max(everyone.length, cfg.size||everyone.length));   // 隊伍人數至少要容納所有真人，其餘 AI 補位
     try{
       const { ref, update } = window.__fb;
-      const size=3;   // MVP：固定 3 人小隊（房主+1 朋友+AI 補位）
-      await update(ref(fbDb,"rooms/"+currentRoom),{ status:"playing", size, guestHeroKey:other.heroKey, updatedAt:Date.now() });
-      beginHostSync(size, me.heroKey, other.heroKey);
+      await update(ref(fbDb,"rooms/"+currentRoom),{ status:"playing", config:{gameMode,size}, updatedAt:Date.now() });
+      beginHostSync(size, me.heroKey, guests.map(g=>({uid:g.uid, kind:g.player.heroKey})), gameMode);
     }catch(err){ netMsg("開始對戰失敗，請檢查網路後重試。"); console.error("startGame failed:",err); }
   }
 
-  function beginHostSync(size,myKey,guestKey){
+  // 多人 host：本機模擬全場 + 把每位好友的輸入套到牠操控的守護者；guests=[{uid,kind}]
+  function beginHostSync(size,myKey,guests,gameMode){
     isNetActive=true; hide("coopRoom");
+    if(window.__mobaSetPickMode) window.__mobaSetPickMode(gameMode||"normal");   // 房主選的模式帶進對戰
     window.__netHostKeyOverride=myKey||null;   // 讓 moba.js setup() 用房間內選的角色，而不是大廳目前 featured 的角色
-    try{ window.MOBA.startNetHost(size, guestKey||secondGuardianKind()); }
+    try{ window.MOBA.startNetHost(size, guests||[]); }
     finally{ window.__netHostKeyOverride=null; }
     window.__netBroadcast = throttle((snap)=>{ if(!currentRoom||!window.__fb) return;
       const { ref, set } = window.__fb; set(ref(fbDb,"rooms/"+currentRoom+"/state"),snap).catch(()=>{}); }, NET_BROADCAST_MS);
-    const guestUid=otherPlayerUid();
-    if(guestUid && window.__fb){ const { ref, onValue } = window.__fb;
-      if(inputListenerOff) inputListenerOff();
-      inputListenerOff = onValue(ref(fbDb,"rooms/"+currentRoom+"/inputs/"+guestUid), (snap)=>{
-        const d=snap.val(); if(d && window.__netSetGuestInput) window.__netSetGuestInput(d); }); }
+    // 每位好友各開一個 inputs 監聽，收到就寫進對應 uid（多人各自操控的關鍵）
+    inputListenerOffs.forEach(off=>off&&off()); inputListenerOffs=[];
+    (guests||[]).forEach(g=>{ if(!window.__fb) return; const { ref, onValue } = window.__fb;
+      const off=onValue(ref(fbDb,"rooms/"+currentRoom+"/inputs/"+g.uid), (snap)=>{
+        const d=snap.val(); if(d && window.__netSetGuestInput) window.__netSetGuestInput(g.uid, d); });
+      inputListenerOffs.push(off); });
   }
-  // 保底：房間資料異常缺 guestHeroKey 時（理論上不會發生，startGame 已擋下），退回舊的自動挑選邏輯避免整段連線功能掛掉
-  function secondGuardianKind(){ const G=["leopard","bear","dragonfly","magpie","deer","cicada"];
-    const mine=(window.__featuredKey&&window.__featuredKey())||"leopard"; return G.find(k=>k!==mine)||G[0]; }
 
   function beginGuestSync(size){
     isNetActive=true; hide("coopRoom");
@@ -225,7 +234,7 @@
   function endNetSync(){
     isNetActive=false; window.__netBroadcast=null; clearInterval(netLoopId); netLoopId=0;
     if(stateListenerOff){ stateListenerOff(); stateListenerOff=null; }
-    if(inputListenerOff){ inputListenerOff(); inputListenerOff=null; }
+    inputListenerOffs.forEach(off=>off&&off()); inputListenerOffs=[];
   }
   // 離開房間：對戰中離開也要優雅收尾（停止同步、跳回大廳），不讓另一方卡死——採「不做重連」的簡化版：
   // host 離開＝整個房間直接刪除（guest 端會在 enterRoom 監聽到 !data 而顯示「房間已解散」並退回大廳）；
