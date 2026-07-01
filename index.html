@@ -41,6 +41,9 @@
   #moba{ position:fixed; inset:0; z-index:40; background:#10261a; touch-action:none;
     padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
   #moba.mhide{ display:none; }
+  #mwrap{ position:absolute; inset:0; }
+  /* 直握手機時，強制把遊戲旋轉成橫向（landscape）填滿螢幕 */
+  #moba.rot #mwrap{ inset:auto; top:50%; left:50%; width:100vh; height:100vw; transform:translate(-50%,-50%) rotate(90deg); transform-origin:center center; }
   canvas#mgame{ position:absolute; inset:0; width:100%; height:100%; display:block; touch-action:none; }
   #mhud{ position:absolute; top:max(8px,env(safe-area-inset-top)); left:0; right:0; display:flex; align-items:flex-start;
     justify-content:space-between; gap:10px; padding:0 12px; pointer-events:none; }
@@ -277,7 +280,7 @@
 </div>
 
 <!-- ===== 守護台灣神木：俯視角 MOBA（獨立模組，獨立 canvas 與控制） ===== -->
-<div id="moba" class="mhide">
+<div id="moba" class="mhide"><div id="mwrap">
   <canvas id="mgame"></canvas>
   <div id="mhud">
     <div class="mteam">
@@ -300,7 +303,7 @@
     <button id="mZoomOut" class="zbtn">－</button>
   </div>
   <div id="mtoast"></div>
-</div>
+</div></div>
 <div id="mpick" class="scr hide">
   <h1>🌳 棲地復育保衛戰</h1>
   <h2>守護台灣神木與復育苗圃，擊退四面湧入的外來入侵種——<br>讓枯黃的棲地一吋吋復原成翠綠，復原度滿 100% 就守護成功！</h2>

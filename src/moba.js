@@ -18,13 +18,26 @@
                   snail:"福壽螺", iguana:"綠鬣蜥", frog:"斑腿蛙", ibis:"聖䴉" };
   const GUARDIANS = ["leopard","bear","dragonfly","magpie","deer","cicada"];
   const INVADERS  = ["iguana","snail","frog","ibis"];
+  // 各物種體型/身形（讓每隻一眼就不同：大小、身體長寬比）
+  const KCFG = {
+    leopard:{sz:1.02, long:1.05, wide:0.72}, bear:{sz:1.30, long:0.98, wide:0.94},
+    deer:{sz:1.16, long:1.10, wide:0.56},    dragonfly:{sz:0.82, long:1.35, wide:0.24},
+    cicada:{sz:0.90, long:0.88, wide:0.52},   magpie:{sz:0.96, long:1.00, wide:0.60},
+    iguana:{sz:1.14, long:1.30, wide:0.52},   snail:{sz:1.04, long:0.92, wide:0.74},
+    frog:{sz:1.08, long:0.82, wide:0.98},     ibis:{sz:1.10, long:1.04, wide:0.58}
+  };
+  const kcfg=(k)=>KCFG[k]||{sz:1,long:1,wide:0.74};
 
   /* ---------- 視窗 / 世界 ---------- */
-  let VW=0, VH=0, dpr=1;
+  let VW=0, VH=0, dpr=1, rot=false;
   const MW=2000, MH=1500;
-  function resize(){ const r=cv.getBoundingClientRect(); VW=r.width||window.innerWidth; VH=r.height||window.innerHeight;
+  function resize(){ const iw=window.innerWidth, ih=window.innerHeight;
+    rot = ih>iw;                              // 直握 → 旋轉成橫向
+    root.classList.toggle("rot", rot);
+    VW = rot? ih : iw; VH = rot? iw : ih;     // 邏輯畫面一律為橫向（寬>高）
     dpr=Math.min(window.devicePixelRatio||1,2); cv.width=Math.round(VW*dpr); cv.height=Math.round(VH*dpr); ctx.setTransform(dpr,0,0,dpr,0,0); }
   window.addEventListener("resize",()=>{ if(running) resize(); });
+  window.addEventListener("orientationchange",()=>{ if(running) setTimeout(resize,60); });
 
   /* ---------- 幾何：神木置中、苗圃環繞、入侵種從邊緣湧入 ---------- */
   const SHX=MW/2, SHY=MH/2;
@@ -255,70 +268,78 @@
     ctx.fillStyle="#fff"; ctx.font="bold 11px sans-serif"; ctx.textAlign="center"; ctx.fillText("🌱 復育苗圃",n.x,n.y+n.r+14);
   }
   // 立體感俯視角生物：全身 + 3D 漸層 + 走路/待機/攻擊/拍翅動畫
-  function drawCreatureTop(u,r,faction){
+  function drawCreatureTop(u,r0,faction){
     const col=KCOL[u.kind]||"#888", dark=shade(col,-44), lite=shade(col,52);
-    const gt=clock, f=u.face;
+    const cfg=kcfg(u.kind), r=r0*cfg.sz, gt=clock, f=u.face;
     const flyer=(u.kind==="dragonfly"||u.kind==="cicada"), bird=(u.kind==="magpie"||u.kind==="ibis");
     const walk=u.moving?Math.sin(u.anim*12):0;
     const bob=u.moving?Math.abs(Math.sin(u.anim*12))*r*0.14:Math.sin(gt*2.2+u.phase)*r*0.05;
     const breath=1+(u.moving?0:Math.sin(gt*2.2+u.phase)*0.03);
     const lunge=u.atkA>0?Math.sin((1-u.atkA/0.2)*3.14159)*r*0.5:0;
     const gy=u.y-bob-(flyer?r*0.5:0);
+    const bLen=r*cfg.long, bW=r*cfg.wide;
     // 影子（地面）
-    ctx.fillStyle="rgba(0,0,0,0.26)"; ctx.beginPath(); ctx.ellipse(u.x,u.y+r*0.62,r*(flyer?0.7:0.95),r*0.34,0,0,7); ctx.fill();
+    ctx.fillStyle="rgba(0,0,0,0.26)"; ctx.beginPath(); ctx.ellipse(u.x,u.y+r*0.62,bLen*0.95,r*0.34,0,0,7); ctx.fill();
     // 陣營地環
-    ctx.fillStyle=faction==="inv"?"rgba(239,83,80,0.30)":"rgba(102,187,106,0.4)"; ctx.beginPath(); ctx.ellipse(u.x,u.y+r*0.55,r*1.05,r*0.4,0,0,7); ctx.fill();
+    ctx.fillStyle=faction==="inv"?"rgba(239,83,80,0.30)":"rgba(102,187,106,0.4)"; ctx.beginPath(); ctx.ellipse(u.x,u.y+r*0.55,bLen*1.02,r*0.4,0,0,7); ctx.fill();
     ctx.save(); ctx.translate(u.x+Math.cos(f)*lunge,gy+Math.sin(f)*lunge*0.4); ctx.rotate(f); ctx.scale(1,breath);
-    // 尾巴
-    if(u.kind==="leopard"||u.kind==="deer"){ const tw=Math.sin(gt*3+u.phase)*r*0.4; ctx.strokeStyle=col; ctx.lineWidth=r*0.2; ctx.lineCap="round";
-      ctx.beginPath(); ctx.moveTo(-r*0.75,0); ctx.quadraticCurveTo(-r*1.15,tw,-r*1.35,tw*1.5); ctx.stroke(); ctx.lineCap="butt"; }
-    // 腳（走路擺動）— 露出身體外緣、深色毛用對比亮腳，確保看得到
+    // 尾巴（貓/鹿/鬣蜥各異）
+    if(u.kind==="leopard"||u.kind==="deer"||u.kind==="iguana"){ const tw=Math.sin(gt*3+u.phase)*r*0.4, tl=u.kind==="iguana"?1.7:1.35;
+      ctx.strokeStyle=col; ctx.lineWidth=r*(u.kind==="deer"?0.12:0.2); ctx.lineCap="round";
+      ctx.beginPath(); ctx.moveTo(-bLen*0.8,0); ctx.quadraticCurveTo(-r*(tl*0.85),tw,-r*tl,tw*1.5); ctx.stroke(); ctx.lineCap="butt"; }
+    // 腳（走路擺動）— 露出身體外緣、深色毛用對比亮腳
     if(!flyer){ const c=hex(col), lum=c[0]*0.299+c[1]*0.587+c[2]*0.114; const footCol=lum<95?shade(col,58):shade(col,-38);
-      const sw=walk*r*0.38, lr=r*0.19;
-      const legs=bird?[[-r*0.05,-r*0.44,1],[-r*0.05,r*0.44,-1]]
-        :[[r*0.4,-r*0.72,1],[r*0.4,r*0.72,-1],[-r*0.46,-r*0.72,-1],[-r*0.46,r*0.72,1]];
+      const sw=walk*r*0.38, lr=r*(u.kind==="bear"?0.22:0.18);
+      const ly=bW*0.98, lxf=bLen*0.42, lxb=bLen*0.5;
+      const legs=bird?[[-r*0.05,-ly*0.6,1],[-r*0.05,ly*0.6,-1]]
+        :[[lxf,-ly,1],[lxf,ly,-1],[-lxb,-ly,-1],[-lxb,ly,1]];
       ctx.fillStyle=footCol; ctx.strokeStyle="rgba(0,0,0,0.28)"; ctx.lineWidth=1.2;
       for(const L of legs){ ctx.beginPath(); ctx.ellipse(L[0]+L[2]*sw,L[1],lr,lr*1.2,0,0,7); ctx.fill(); ctx.stroke(); } }
     // 身體（3D 漸層）
-    const bLen=flyer?r*1.05:(bird?r*0.9:r*0.98), bW=flyer?r*0.3:r*0.74;
-    const bg=ctx.createRadialGradient(r*0.15,-r*0.3,r*0.1,0,0,bLen*1.1); bg.addColorStop(0,lite); bg.addColorStop(0.55,col); bg.addColorStop(1,dark);
+    const bg=ctx.createRadialGradient(bLen*0.15,-bW*0.4,r*0.1,0,0,bLen*1.15); bg.addColorStop(0,lite); bg.addColorStop(0.55,col); bg.addColorStop(1,dark);
     ctx.fillStyle=u.hitT>0?"#fff":bg; ctx.beginPath(); ctx.ellipse(0,0,bLen,bW,0,0,7); ctx.fill();
     // 背部花紋 / 殼 / 棘
-    if(u.kind==="leopard"){ ctx.fillStyle="rgba(70,45,20,0.55)"; for(const o of [[-.3,-.2],[.1,.15],[-.05,-.28],[.3,-.05],[-.35,.2]]){ ctx.beginPath(); ctx.arc(o[0]*r*1.3,o[1]*r,r*0.12,0,7); ctx.fill(); } }
-    else if(u.kind==="deer"){ ctx.fillStyle="rgba(255,255,255,0.6)"; for(const o of [[-.2,-.2],[.15,.1],[.3,-.15],[-.35,.15]]){ ctx.beginPath(); ctx.arc(o[0]*r*1.3,o[1]*r,r*0.09,0,7); ctx.fill(); } }
-    else if(u.kind==="snail"){ ctx.strokeStyle=dark; ctx.lineWidth=r*0.16; ctx.beginPath(); for(let a=0;a<15;a++){ const rr=r*0.6*(1-a/18),px=Math.cos(a*0.9)*rr,py=Math.sin(a*0.9)*rr; a?ctx.lineTo(px,py):ctx.moveTo(px,py); } ctx.stroke(); }
-    else if(u.kind==="iguana"){ ctx.fillStyle=lite; for(let i=-2;i<=3;i++){ ctx.beginPath(); ctx.moveTo(-i*r*0.22,-r*0.05); ctx.lineTo(-i*r*0.22-r*0.06,-r*0.55); ctx.lineTo(-i*r*0.22+r*0.06,-r*0.55); ctx.closePath(); ctx.fill(); } }
-    else if(u.kind==="frog"){ ctx.fillStyle="rgba(40,70,20,0.5)"; for(const o of [[-.2,-.2],[.1,.2],[.25,-.1]]){ ctx.beginPath(); ctx.arc(o[0]*r*1.2,o[1]*r,r*0.13,0,7); ctx.fill(); } }
+    if(u.kind==="leopard"){ ctx.fillStyle="rgba(70,45,20,0.55)"; for(const o of [[-.3,-.2],[.1,.15],[-.05,-.28],[.3,-.05],[-.35,.2]]){ ctx.beginPath(); ctx.arc(o[0]*bLen*1.2,o[1]*bW*1.5,r*0.12,0,7); ctx.fill(); } }
+    else if(u.kind==="bear"){ ctx.fillStyle="rgba(255,255,255,0.9)"; ctx.beginPath(); ctx.moveTo(bLen*0.35,-bW*0.5); ctx.lineTo(bLen*0.55,0); ctx.lineTo(bLen*0.35,bW*0.5); ctx.lineWidth=r*0.12; ctx.strokeStyle="rgba(255,255,255,0.9)"; ctx.stroke(); } // 胸前白 V
+    else if(u.kind==="deer"){ ctx.fillStyle="rgba(255,255,255,0.7)"; for(const o of [[-.2,-.4],[.15,.3],[.3,-.3],[-.35,.35],[0,0]]){ ctx.beginPath(); ctx.arc(o[0]*bLen*1.2,o[1]*bW*1.5,r*0.08,0,7); ctx.fill(); } }
+    else if(u.kind==="snail"){ ctx.fillStyle=shade(col,-15); ctx.beginPath(); ctx.arc(-bLen*0.1,0,bW*0.95,0,7); ctx.fill();
+      ctx.strokeStyle=dark; ctx.lineWidth=r*0.16; ctx.beginPath(); for(let a=0;a<16;a++){ const rr=bW*0.85*(1-a/19),px=-bLen*0.1+Math.cos(a*0.9)*rr,py=Math.sin(a*0.9)*rr; a?ctx.lineTo(px,py):ctx.moveTo(px,py); } ctx.stroke(); }
+    else if(u.kind==="iguana"){ ctx.fillStyle=lite; for(let i=-3;i<=3;i++){ ctx.beginPath(); ctx.moveTo(i*bLen*0.16,-r*0.05); ctx.lineTo(i*bLen*0.16-r*0.07,-bW*0.9); ctx.lineTo(i*bLen*0.16+r*0.07,-bW*0.9); ctx.closePath(); ctx.fill(); } }
+    else if(u.kind==="frog"){ ctx.fillStyle="rgba(40,70,20,0.5)"; for(const o of [[-.2,-.3],[.1,.35],[.25,-.2]]){ ctx.beginPath(); ctx.arc(o[0]*bLen*1.1,o[1]*bW*1.1,r*0.13,0,7); ctx.fill(); } }
     // 頭
-    const hx=bird?r*0.55:r*0.7, hr=bird?r*0.32:r*0.46;
+    const hx=bLen*(bird?0.62:0.72), hr=r*(bird?0.32:0.46);
     ctx.fillStyle=u.hitT>0?"#fff":shade(col,18); ctx.beginPath(); ctx.arc(hx,0,hr,0,7); ctx.fill();
     // 耳
-    if(u.kind==="leopard"||u.kind==="bear"||u.kind==="deer"||u.kind==="iguana"||u.kind==="frog"){ ctx.fillStyle=dark;
-      ctx.beginPath(); ctx.arc(hx-hr*0.2,-hr*0.85,hr*0.42,0,7); ctx.arc(hx-hr*0.2,hr*0.85,hr*0.42,0,7); ctx.fill(); }
+    if(u.kind==="leopard"||u.kind==="bear"||u.kind==="deer"||u.kind==="iguana"){ ctx.fillStyle=dark;
+      const er=hr*(u.kind==="bear"?0.55:0.42); ctx.beginPath(); ctx.arc(hx-hr*0.2,-hr*0.85,er,0,7); ctx.arc(hx-hr*0.2,hr*0.85,er,0,7); ctx.fill(); }
+    // 青蛙凸眼（頭頂兩側）
+    if(u.kind==="frog"){ ctx.fillStyle=shade(col,25); ctx.beginPath(); ctx.arc(hx,-hr*0.8,hr*0.5,0,7); ctx.arc(hx,hr*0.8,hr*0.5,0,7); ctx.fill(); }
     // 鹿角
     if(u.kind==="deer"){ ctx.strokeStyle="#8d6e63"; ctx.lineWidth=r*0.08; ctx.lineCap="round";
-      for(const s of [-1,1]){ ctx.beginPath(); ctx.moveTo(hx,s*hr*0.6); ctx.lineTo(hx+r*0.4,s*hr*1.2); ctx.moveTo(hx+r*0.22,s*hr*0.9); ctx.lineTo(hx+r*0.42,s*hr*0.6); ctx.stroke(); } ctx.lineCap="butt"; }
+      for(const s of [-1,1]){ ctx.beginPath(); ctx.moveTo(hx,s*hr*0.6); ctx.lineTo(hx+r*0.4,s*hr*1.3); ctx.moveTo(hx+r*0.22,s*hr*1.0); ctx.lineTo(hx+r*0.45,s*hr*0.6); ctx.stroke(); } ctx.lineCap="butt"; }
     // 鳥喙 + 藍鵲長尾
-    if(bird){ ctx.fillStyle=u.kind==="ibis"?"#222":"#e8a13a"; ctx.beginPath(); ctx.moveTo(hx+hr*0.6,-hr*0.15); ctx.lineTo(hx+hr*(u.kind==="ibis"?2.4:1.5),0); ctx.lineTo(hx+hr*0.6,hr*0.15); ctx.closePath(); ctx.fill();
-      if(u.kind==="magpie"){ ctx.strokeStyle="#1565c0"; ctx.lineWidth=r*0.24; ctx.lineCap="round"; ctx.beginPath(); ctx.moveTo(-r*0.8,0); ctx.lineTo(-r*1.55,Math.sin(gt*3+u.phase)*r*0.2); ctx.stroke(); ctx.lineCap="butt"; } }
+    if(bird){ ctx.fillStyle=u.kind==="ibis"?"#222":"#e8a13a"; ctx.beginPath(); ctx.moveTo(hx+hr*0.6,-hr*0.15); ctx.lineTo(hx+hr*(u.kind==="ibis"?2.6:1.5),u.kind==="ibis"?hr*0.5:0); ctx.lineTo(hx+hr*0.6,hr*0.15); ctx.closePath(); ctx.fill();
+      if(u.kind==="ibis"){ ctx.fillStyle="#222"; ctx.beginPath(); ctx.arc(hx,0,hr*0.9,0,7); ctx.fill(); } // 聖䴉黑頭
+      if(u.kind==="magpie"){ ctx.strokeStyle="#1565c0"; ctx.lineWidth=r*0.26; ctx.lineCap="round"; ctx.beginPath(); ctx.moveTo(-bLen*0.8,0); ctx.lineTo(-r*1.7,Math.sin(gt*3+u.phase)*r*0.25); ctx.stroke(); ctx.lineCap="butt"; } }
     // 蝸牛觸角
     if(u.kind==="snail"){ ctx.strokeStyle=col; ctx.lineWidth=r*0.06; for(const s of [-1,1]){ ctx.beginPath(); ctx.moveTo(hx,s*hr*0.4); ctx.lineTo(hx+r*0.25,s*hr*0.9); ctx.stroke(); } }
     // 翅（拍動）
-    if(flyer){ const flap=0.4+0.6*Math.abs(Math.sin(gt*20+u.phase)); ctx.fillStyle="rgba(222,245,255,0.6)";
-      for(const s of [-1,1]){ ctx.save(); ctx.scale(1,s*flap); ctx.beginPath(); ctx.ellipse(r*0.1,r*0.75,r*0.95,r*0.34,0,0,7); ctx.fill(); ctx.restore(); } }
-    // 眼睛（朝前）
-    ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(hx+hr*0.35,-hr*0.4,hr*0.3,0,7); ctx.arc(hx+hr*0.35,hr*0.4,hr*0.3,0,7); ctx.fill();
-    ctx.fillStyle="#222"; ctx.beginPath(); ctx.arc(hx+hr*0.5,-hr*0.4,hr*0.15,0,7); ctx.arc(hx+hr*0.5,hr*0.4,hr*0.15,0,7); ctx.fill();
+    if(flyer){ const flap=0.4+0.6*Math.abs(Math.sin(gt*20+u.phase)), wl=u.kind==="dragonfly"?1.1:0.85; ctx.fillStyle=u.kind==="dragonfly"?"rgba(190,240,250,0.55)":"rgba(210,225,200,0.6)";
+      for(const s of [-1,1]){ ctx.save(); ctx.scale(1,s*flap); ctx.beginPath(); ctx.ellipse(r*0.1,bW*2.2,r*wl,r*0.32,0,0,7); ctx.fill(); ctx.restore(); } }
+    // 眼睛（朝前；青蛙眼在凸起上）
+    const eyx=u.kind==="frog"?hx:hx+hr*0.35, eyy=u.kind==="frog"?hr*0.8:hr*0.4;
+    ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(eyx,-eyy,hr*0.3,0,7); ctx.arc(eyx,eyy,hr*0.3,0,7); ctx.fill();
+    ctx.fillStyle="#222"; ctx.beginPath(); ctx.arc(eyx+hr*0.12,-eyy,hr*0.15,0,7); ctx.arc(eyx+hr*0.12,eyy,hr*0.15,0,7); ctx.fill();
     ctx.restore();
   }
-  function drawUnit(u,r,isInv){ drawCreatureTop(u,r,isInv?"inv":"ally");
-    if(isInv){ if(u.elite){ ctx.fillStyle="#ffca28"; ctx.font="bold 11px sans-serif"; ctx.textAlign="center"; ctx.fillText("👑"+KNAME[u.kind]+"王",u.x,u.y-r-12); }
-      if(u.hp<u.maxhp) bar(u.x,u.y-r-8,u.elite?40:26,u.hp/u.maxhp,"#ff8a80"); } }
-  function drawHero(h){ const r=h.r; drawCreatureTop(h,r,"ally");
-    if(h.isPlayer){ ctx.strokeStyle="#ffd54f"; ctx.lineWidth=3; ctx.beginPath(); ctx.ellipse(h.x,h.y+r*0.5,r*1.2,r*0.5,0,0,7); ctx.stroke();
-      const bY=h.y-r*1.95-Math.sin(clock*4)*3; ctx.fillStyle="#ffd54f"; ctx.beginPath(); ctx.moveTo(h.x,bY+10); ctx.lineTo(h.x-7,bY); ctx.lineTo(h.x+7,bY); ctx.fill(); }
-    bar(h.x,h.y-r-14,42,h.hp/h.maxhp,"#66bb6a");
-    ctx.fillStyle="#fff"; ctx.font="bold 12px sans-serif"; ctx.textAlign="center"; ctx.fillText(h.name,h.x,h.y-r-20); }
+  function drawUnit(u,r,isInv){ drawCreatureTop(u,r,isInv?"inv":"ally"); const R=r*kcfg(u.kind).sz;
+    if(isInv){ if(u.elite){ ctx.fillStyle="#ffca28"; ctx.font="bold 11px sans-serif"; ctx.textAlign="center"; ctx.fillText("👑"+KNAME[u.kind]+"王",u.x,u.y-R-12); }
+      if(u.hp<u.maxhp) bar(u.x,u.y-R-8,u.elite?40:26,u.hp/u.maxhp,"#ff8a80"); } }
+  function drawHero(h){ const r=h.r, R=r*kcfg(h.kind).sz; drawCreatureTop(h,r,"ally");
+    if(h.isPlayer){ ctx.strokeStyle="#ffd54f"; ctx.lineWidth=3; ctx.beginPath(); ctx.ellipse(h.x,h.y+r*0.5,R*1.2,R*0.5,0,0,7); ctx.stroke();
+      const bY=h.y-R*1.8-Math.sin(clock*4)*3; ctx.fillStyle="#ffd54f"; ctx.beginPath(); ctx.moveTo(h.x,bY+10); ctx.lineTo(h.x-7,bY); ctx.lineTo(h.x+7,bY); ctx.fill(); }
+    bar(h.x,h.y-R-14,42,h.hp/h.maxhp,"#66bb6a");
+    ctx.fillStyle="#fff"; ctx.font="bold 12px sans-serif"; ctx.textAlign="center"; ctx.fillText(h.name,h.x,h.y-R-20); }
   function bar(x,y,w,frac,col){ ctx.fillStyle="rgba(0,0,0,0.5)"; ctx.fillRect(x-w/2,y,w,5); ctx.fillStyle=col; ctx.fillRect(x-w/2,y,w*clamp(frac,0,1),5); }
 
   /* ---------- HUD ---------- */
@@ -348,7 +369,10 @@
   const stick=document.getElementById("mstick"), knob=document.getElementById("mknob");
   let stickId=null, sc={x:0,y:0};
   function stickStart(e){ e.preventDefault(); const r=stick.getBoundingClientRect(); sc.x=r.left+r.width/2; sc.y=r.top+r.height/2; stickId=e.pointerId; stick.setPointerCapture&&stick.setPointerCapture(e.pointerId); stickMove(e); }
-  function stickMove(e){ if(stickId!==e.pointerId) return; e.preventDefault(); const dx=e.clientX-sc.x, dy=e.clientY-sc.y, R=58, d=Math.hypot(dx,dy)||1, cd=Math.min(d,R), nx=dx/d*cd, ny=dy/d*cd; mv.x=nx/R; mv.y=ny/R; knob.style.transform="translate("+nx+"px,"+ny+"px)"; }
+  function stickMove(e){ if(stickId!==e.pointerId) return; e.preventDefault();
+    const dsx=e.clientX-sc.x, dsy=e.clientY-sc.y;
+    const dx = rot? dsy : dsx, dy = rot? -dsx : dsy;   // 旋轉時把螢幕位移轉回遊戲座標
+    const R=58, d=Math.hypot(dx,dy)||1, cd=Math.min(d,R), nx=dx/d*cd, ny=dy/d*cd; mv.x=nx/R; mv.y=ny/R; knob.style.transform="translate("+nx+"px,"+ny+"px)"; }
   function stickEnd(e){ if(stickId!==e.pointerId) return; e.preventDefault(); stickId=null; mv.x=mv.y=0; knob.style.transform="translate(0,0)"; }
   if(stick){ stick.addEventListener("pointerdown",stickStart,{passive:false}); stick.addEventListener("pointermove",stickMove,{passive:false}); stick.addEventListener("pointerup",stickEnd,{passive:false}); stick.addEventListener("pointercancel",stickEnd,{passive:false}); stick.addEventListener("pointerleave",stickEnd,{passive:false}); }
   const tap=(id,fn)=>{ const e=document.getElementById(id); if(e) e.addEventListener("pointerdown",(ev)=>{ ev.preventDefault(); fn(); },{passive:false}); };
