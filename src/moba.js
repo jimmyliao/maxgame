@@ -153,6 +153,9 @@
   function setDuelLevel(v){ try{ localStorage.setItem("shoutu_duel_level",String(Math.min(DUEL_TIERS.length,Math.max(1,v|0)))); }catch(e){} }
   function duelTierName(lv){ return DUEL_TIERS[Math.min(DUEL_TIERS.length,Math.max(1,lv|0))-1]; }
   function isDuelMaster(){ return getDuelLevel()>=DUEL_TIERS.length; }
+  // 首領挑戰陣亡後的觀戰目標：鎖定一位仍存活的隊友（優先非自己），死了才換下一位，避免鏡頭每幀亂跳
+  let specHero=null;
+  function spectateTarget(){ if(specHero && !specHero.dead) return specHero; specHero=heroes.find(h=>!h.dead && h!==player)||heroes.find(h=>!h.dead)||null; return specHero; }
   // 入侵種強度倍率（PVE 關卡遞增用；一般/限時模式恆為 1）——mkInvader 讀取套用到 hp/dmg
   let invHpMul=1, invDmgMul=1, invSpawnMul=1;
   // pveNextLevel：非 null 時結算畫面提供「下一關（更難）」按鈕；失敗維持 null（moverAgain 重打同關）
@@ -240,7 +243,7 @@
     if(s===0) return {x:u*MW,y:20}; if(s===1) return {x:u*MW,y:MH-20}; if(s===2) return {x:20,y:u*MH}; return {x:MW-20,y:u*MH}; }
 
   function setup(size){ teamSize=size; clock=0; ended=false; restore=0; killCount=0; spawnT=2; surgeT=42; finalAssault=false; directive=null; directiveCd=0; bubble=null; eliteFlash=0; timeAttack=(pickMode==="time");
-    combo=0; comboT=0; comboBest=0; comboPop=0; hitStop=0; bossIntro=null;
+    combo=0; comboT=0; comboBest=0; comboPop=0; hitStop=0; bossIntro=null; specHero=null;
     relics=[]; relicSpawnT=5;   // 開場 5 秒後第一顆守護之力才降臨，避免一開場就有必殺
     if(window.__shopReset) window.__shopReset();
     fx=[]; floats=[]; invaders=[]; hprojs=[]; weatherFx=[];
@@ -327,8 +330,13 @@
     if(o.kind==="shrine"){ endGame(false); return; }
     if(o.kind==="nursery"){ ring(o.x,o.y,60,"#ff8a80"); toast("一處復育苗圃被毀！"); return; }
     if(o.isPlayer!==undefined){ // 守護者被擊退（不算入侵種戰果）
-      o.dead=true; o.respawn=4+teamSize*0.6; ring(o.x,o.y,40,"#ef5350");
-      floats.push({x:o.x,y:o.y-40,txt:KNAME[o.kind]+" 被擊退！",col:"#ffab91",life:1.1});
+      o.dead=true;
+      if(duelEvent){ // 首領挑戰：陣亡不復活（死掉就死掉），沒有回神木；改為觀戰隊友
+        o.respawn=Infinity; ring(o.x,o.y,52,"#b71c1c"); sparks(o.x,o.y,18,"#ff8a80");
+        floats.push({x:o.x,y:o.y-42,txt:KNAME[o.kind]+" 陣亡！",col:"#ff5252",life:1.6,big:true});
+        if(o===player) toast("💀 你陣亡了！首領挑戰不能復活——切換觀戰隊友，為他們加油！"); }
+      else { o.respawn=4+teamSize*0.6; ring(o.x,o.y,40,"#ef5350");
+        floats.push({x:o.x,y:o.y-40,txt:KNAME[o.kind]+" 被擊退！",col:"#ffab91",life:1.1}); }
       if(by && by.elite!==undefined){ by.mood="proud"; by.moodT=1.6; } // 入侵種擊退守護者：得意
       return; }
     // 入侵種
@@ -400,6 +408,7 @@
     // 單挑首領戰：擊敗首領即勝、時限到或神木倒則敗
     if(duelEvent && duelEvent.active){ duelEvent.timeLeft-=dt;
       if(invaders.filter(v=>!v.dead).length===0){ duelEvent.active=false; toast("🏆 單挑勝利！擊敗了 "+KNAME[duelEvent.bossKind]+"王！"); endGame(true); }
+      else if(heroes.length && heroes.every(h=>h.dead)){ duelEvent.active=false; toast("💀 全員陣亡…首領挑戰失敗"); endGame(false); }   // 首領挑戰不能復活：全員陣亡即敗
       else if(duelEvent.timeLeft<=0){ duelEvent.active=false; duelEvent.timeLeft=0; toast("⏱ 時間到！首領未被擊敗"); endGame(false); } }
 
     // PVE 限時外來種防衛戰：倒數計時，時間到未達標即失敗
@@ -507,8 +516,8 @@
     for(const w of weatherFx){ w.life-=dt; w.y+=w.vy*dt; if(w.vx) w.x+=w.vx*dt; }
     weatherFx=weatherFx.filter(w=>w.life>0 && w.y<VH+20); if(weatherFx.length>WFX_MAX) weatherFx.splice(0,weatherFx.length-WFX_MAX);
 
-    // 鏡頭（依縮放調整可視範圍）
-    const vw=VW/zoom, vh=VH/zoom, focus=player.dead?shrine:player;
+    // 鏡頭（依縮放調整可視範圍）；首領挑戰陣亡後改觀戰仍存活的隊友
+    const vw=VW/zoom, vh=VH/zoom, focus=player.dead?(duelEvent?(spectateTarget()||shrine):shrine):player;
     cam.x += (clamp(focus.x-vw/2,0,Math.max(0,MW-vw))-cam.x)*Math.min(1,dt*6);
     cam.y += (clamp(focus.y-vh/2,0,Math.max(0,MH-vh))-cam.y)*Math.min(1,dt*6);
 
@@ -553,7 +562,7 @@
     // guest 端鏡頭/HUD 一定要跟著「我自己操控的守護者」（快照裡 ctrl===我的 uid 那隻），不能落到 isPlayer（那是房主的角色）——
     // 這是造成朋友端「看起來大家都是同一隻」的根因：舊版一律抓 isPlayer，guest 端因此鏡頭黏在房主身上
     player=myHero||heroes.find(h=>h.isPlayer)||heroes[0]||null;
-    if(player){ const vw=VW/zoom, vh=VH/zoom, focus=player.dead?shrine:player;
+    if(player){ const vw=VW/zoom, vh=VH/zoom, focus=player.dead?(duelEvent?(spectateTarget()||shrine):shrine):player;
       cam.x=clamp(focus.x-vw/2,0,Math.max(0,MW-vw)); cam.y=clamp(focus.y-vh/2,0,Math.max(0,MH-vh)); }
     updateHUD();
     if(s.ended && !ended){ ended=true; running=false; cancelAnimationFrame(raf);
@@ -576,7 +585,7 @@
     if(mag>0.12){ const ang=Math.atan2(mv.y,mv.x); h.face=ang; const s=h.speed*Math.min(1,mag); h.x+=Math.cos(ang)*s*dt; h.y+=Math.sin(ang)*s*dt; h.moving=true; h.anim+=dt; }
     keepIn(h);
     tryPickRelic(h);
-    if(wantBack){ wantBack=false; h.x=shrine.x; h.y=shrine.y+100; h.hp=h.maxhp; ring(h.x,h.y,46,"#80deea"); toast("回到神木旁・補滿體力"); }
+    if(wantBack){ wantBack=false; if(duelEvent){ toast("⚔ 首領挑戰不能回神木補血——死掉就死掉了，全力應戰！"); } else { h.x=shrine.x; h.y=shrine.y+100; h.hp=h.maxhp; ring(h.x,h.y,46,"#80deea"); toast("回到神木旁・補滿體力"); } }
     if(wantSp){ wantSp=false; if(h.spCd<=0) castSp(h); }
     if(wantUlt){ wantUlt=false; castUlt(h); }
     const tg=nearestInvader(h,h.range+60);
@@ -1350,9 +1359,10 @@
     const dh=document.getElementById("mDuelHud"), mh=document.getElementById("mhud");
     if(duelEvent){ if(mh) mh.style.display="none"; if(dh) dh.classList.remove("hide");
       const boss=invaders.find(v=>v.isBoss&&!v.dead);
-      setW("dhYou", player? player.hp/player.maxhp : 0);
+      const dead=player&&player.dead, spec=dead?spectateTarget():null, view=(dead&&spec)?spec:player;
+      setW("dhYou", view? view.hp/view.maxhp : 0);
       setW("dhBoss", boss? boss.hp/boss.maxhp : 0);
-      txt("dhYouName", (player?KNAME[player.kind]||"你":"你"));
+      txt("dhYouName", dead?(spec?("💀 觀戰隊友："+(KNAME[spec.kind]||"隊友")):"💀 你已陣亡"):(player?KNAME[player.kind]||"你":"你"));
       txt("dhBossName", KNAME[duelEvent.bossKind]+"王");
       txt("dhTimer", "⚔ "+fmtTime(duelEvent.timeLeft)); }
     else { if(mh) mh.style.display=""; if(dh && !dh.classList.contains("hide")) dh.classList.add("hide");
@@ -1361,6 +1371,7 @@
       const mm=Math.floor(clock/60),ss=Math.floor(clock%60); txt("mclock",mm+":"+(ss<10?"0":"")+ss);
       if(pveEvent){ txt("mBest","🎯 第"+(pveEvent.level||1)+"關 "+KNAME[pveEvent.target]+" "+pveEvent.got+"/"+pveEvent.need+"　⏱ "+fmtTime(pveEvent.timeLeft)); }
       else if(timeAttack){ const b=getBest(teamSize); txt("mBest", b?("🏆 最佳 "+fmtTime(b)):"⏱ 挑戰紀錄中"); } else txt("mBest",""); }
+    const bBack=document.getElementById("mBack"); if(bBack) bBack.style.display=duelEvent?"none":"";   // 首領挑戰不能回神木，隱藏該鈕
     const sp=document.getElementById("mSp"); if(sp){ const mx=(player&&player.spMax)||8, cd=player&&player.spCd>0?player.spCd:0; sp.querySelector(".fill").style.height=(cd/mx*100)+"%"; sp.classList.toggle("ready",cd<=0); }
     // 必殺鈕：握有守護之力＝金色可施放（ready）；冷卻中＝倒數遮罩由下往上退；空手＝上鎖(locked)提示去撿
     const ub=document.getElementById("mUlt");
