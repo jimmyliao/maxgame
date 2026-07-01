@@ -45,15 +45,86 @@
   const now = () => Date.now();
   const clamp=(v,a,b)=>v<a?a:v>b?b:v;
 
+  /* ---------- 野生動物訪客：健康度夠高時，隨機出現真實台灣野生動物（非戰鬥、點擊贈知識+保育值） ---------- */
+  const VISIT_PERIOD_MS = 5*60*1000;      // 每區獨立 5 分鐘一個時間窗格，決定式判斷，離線也正確
+  const VISIT_HEALTH_MIN = 0.5;           // 健康度門檻：地區復原度要夠高才會吸引訪客
+  const VISIT_STAY_MIN_S = 8, VISIT_STAY_MAX_S = 15;
+  const VISITORS = {
+    paddy: [
+      { id:"snipe", name:"彩鷸", emoji:"🐦", rarity:1, shape:"snipe",
+        fact:"彩鷸雌鳥羽色較鮮豔、由雄鳥負責孵蛋育雛，是罕見的「性別角色反轉」鳥類，棲息在水位淺的稻田與濕地。" },
+      { id:"moorhen", name:"紅冠水雞", emoji:"🐔", rarity:1, shape:"moorhen",
+        fact:"額頭有鮮紅色角質瘤，腳趾細長方便行走於浮水植物上，常見於台灣平地的稻田、埤塘與溝渠。" },
+    ],
+    hill: [
+      { id:"civet", name:"白鼻心", emoji:"🦝", rarity:2, shape:"civet",
+        fact:"台灣原生食肉目動物，鼻樑到額頭有一道明顯白色條紋，夜行性、雜食性，是低海拔淺山森林常見卻難得一見的訪客。" },
+      { id:"beetle", name:"獨角仙", emoji:"🪲", rarity:1, shape:"beetle",
+        fact:"台灣最大型的兜蟲之一，雄蟲頭上有分岔犀角狀長角，幼蟲棲息在腐植土中，成蟲夜間會聚集在殼斗科樹木吸食樹液。" },
+    ],
+    stream: [
+      { id:"kingfisher", name:"翠鳥", emoji:"🐦", rarity:2, shape:"kingfisher",
+        fact:"羽色寶藍鮮豔，俗稱「魚狗」，會定點懸停後俯衝入水捕魚，是台灣低海拔溪流與埤塘常見但動作極快的鳥類。" },
+      { id:"varicorhinus", name:"苦花魚", emoji:"🐟", rarity:2, shape:"fish",
+        fact:"學名台灣鏟頜魚，台灣特有種淡水魚，因下唇有角質邊緣能刮食石頭上的藻類，是中上游溪流水質良好的指標物種。" },
+    ],
+    wetland: [
+      { id:"jacana", name:"水雉", emoji:"🐦", rarity:3, shape:"jacana",
+        fact:"腳趾細長能行走於菱角葉與浮水植物上，繁殖期尾羽修長優雅，有「凌波仙子」之稱，是台灣重要的濕地保育指標鳥種。" },
+      { id:"fiddler", name:"招潮蟹", emoji:"🦀", rarity:1, shape:"crab",
+        fact:"雄蟹有一隻特別碩大的螯足用來揮舞求偶與威嚇，退潮時大量聚集在泥灘覓食，是河口濕地生態系的重要角色。" },
+    ],
+    alpine: [
+      { id:"mikado", name:"帝雉", emoji:"🐦", rarity:3, shape:"mikado",
+        fact:"台灣特有種雉科鳥類，雄鳥全身墨藍黑色帶金屬光澤、尾羽白色橫紋，僅棲息於中高海拔原始針葉林，性情機警罕見。" },
+      { id:"serow", name:"長鬃山羊", emoji:"🐐", rarity:2, shape:"serow",
+        fact:"台灣唯一原生牛科動物，四肢短健善於攀爬陡峭岩壁，喜獨居，是高山生態系穩定與森林復育的重要指標。" },
+    ],
+    estuary: [
+      { id:"fiddler2", name:"招潮蟹", emoji:"🦀", rarity:1, shape:"crab",
+        fact:"河口泥灘的招潮蟹族群密度極高，退潮後布滿灘地覓食，是水鳥重要的食物來源，反映河口濕地的生產力。" },
+      { id:"mudskipper", name:"彈塗魚", emoji:"🐟", rarity:2, shape:"mudskipper",
+        fact:"可離水呼吸、以胸鰭在泥灘上跳躍前進，眼睛突出於頭頂利於觀察，是紅樹林與河口泥灘極具代表性的兩棲魚類。" },
+    ],
+  };
+  const VISITOR_LOG_KEY = "shoutu_visitor_log";
+  function loadVisitorLog(){ try{ const raw=localStorage.getItem(VISITOR_LOG_KEY); const a=raw?JSON.parse(raw):[]; return Array.isArray(a)?a:[]; }catch(e){ return []; } }
+  function saveVisitorLog(a){ try{ localStorage.setItem(VISITOR_LOG_KEY, JSON.stringify(a)); }catch(e){} }
+  function markVisitorSeen(id){ const log=loadVisitorLog(); if(!log.includes(id)){ log.push(id); saveVisitorLog(log); } }
+  function totalVisitorSpecies(){ let n=0; for(const k in VISITORS) n+=VISITORS[k].length; return n; }
+  function vhash(i,seed){ const s=Math.sin(i*37.719+seed*91.31)*43758.5453; return s-Math.floor(s); }
+  // 決定式時間窗格：每區各自的窗格編號（region 字串雜湊避免各區同步觸發），窗格內是否有訪客、是誰、何時出現，全部由時間純函數決定——不需背景計時器，離線回來一樣正確
+  function regionSeed(region){ let h=0; for(let i=0;i<region.length;i++) h=(h*31+region.charCodeAt(i))>>>0; return h%1000; }
+  function visitWindowId(region){ return Math.floor(now()/VISIT_PERIOD_MS) + regionSeed(region); }
+  function visitPlan(region){
+    const list=VISITORS[region]; if(!list || !list.length) return null;
+    const wid=visitWindowId(region), health=window.__habitatHealth?window.__habitatHealth(region):0;
+    if(health<VISIT_HEALTH_MIN) return null;
+    const roll=vhash(wid,1);
+    const chance=clamp(0.35+(health-VISIT_HEALTH_MIN)*0.7,0.35,0.75);
+    if(roll>=chance) return null;
+    const idx=Math.floor(vhash(wid,2)*list.length)%list.length;
+    const visitor=list[idx];
+    const windowStartMs=(wid-regionSeed(region))*VISIT_PERIOD_MS;
+    const stayS=VISIT_STAY_MIN_S+vhash(wid,3)*(VISIT_STAY_MAX_S-VISIT_STAY_MIN_S);
+    const latestStartOffsetMs=VISIT_PERIOD_MS-stayS*1000-2000;
+    const startOffsetMs=2000+vhash(wid,4)*Math.max(0,latestStartOffsetMs-2000);
+    const startAt=windowStartMs+startOffsetMs, endAt=startAt+stayS*1000;
+    return { wid, region, visitor, startAt, endAt };
+  }
+  // 這次窗格的訪客是否已經被玩家處理過（收下獎勵或已離開提示過），存在 data.visits[region] 裡，跟隨棲地存檔一起離線持久化
+  function visitHandled(region,wid){ const v=(data.visits||{})[region]; return v && v.wid===wid && v.done; }
+  function markVisitHandled(region,wid){ if(!data.visits) data.visits={}; data.visits[region]={ wid, done:true }; save(data); }
+
   /* ---------- 資料 / 成長邏輯（純時間函數，離線正確、不需模擬 tick） =====
      每個地區各自獨立一塊 16 格田地，成長與收成互不干擾——要輪流照顧四個地區。 */
   function freshTiles(){ const t=now(); const tiles=[];
     for(let i=0;i<N;i++){ if(i%5===0) tiles.push({state:"invasive"}); else tiles.push({state:"unplanted", emptySince:t}); }
     return tiles; }
   function load(){ try{ const raw=localStorage.getItem("shoutu_habitat_v2"); if(raw){ const d=JSON.parse(raw);
-      if(d && d.regions && REGION_KEYS.every(k=>Array.isArray(d.regions[k]) && d.regions[k].length===N)){ if(!d.current) d.current="paddy"; return d; } } }catch(e){}
+      if(d && d.regions && REGION_KEYS.every(k=>Array.isArray(d.regions[k]) && d.regions[k].length===N)){ if(!d.current) d.current="paddy"; if(!d.visits) d.visits={}; return d; } } }catch(e){}
     const regions={}; for(const k of REGION_KEYS) regions[k]=freshTiles();
-    return { regions, current:"paddy" };
+    return { regions, current:"paddy", visits:{} };
   }
   function save(d){ try{ localStorage.setItem("shoutu_habitat_v2", JSON.stringify(d)); }catch(e){} }
   let data = load();
@@ -319,6 +390,127 @@
 
   function drawSapling(kind,x,y,s,sway,pop){ drawSpecies(kind,x,y,s*0.6,sway,false,pop); }
 
+  /* ---------- 訪客動物繪製：非戰鬥小訪客，每種都有專屬造型，呼吸/擺動待機動畫 ---------- */
+  function drawVisitor(shape,x,y,s,breathe,flip){
+    ctx.save(); ctx.translate(x,y); ctx.scale(flip?-1:1,1);
+    const bob=Math.sin(breathe*2.2)*1.4*s, wing=Math.sin(breathe*5)*0.5+0.5;
+    ctx.fillStyle="rgba(0,0,0,0.22)"; ctx.beginPath(); ctx.ellipse(0,9*s,9*s,2.6*s,0,0,7); ctx.fill();
+    ctx.translate(0,bob);
+    if(shape==="snipe"||shape==="moorhen"||shape==="kingfisher"||shape==="jacana"||shape==="mikado"){ // 鳥類共通骨架：站姿 + 細腳 + 擺尾
+      const body = shape==="kingfisher"?"#2d7ec9": shape==="moorhen"?"#37474f": shape==="jacana"?"#5a3a24": shape==="mikado"?"#1a2038":"#8d6e4a";
+      const belly = shape==="kingfisher"?"#ff8a50": shape==="jacana"?"#2c2c2c":"#e8dcc4";
+      ctx.strokeStyle="#e0b060"; ctx.lineWidth=1.1*s; ctx.lineCap="round";
+      ctx.beginPath(); ctx.moveTo(-2*s,7*s); ctx.lineTo(-2*s,3*s); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(2*s,7*s); ctx.lineTo(2*s,3*s); ctx.stroke();
+      ctx.fillStyle=body; ctx.beginPath(); ctx.ellipse(0,0,6.5*s,4.6*s,0,0,7); ctx.fill();
+      ctx.fillStyle=belly; ctx.beginPath(); ctx.ellipse(1*s,1.5*s,4*s,2.6*s,0,0,7); ctx.fill();
+      ctx.fillStyle=body; ctx.beginPath(); ctx.arc(6*s,-3.5*s,3*s,0,7); ctx.fill();
+      if(shape==="moorhen"){ ctx.fillStyle="#e53935"; ctx.beginPath(); ctx.ellipse(7.6*s,-5*s,1.6*s,1.3*s,0.3,0,7); ctx.fill(); }
+      if(shape==="mikado"){ ctx.fillStyle="#c62828"; ctx.beginPath(); ctx.arc(7*s,-3*s,1*s,0,7); ctx.fill();
+        ctx.strokeStyle="#e8e8e8"; ctx.lineWidth=0.9*s; for(let k=0;k<3;k++){ ctx.beginPath(); ctx.moveTo(-6*s-k*1.4*s,0.6*s); ctx.lineTo(-9*s-k*1.4*s,-0.4*s+k*1.2*s); ctx.stroke(); } }
+      ctx.fillStyle="#2c2c2c"; ctx.beginPath(); ctx.moveTo(8.6*s,-3.5*s); ctx.lineTo(13*s,-2.6*s); ctx.lineTo(8.6*s,-2*s); ctx.fill();
+      ctx.strokeStyle=body; ctx.lineWidth=1.6*s; ctx.beginPath(); ctx.moveTo(-6.4*s,0); ctx.quadraticCurveTo(-9*s,-1.5*s-wing*1.5*s,-8.5*s,2*s); ctx.stroke();
+      ctx.fillStyle="#111"; ctx.beginPath(); ctx.arc(6.6*s,-4*s,0.7*s,0,7); ctx.fill(); }
+    else if(shape==="civet"||shape==="serow"){ // 哺乳類共通骨架：四足站姿 + 長身
+      const body = shape==="civet"?"#5d5347":"#6b5a44";
+      ctx.strokeStyle=body; ctx.lineWidth=1.4*s; ctx.lineCap="round";
+      for(const dx of [-4,-1.5,1.5,4]){ ctx.beginPath(); ctx.moveTo(dx*s,3*s); ctx.lineTo(dx*s,8*s); ctx.stroke(); }
+      ctx.fillStyle=body; ctx.beginPath(); ctx.ellipse(0,1*s,8*s,4*s,0,0,7); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(8*s,-2*s,3.6*s,3*s,0,0,7); ctx.fill();
+      if(shape==="civet"){ ctx.fillStyle="#f2f2f0"; ctx.beginPath(); ctx.ellipse(8.6*s,-3.4*s,1.6*s,0.9*s,0.2,0,7); ctx.fill();
+        ctx.fillStyle="#222"; for(const dx of [-4,0,4]){ ctx.beginPath(); ctx.ellipse(dx*s,1*s,1*s,2.6*s,0,0,7); ctx.fill(); }
+        ctx.strokeStyle=body; ctx.lineWidth=1.8*s; ctx.beginPath(); ctx.moveTo(-8*s,1.5*s); ctx.quadraticCurveTo(-13*s,0,-12*s+wing*1.5*s,-4*s); ctx.stroke(); }
+      else { ctx.fillStyle="#2c2c2c"; for(const a of [-0.4,0.4]){ ctx.beginPath(); ctx.moveTo(8*s+Math.sin(a)*1.4*s,-4.6*s); ctx.lineTo(9*s+Math.sin(a)*1.6*s,-8*s); ctx.stroke(); ctx.lineWidth=1*s; } }
+      ctx.fillStyle="#111"; ctx.beginPath(); ctx.arc(9.4*s,-2.6*s,0.6*s,0,7); ctx.fill(); }
+    else if(shape==="beetle"){ // 獨角仙：橢圓甲殼 + 犀角
+      ctx.fillStyle="#3e2a1a"; ctx.beginPath(); ctx.ellipse(0,0,7*s,5*s,0,0,7); ctx.fill();
+      ctx.fillStyle="#5a3d24"; ctx.beginPath(); ctx.ellipse(-1*s,-1*s,5*s,3.4*s,0,0,7); ctx.fill();
+      ctx.strokeStyle="#2a1c10"; ctx.lineWidth=0.8*s; ctx.beginPath(); ctx.moveTo(-1*s,-4*s); ctx.lineTo(-1*s,4*s); ctx.stroke();
+      ctx.fillStyle="#3e2a1a"; ctx.beginPath(); ctx.moveTo(6*s,-1*s); ctx.quadraticCurveTo(11*s,-2*s-wing*1.5*s,13*s,-4*s); ctx.quadraticCurveTo(10*s,-1.5*s,7*s,0.5*s); ctx.fill();
+      ctx.strokeStyle="#3e2a1a"; ctx.lineWidth=1*s; for(const a of [-0.9,-0.3,0.3,0.9]){ ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(Math.cos(a)*7*s,Math.sin(a)*5*s+3*s); ctx.stroke(); } }
+    else if(shape==="fish"||shape==="mudskipper"){ // 魚類共通骨架：側身流線 + 尾鰭擺動
+      const body= shape==="mudskipper"?"#6b7a4f":"#8a9aa8";
+      ctx.save(); ctx.rotate(Math.sin(breathe*3)*0.06);
+      ctx.fillStyle=body; ctx.beginPath(); ctx.ellipse(0,0,8*s,3.2*s,0,0,7); ctx.fill();
+      ctx.fillStyle=body; ctx.beginPath(); ctx.moveTo(-7*s,0); ctx.lineTo(-11*s,-3.4*s-wing*1.2*s); ctx.lineTo(-11*s,3.4*s+wing*1.2*s); ctx.fill();
+      ctx.fillStyle="rgba(255,255,255,0.4)"; ctx.beginPath(); ctx.ellipse(1*s,1.5*s,5*s,1.4*s,0,0,7); ctx.fill();
+      if(shape==="mudskipper"){ ctx.fillStyle="#3a4a2a"; ctx.beginPath(); ctx.arc(5.4*s,-1.6*s,1.4*s,0,7); ctx.fill();
+        ctx.fillStyle=body; ctx.beginPath(); ctx.ellipse(2*s,3*s,2.2*s,1.2*s,0.5,0,7); ctx.fill(); }
+      ctx.fillStyle="#111"; ctx.beginPath(); ctx.arc(5.6*s,-0.6*s,0.7*s,0,7); ctx.fill();
+      ctx.restore(); }
+    else if(shape==="crab"){ // 招潮蟹：一大一小螯足
+      ctx.fillStyle="#c9622f"; ctx.beginPath(); ctx.ellipse(0,0,6.5*s,4.4*s,0,0,7); ctx.fill();
+      ctx.strokeStyle="#a84f24"; ctx.lineWidth=1*s; ctx.lineCap="round";
+      for(const dx of [-5,-2.4,2.4,5]){ ctx.beginPath(); ctx.moveTo(dx*s,2.5*s); ctx.lineTo(dx*1.3*s,5.5*s+wing*0.6*s); ctx.stroke(); }
+      ctx.fillStyle="#d8703a"; ctx.beginPath(); ctx.ellipse(-9*s,-1*s-wing*1.8*s,4.4*s,2.4*s,-0.3,0,7); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(7*s,0,2.4*s,1.6*s,0.2,0,7); ctx.fill();
+      ctx.fillStyle="#111"; for(const dx of [-1.6,1.6]){ ctx.beginPath(); ctx.arc(dx*s,-3.4*s,0.7*s,0,7); ctx.fill(); } }
+    ctx.restore(); }
+  // 訪客生命週期狀態：一次只會有一隻，含入場（walk-in）／停留／離場動畫，跟種植格互不干擾
+  let visitorEntity=null;
+  function visitorSpot(){ return { x: VW*0.5, y: VH*0.62 }; }
+  // 訪客不告而別（沒點到、或畫面關閉/背景很久沒跑動畫直接錯過整個時間窗）：給一個輕量提示，不給獎勵，並標記這個窗格已處理過
+  function silentlyLeave(region,wid,visitorInfo){ if(visitHandled(region,wid)) return;
+    markVisitHandled(region,wid); if(visitorInfo) banner(visitorInfo.emoji+" "+visitorInfo.name+"悄悄離開了……"); }
+  function refreshVisitor(){
+    const plan=visitPlan(data.current);
+    if(!plan){ if(visitorEntity && visitorEntity.region===data.current) visitorEntity=null; return; }
+    const t=now(), hasEntity = visitorEntity && visitorEntity.region===data.current && visitorEntity.wid===plan.wid;
+    if(t>=plan.endAt){   // 窗格時間到了：若牠已經在畫面上，交給 drawVisitorEntity 播完離場動畫再標記；若根本沒出現過（例如玩家錯過整個窗格才回來），直接靜默標記＋輕量提示
+      if(!hasEntity) silentlyLeave(data.current,plan.wid,plan.visitor);
+      return;
+    }
+    if(t<plan.startAt){ if(visitorEntity && visitorEntity.region===data.current && visitorEntity.wid===plan.wid) visitorEntity=null; return; }
+    if(visitHandled(data.current,plan.wid)) return;
+    if(!hasEntity){
+      const sp=visitorSpot();
+      visitorEntity={ region:data.current, wid:plan.wid, visitor:plan.visitor, endAt:plan.endAt,
+        x:sp.x, y:sp.y, phase:"in", phaseT:0, seed:vhash(plan.wid,7)*6.28, flip:vhash(plan.wid,8)<0.5 };
+    }
+  }
+  function drawVisitorEntity(dt){
+    if(!visitorEntity) return;
+    const v=visitorEntity, sp=visitorSpot();
+    v.phaseT+=dt;
+    if(v.phase!=="out" && !v.collected && now()>=v.endAt){ v.phase="out"; v.phaseT=0; }   // 不管正在入場或停留，時間一到都轉入離場動畫（涵蓋大時間跳躍，例如分頁被背景凍結很久才恢復）
+    if(v.phase==="in"){ const p=Math.min(1,v.phaseT/1.1); v.x=VW*(v.flip?0.98:0.02)+(sp.x-VW*(v.flip?0.98:0.02))*p;
+      if(p>=1){ v.phase="stay"; v.phaseT=0; } }
+    else if(v.phase==="stay"){ v.x=sp.x; if(now()>=v.endAt && !v.collected){ v.phase="out"; v.phaseT=0; } }
+    else if(v.phase==="out"){ const p=Math.min(1,v.phaseT/0.9); const tx=VW*(v.flip?0.02:0.98); v.x=sp.x+(tx-sp.x)*p;
+      if(p>=1){ if(!v.autoLeftNotified){ v.autoLeftNotified=true; if(!v.collected) banner(v.visitor.emoji+" "+v.visitor.name+"悄悄離開了……"); markVisitHandled(v.region,v.wid); }
+        visitorEntity=null; return; } }
+    const breathe=performance.now()/1000+v.seed, s=18;
+    drawVisitor(v.visitor.shape,v.x,v.y,s,breathe,v.phase==="out"?!v.flip:v.flip);
+    if(v.phase==="stay"){ const pulse=0.5+0.5*Math.sin(performance.now()/260);
+      ctx.save(); ctx.globalAlpha=0.55+0.35*pulse; ctx.font="bold "+Math.round(11*1.1)+"px sans-serif"; ctx.textAlign="center"; ctx.fillStyle="#b2f7c1"; ctx.strokeStyle="rgba(0,0,0,.6)"; ctx.lineWidth=3;
+      const tag=v.visitor.emoji+" "+v.visitor.name; ctx.strokeText(tag,v.x,v.y-30); ctx.fillText(tag,v.x,v.y-30); ctx.restore(); }
+  }
+  function visitorHitTest(px,py){ if(!visitorEntity || visitorEntity.phase!=="stay") return false;
+    return Math.hypot(px-visitorEntity.x,py-(visitorEntity.y-8))<30; }
+  function collectVisitor(){
+    if(!visitorEntity || visitorEntity.phase!=="stay") return;
+    const v=visitorEntity, info=v.visitor, wasNew=!loadVisitorLog().includes(info.id);
+    const reward=15+info.rarity*8+(wasNew?5:0);
+    window.__awardEco && window.__awardEco(reward);
+    markVisitorSeen(info.id); markVisitHandled(v.region,v.wid);
+    v.collected=true; v.phase="out"; v.phaseT=0; v.autoLeftNotified=true;
+    burstAt(v.x,v.y-16); burstAt(v.x-8,v.y-10); burstAt(v.x+8,v.y-10);
+    showVisitorFact(info,reward,wasNew);
+  }
+  let visitorPanelT=null;
+  function showVisitorFact(info,reward,wasNew){
+    banner(info.emoji+" "+info.name+"造訪！"+(wasNew?"（首次記錄）":"")+" +"+reward+" 保育值");
+    const panel=$("habVisitorPanel"); if(!panel) return;
+    $("habVisitorTitle") && ($("habVisitorTitle").textContent=info.emoji+" "+info.name+(wasNew?"　🆕 新紀錄":""));
+    $("habVisitorFact") && ($("habVisitorFact").textContent=info.fact);
+    $("habVisitorReward") && ($("habVisitorReward").textContent="🌿 +"+reward+" 保育值");
+    panel.classList.remove("hide");
+    if(visitorPanelT) clearTimeout(visitorPanelT);
+    visitorPanelT=setTimeout(()=>panel.classList.add("hide"),4200);
+  }
+  function updateVisitorDex(){ const el=$("habVisitorDex"); if(!el) return;
+    el.textContent="📖 訪客紀錄 "+loadVisitorLog().length+"/"+totalVisitorSpecies(); }
+
   const STAGE_TAG=["","🌼盛開","🌟老欉"];
   function drawSpot(sp){ const tile=curTiles()[sp.i], st=stageOf(tile), pos=spotPos(sp.i), s=pos.scale*18, sway=sp.sway+performance.now()/1000;
     const ripe = st==="mature" && storedOf(tile)>0, stage=harvestStage(tile);
@@ -372,6 +564,7 @@
     $("habRestoreBar") && ($("habRestoreBar").style.width=pct+"%");
     $("habEcoTxt") && ($("habEcoTxt").textContent="🌿 本區可收成 "+totalStored);
     updateRegionBadges();
+    updateVisitorDex();
   }
   // 每個地區獨立顯示自己的狀態小標：紅=有入侵種待清、金=有成熟可收成——四塊地要輪流照顧，考驗分配注意力
   function updateRegionBadges(){
@@ -404,7 +597,9 @@
     const dsx=e.clientX-(r.left+r.width/2), dsy=e.clientY-(r.top+r.height/2);   // 相對畫面中心的螢幕位移
     const dx = rot? dsy : dsx, dy = rot? -dsx : dsy;                            // 直握旋轉時把螢幕座標轉回世界座標
     return { x: VW/2+dx, y: VH/2+dy }; }
-  if(cv) cv.addEventListener("pointerdown",(e)=>{ e.preventDefault(); const p=toLocal(e); const i=hitTest(p.x,p.y); if(i>=0) tap(i); },{passive:false});
+  if(cv) cv.addEventListener("pointerdown",(e)=>{ e.preventDefault(); const p=toLocal(e);
+    if(visitorHitTest(p.x,p.y)){ collectVisitor(); return; }
+    const i=hitTest(p.x,p.y); if(i>=0) tap(i); },{passive:false});
 
   function setRegion(r){ if(!REGION_INFO[r]) return; data.current=r; save(data); applyTheme(); banner("🌏 已切換到"+REGION_INFO[r].label+"棲地——培育"+REGION_INFO[r].plant); }
 
@@ -442,7 +637,8 @@
   /* ---------- 主迴圈 ---------- */
   let last=0;
   function loop(ts){ if(!running) return; const dt=Math.min(0.05,(ts-last)/1000||0); last=ts;
-    if(ctx){ paintBackground(ts/1000); const ordered=spots.slice().sort((a,b)=>spotPos(a.i).depth-spotPos(b.i).depth); for(const sp of ordered) drawSpot(sp); drawParts(dt); }
+    if(ctx){ paintBackground(ts/1000); const ordered=spots.slice().sort((a,b)=>spotPos(a.i).depth-spotPos(b.i).depth); for(const sp of ordered) drawSpot(sp);
+      refreshVisitor(); drawVisitorEntity(dt); drawParts(dt); }
     updateHUD(); raf=requestAnimationFrame(loop); }
 
   function openHabitat(){ data=load(); applyTheme();
@@ -472,4 +668,7 @@
     save(data); };
   // 生態走廊串聯查詢：供未來「跨物種協力任務」等模組判斷兩棲地是否已串通
   window.__corridorLinked = (a,b) => corridorBuilt(a,b);
+  // 訪客系統唯讀查詢接點：供 HUD／測試判斷目前時間窗格是否會有訪客（純函數，不改變任何狀態）
+  window.__habitatVisitPlan = (region) => visitPlan(region);
+  window.__habitatVisitorSeen = () => loadVisitorLog();
 })();
