@@ -134,30 +134,42 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
       eye(-s*0.16,-s*0.46,s*0.14); eye(s*0.16,-s*0.46,s*0.14);
       if(mood==="angry"){ brow(-s*0.16,-s*0.62,s*0.12); brow(s*0.16,-s*0.62,s*0.12); }
     } else if(kind==="snail"){
-      c.fillStyle="#c79a6b"; c.beginPath(); c.ellipse(-s*0.15,s*0.35,s*0.5,s*0.28,0,0,7); c.fill();
-      c.fillStyle="#8d5524"; c.beginPath(); c.arc(s*0.15,-s*0.05,s*0.42,0,7); c.fill();
+      c.fillStyle=rg(-s*0.25,s*0.2,s*0.55,"#dcb37e","#8d5524"); c.beginPath(); c.ellipse(-s*0.15,s*0.35,s*0.5,s*0.28,0,0,7); c.fill(); edge();
+      c.fillStyle=rg(0,-s*0.3,s*0.46,"#c17a3a","#6b3d12"); c.beginPath(); c.arc(s*0.15,-s*0.05,s*0.42,0,7); c.fill(); edge();
       c.strokeStyle="#5d3a17"; c.lineWidth=s*0.06; c.beginPath();
       for(let a=0;a<7;a+=0.2){ const rr=s*0.05*a,px=s*0.15+Math.cos(a*1.6)*rr,py=-s*0.05+Math.sin(a*1.6)*rr; a===0?c.moveTo(px,py):c.lineTo(px,py);} c.stroke();
-      c.strokeStyle="#c79a6b"; c.lineWidth=s*0.05; c.beginPath(); c.moveTo(-s*0.4,s*0.2); c.lineTo(-s*0.52,-s*0.15); c.moveTo(-s*0.28,s*0.18); c.lineTo(-s*0.34,-s*0.18); c.stroke();
-      c.fillStyle="#222"; c.beginPath(); c.arc(-s*0.52,-s*0.17,s*0.06,0,7); c.arc(-s*0.34,-s*0.2,s*0.06,0,7); c.fill();
+      c.strokeStyle="#c79a6b"; c.lineWidth=s*0.05; c.lineCap="round"; c.beginPath(); c.moveTo(-s*0.4,s*0.2); c.lineTo(-s*0.52,-s*0.15); c.moveTo(-s*0.28,s*0.18); c.lineTo(-s*0.34,-s*0.18); c.stroke();
+      c.fillStyle="#e8734a"; c.beginPath(); c.arc(-s*0.52,-s*0.17,s*0.055,0,7); c.arc(-s*0.34,-s*0.2,s*0.055,0,7); c.fill();
+      c.fillStyle="#222"; c.beginPath(); c.arc(-s*0.52,-s*0.17,s*0.03,0,7); c.arc(-s*0.34,-s*0.2,s*0.03,0,7); c.fill();
       brow(-s*0.45,-s*0.3,s*0.1);
     } else if(kind==="iguana"){
-      c.fillStyle="#7cb342"; c.beginPath(); c.ellipse(0,s*0.3,s*0.58,s*0.32,0,0,7); c.fill();
-      c.strokeStyle="#558b2f"; c.lineWidth=s*0.14; c.beginPath(); c.moveTo(s*0.5,s*0.35); c.quadraticCurveTo(s*0.95,s*0.3,s*1.0,0); c.stroke();
-      c.fillStyle="#689f38"; for(let i=-2;i<=3;i++){ c.beginPath(); c.moveTo(i*s*0.16,0); c.lineTo(i*s*0.16+s*0.05,-s*0.16); c.lineTo(i*s*0.16+s*0.1,0); c.fill(); }
-      c.fillStyle="#7cb342"; c.beginPath(); c.ellipse(-s*0.5,s*0.15,s*0.3,s*0.26,0,0,7); c.fill();
-      c.fillStyle="#aed581"; c.beginPath(); c.ellipse(-s*0.55,s*0.4,s*0.16,s*0.12,0,0,7); c.fill();
-      eye(-s*0.6,s*0.05,s*0.1); brow(-s*0.6,-s*0.08,s*0.1);
+      c.fillStyle=rg(-s*0.1,s*0.05,s*0.62,"#9ccc55","#4a7a24"); c.beginPath(); c.ellipse(0,s*0.3,s*0.58,s*0.32,0,0,7); c.fill(); edge();
+      // 尾巴：加漸層 + 深色橫紋（鬣蜥招牌特徵）
+      c.strokeStyle=rg(s*0.7,s*0.2,s*0.3,"#8bc34a","#4a7a24"); c.lineWidth=s*0.14; c.lineCap="round"; c.beginPath(); c.moveTo(s*0.5,s*0.35); c.quadraticCurveTo(s*0.95,s*0.3,s*1.0,0); c.stroke();
+      c.strokeStyle="#33501a"; c.lineWidth=s*0.025; for(const t of [0.2,0.4,0.6,0.8]){ const tx=s*0.5+t*s*0.5,ty=s*0.35-t*s*0.35; c.beginPath(); c.moveTo(tx-s*0.05,ty-s*0.05); c.lineTo(tx+s*0.05,ty+s*0.05); c.stroke(); }
+      // 背棘（沿脊椎的三角尖刺，鬣蜥辨識度最高的特徵）
+      c.fillStyle="#33501a"; for(let i=-2;i<=3;i++){ c.beginPath(); c.moveTo(i*s*0.16,0); c.lineTo(i*s*0.16+s*0.05,-s*0.18); c.lineTo(i*s*0.16+s*0.1,0); c.fill(); c.strokeStyle="#20330f"; c.lineWidth=s*0.012; c.stroke(); }
+      c.fillStyle=rg(-s*0.4,0,s*0.34,"#9ccc55","#4a7a24"); c.beginPath(); c.ellipse(-s*0.5,s*0.15,s*0.3,s*0.26,0,0,7); c.fill(); edge();
+      c.fillStyle="#7cb342"; c.beginPath(); c.ellipse(-s*0.55,s*0.4,s*0.16,s*0.12,0,0,7); c.fill();
+      // 喉垂（求偶/威嚇時展開的紅色肉垂）
+      c.fillStyle="#c0473a"; c.beginPath(); c.moveTo(-s*0.48,s*0.22); c.quadraticCurveTo(-s*0.5,s*0.42,-s*0.4,s*0.5); c.quadraticCurveTo(-s*0.46,s*0.35,-s*0.44,s*0.22); c.closePath(); c.fill();
+      const igEye=(ex)=>{ c.fillStyle="#fff"; c.beginPath(); c.ellipse(ex,s*0.05,s*0.1,s*0.11,0,0,7); c.fill();
+        c.fillStyle="#4a3a1a"; c.beginPath(); c.arc(ex,s*0.05,s*0.06,0,7); c.fill();
+        c.fillStyle="#1a1408"; c.beginPath(); c.ellipse(ex,s*0.05,s*0.03,s*0.05,0,0,7); c.fill(); };
+      igEye(-s*0.6); brow(-s*0.6,-s*0.08,s*0.1);
     } else if(kind==="frog"){
-      c.fillStyle="#8d6e63"; c.beginPath(); c.ellipse(0,s*0.3,s*0.55,s*0.42,0,0,7); c.fill();
-      c.fillStyle="#6d4c41"; for(const p of [[-.3,.45],[.3,.45],[-.1,.55],[.15,.3]]){ c.beginPath(); c.arc(p[0]*s,p[1]*s,s*0.07,0,7); c.fill(); }
-      c.fillStyle="#a1887f"; c.beginPath(); c.arc(-s*0.28,-s*0.18,s*0.2,0,7); c.arc(s*0.28,-s*0.18,s*0.2,0,7); c.fill();
+      c.fillStyle=rg(-s*0.1,s*0.05,s*0.62,"#a1887f","#5d4037"); c.beginPath(); c.ellipse(0,s*0.3,s*0.55,s*0.42,0,0,7); c.fill(); edge();
+      c.fillStyle="#4a332a"; for(const p of [[-.3,.45],[.3,.45],[-.1,.55],[.15,.3]]){ c.beginPath(); c.ellipse(p[0]*s,p[1]*s,s*0.08,s*0.06,0,0,7); c.fill(); }
+      c.fillStyle=rg(0,-s*0.28,s*0.24,"#c4a394","#8d6e63"); c.beginPath(); c.arc(-s*0.28,-s*0.18,s*0.2,0,7); c.arc(s*0.28,-s*0.18,s*0.2,0,7); c.fill(); edge();
       eye(-s*0.28,-s*0.2,s*0.13); eye(s*0.28,-s*0.2,s*0.13);
+      // 濕潤反光感
+      c.fillStyle="rgba(255,255,255,0.25)"; c.beginPath(); c.ellipse(-s*0.12,s*0.14,s*0.14,s*0.07,-0.3,0,7); c.fill();
       if(mood!=="happy"){ brow(-s*0.28,-s*0.38,s*0.13); brow(s*0.28,-s*0.38,s*0.13); }
     } else if(kind==="ibis"){
-      c.fillStyle="#fafafa"; c.beginPath(); c.ellipse(0,s*0.25,s*0.5,s*0.4,0,0,7); c.fill();
-      c.fillStyle="#222"; c.beginPath(); c.arc(-s*0.2,-s*0.3,s*0.26,0,7); c.fill();
-      c.strokeStyle="#222"; c.lineWidth=s*0.08; c.beginPath(); c.moveTo(-s*0.4,-s*0.28); c.quadraticCurveTo(-s*0.85,-s*0.2,-s*0.8,s*0.15); c.stroke();
+      c.fillStyle=rg(-s*0.1,s*0,s*0.56,"#ffffff","#c8c8c8"); c.beginPath(); c.ellipse(0,s*0.25,s*0.5,s*0.4,0,0,7); c.fill(); edge("rgba(0,0,0,0.14)");
+      c.fillStyle=rg(-s*0.24,-s*0.36,s*0.3,"#3a3a3a","#0d0d0d"); c.beginPath(); c.arc(-s*0.2,-s*0.3,s*0.26,0,7); c.fill(); edge("rgba(0,0,0,0.3)");
+      c.strokeStyle="#1a1a1a"; c.lineWidth=s*0.08; c.lineCap="round"; c.beginPath(); c.moveTo(-s*0.4,-s*0.28); c.quadraticCurveTo(-s*0.85,-s*0.2,-s*0.8,s*0.15); c.stroke();
+      c.strokeStyle="rgba(255,255,255,0.3)"; c.lineWidth=s*0.02; c.beginPath(); c.moveTo(-s*0.42,-s*0.3); c.quadraticCurveTo(-s*0.75,-s*0.22,-s*0.72,s*0.08); c.stroke();
       eye(-s*0.18,-s*0.34,s*0.08); brow(-s*0.18,-s*0.46,s*0.1);
     } else if(kind==="deer"){
       // 身體（漸層打光）+ 胸腹淺色 + 加大加亮的梅花斑（原本太小太淡，60px 縮圖幾乎看不見）
