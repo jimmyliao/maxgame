@@ -490,10 +490,21 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   function dailyBump(id,n){ const o=getDaily(); o.prog[id]=(o.prog[id]||0)+(n||1); saveDaily(o); }
   function dailyClaimable(){ const o=getDaily(); return DAILY_DEFS.filter(d=>(o.prog[d.id]||0)>=d.goal && !o.claimed[d.id]).length; }
 
-  let W=0,H=0,GY=0,dpr=1;
-  function resize(){ const r=canvas.getBoundingClientRect(); W=r.width; H=r.height; GY=H*0.82;
+  let W=0,H=0,GY=0,dpr=1,rot=false;
+  const appRoot=document.getElementById("app");
+  // 這幾個畫面是獨立於 #app 之外的覆蓋層（MOBA 選人/結算、好友連線），沒有內部畫布要重繪，
+  // 直接把整個 .scr 盒子原地旋轉即可，跟 #app 用同一個 rot 判斷、同一時間切換，畫面才不會忽正忽橫。
+  const ROT_OVERLAYS=["mpick","mover","coop","coopRoom"].map(id=>document.getElementById(id)).filter(Boolean);
+  // 直握手機時，強制把整個遊戲（大廳/1v1戰鬥/圖鑑/復育…）旋轉成橫向，跟 MOBA／棲地基地同一套做法：
+  // 內部畫布一律以「橫向」尺寸繪製，交給 CSS transform 負責把畫面轉正貼滿直立螢幕。
+  function applyRot(){ const iw=window.innerWidth, ih=window.innerHeight; rot=ih>iw;
+    if(appRoot) appRoot.classList.toggle("rot",rot);
+    for(const el of ROT_OVERLAYS) el.classList.toggle("rot",rot); }
+  function resize(){ applyRot(); const iw=window.innerWidth, ih=window.innerHeight;
+    W = rot? ih : iw; H = rot? iw : ih; GY=H*0.82;
     dpr=Math.min(window.devicePixelRatio||1,2); canvas.width=Math.round(W*dpr); canvas.height=Math.round(H*dpr); ctx.setTransform(dpr,0,0,dpr,0,0); }
   window.addEventListener("resize",resize);
+  window.addEventListener("orientationchange",()=>setTimeout(resize,60));
   function getUnlocked(){ try{ return parseInt(localStorage.getItem("shoutu_unlocked")||"0",10)||0; }catch(e){ return 0; } }
   function setUnlocked(v){ try{ localStorage.setItem("shoutu_unlocked",String(v)); }catch(e){} }
 
@@ -608,7 +619,8 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   function goTitle(){ state="title"; setBattleUI(false); show(titleScr); }
 
   /* ===== 大廳 Lobby ===== */
-  function resizeHeroShow(){ const r=heroShow.getBoundingClientRect(); hsW=r.width; hsH=r.height;
+  function resizeHeroShow(){ applyRot(); const iw=window.innerWidth, ih=window.innerHeight;
+    hsW = rot? ih : iw; hsH = rot? iw : ih;
     const d=Math.min(window.devicePixelRatio||1,2); heroShow.width=Math.round(hsW*d); heroShow.height=Math.round(hsH*d); hctx.setTransform(d,0,0,d,0,0); }
   function buildRoster(){ const wrap=document.getElementById("roster"); wrap.innerHTML="";
     HEROES.forEach((h,i)=>{ const unlocked=isHeroUnlocked(h.key);

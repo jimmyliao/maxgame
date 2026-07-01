@@ -17,8 +17,11 @@
   html,body{ height:100%; overflow:hidden; background:#0d2818;
     font-family:"PingFang TC","Microsoft JhengHei","Noto Sans TC",system-ui,sans-serif;
     -webkit-user-select:none; user-select:none; touch-action:none; color:#e8f5e9; }
-  #app{ position:fixed; inset:0; display:flex; flex-direction:column;
+  #app{ position:fixed; inset:0; overflow:hidden; }
+  #appWrap{ position:absolute; inset:0; display:flex; flex-direction:column;
     padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+  /* 直握手機時，強制把整個遊戲（大廳/1v1戰鬥/圖鑑/復育…）旋轉成橫向，跟 MOBA／棲地基地同一套做法 */
+  #app.rot #appWrap{ inset:auto; top:50%; left:50%; width:100vh; height:100vw; transform:translate(-50%,-50%) rotate(90deg); transform-origin:center center; }
   #stage{ flex:1; position:relative; min-height:0; }
   canvas#game{ display:block; width:100%; height:100%; touch-action:none; }
   #dock{ display:flex; justify-content:space-between; align-items:flex-end; gap:6px;
@@ -141,6 +144,9 @@
   .hc-item button:disabled{ background:#546e7a; box-shadow:0 3px 0 #37474f; opacity:.6; cursor:not-allowed; }
   .hc-item .hc-built-tag{ font-size:12px; font-weight:800; color:#a5d6a7; }
   #moba, #mpick, #mover{ z-index:40; } #mpick, #mover{ z-index:41; }
+  /* 直握手機時，這幾個覆蓋層（MOBA選人/結算、好友連線）原地旋轉成橫向，跟 #app／MOBA／棲地基地同步 */
+  #mpick.rot, #mover.rot, #coop.rot, #coopRoom.rot{ inset:auto; top:50%; left:50%; width:100vh; height:100vw;
+    transform:translate(-50%,-50%) rotate(90deg); transform-origin:center center; }
   /* 結算畫面：戲劇化放射光暈背景 + 飄浮光點，勝負都適用的氛圍層 */
   #mover{ background:radial-gradient(circle at 50% 38%, rgba(255,213,79,.16), rgba(7,20,12,.94) 62%); overflow:hidden; }
   #mover::before{ content:""; position:absolute; inset:0; pointer-events:none;
@@ -243,6 +249,7 @@
 </head>
 <body>
 <div id="app">
+ <div id="appWrap">
   <div id="stage">
     <canvas id="game"></canvas>
 
@@ -362,6 +369,7 @@
   </div>
 
   <div id="xfade"><div class="xe">🛡️</div></div>
+ </div>
 </div>
 
 <!-- ===== 守護台灣神木：俯視角 MOBA（獨立模組，獨立 canvas 與控制） ===== -->
