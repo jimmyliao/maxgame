@@ -145,6 +145,11 @@
   #mpick{ padding:12px 20px; } #mpick .row{ margin:4px 0; } #mpick .btn{ min-width:110px; font-size:16px; margin-top:8px; padding:9px 20px; }
   .mode-tab{ font-size:12.5px; padding:6px 12px; opacity:.55; }
   .mode-tab.on{ opacity:1; background:#2e7d32; box-shadow:0 4px 0 #1b5e20; }
+  /* 通行證點數「飛入」動畫：完成任務時，一枚點數票券從任務卡飛到上方通行證點數徽章 */
+  .pp-fly{ position:fixed; z-index:9999; pointer-events:none; font-size:22px; font-weight:900; color:#ffd54f;
+    text-shadow:0 2px 6px rgba(0,0,0,.6); transition:transform .72s cubic-bezier(.5,-0.3,.3,1), opacity .72s ease; will-change:transform,opacity; }
+  #dailyPassBadge.bump{ animation:ppBump .5s ease; }
+  @keyframes ppBump{ 0%{ transform:scale(1); } 40%{ transform:scale(1.35); color:#fff59d; } 100%{ transform:scale(1); } }
   #coopJoinRow.hide{ display:none; }
   /* 好友大廳（#coopRoom）：仿大廳視覺——兩人並肩站在同一片棲地場景，而非抽象房間代碼列表 */
   #coopRoom{ background:radial-gradient(circle at 50% 30%, rgba(56,120,72,.5), rgba(7,20,12,.94) 72%); padding:14px 16px; }
@@ -438,6 +443,7 @@
         </div>
         <div class="lobby-nav secondary">
           <button class="navb sm" id="navCostume">👒 服裝店</button>
+          <button class="navb sm" id="navPass">🎟 通行證</button>
           <button class="navb sm" id="navDex">📖 圖鑑</button>
           <button class="navb sm" id="navStats">🏆 戰績</button>
           <button class="navb sm" id="coopBtn">📨 邀請隊友</button>
@@ -450,6 +456,15 @@
           <div class="hp-head"><span>👒 保育服裝店</span><span id="costumeEco" style="font-size:13px;color:#a5d6a7;font-weight:800"></span><button id="costumeClose" class="hp-close">✕</button></div>
           <div id="costumeHero" style="font-size:12.5px;color:#ffe082;padding:4px 16px 0;font-weight:800"></div>
           <div id="costumeGrid" class="hp-grid"></div>
+        </div>
+      </div>
+      <!-- 通行證：用「通行證點數」(完成每日任務累積)兌換專屬特殊服裝；沿用服裝店樣式，放 #lobby 內跟隨旋轉 -->
+      <div id="passShop" class="hide">
+        <div class="hp-panel">
+          <div class="hp-head"><span>🎟 通行證 · 特殊服裝</span><span id="passPtsVal" style="font-size:13px;color:#ffd54f;font-weight:800"></span><button id="passClose" class="hp-close">✕</button></div>
+          <div id="passHero" style="font-size:12.5px;color:#ffe082;padding:4px 16px 0;font-weight:800"></div>
+          <div id="passTip" style="font-size:11.5px;color:#a5d6a7;padding:2px 16px 0;">🎟 通行證點數靠「完成每日任務」累積——這裡的特殊服裝只能用點數兌換，是任務玩家的專屬榮耀！</div>
+          <div id="passGrid" class="hp-grid"></div>
         </div>
       </div>
       <!-- 選角彈窗：大廳「更換守護者」按鈕點開，一次瀏覽全部守護者、點選即選定變身。放在 #lobby 內以跟隨旋轉。 -->
@@ -487,9 +502,11 @@
 
     <div class="scr hide" id="daily">
       <h1 style="font-size:22px">📋 每日任務</h1>
-      <p style="font-size:12px;margin-bottom:6px">每天刷新，完成領保育值。</p>
+      <p style="font-size:12px;margin-bottom:4px">每天刷新，完成任務累積 <b style="color:#ffd54f">🎟 通行證點數</b>，到通行證換特殊服裝。</p>
+      <div id="dailyPassBadge" style="font-size:14px;font-weight:800;color:#ffd54f;margin-bottom:8px">🎟 通行證點數：<span id="dailyPassPts">0</span></div>
       <div class="cards" id="dailyCards"></div>
-      <button class="btn sec" id="dailyBack" style="margin-top:14px">返回</button>
+      <button class="btn" id="dailyToPass" style="margin-top:10px">🎟 前往通行證換服裝</button>
+      <button class="btn sec" id="dailyBack" style="margin-top:8px">返回</button>
     </div>
 
     <div class="scr hide" id="stats">

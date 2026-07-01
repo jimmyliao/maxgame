@@ -1308,6 +1308,12 @@
     else if(key==="star"){ ctx.globalCompositeOperation="lighter"; for(let i=0;i<6;i++){ const a=t*1.8+i*1.047, tw=0.5+0.5*Math.sin(t*4+i); ctx.fillStyle="rgba(255,240,150,"+tw.toFixed(2)+")"; ctx.beginPath(); ctx.arc(x+Math.cos(a)*R*1.25,y+Math.sin(a)*R*1.25,R*0.1*tw+1,0,7); ctx.fill(); } }
     else if(key==="leaf"){ for(let i=0;i<5;i++){ const a=t*1.2+i*1.257; ctx.save(); ctx.translate(x+Math.cos(a)*R*1.2,y+Math.sin(a)*R*1.2); ctx.rotate(a+t); ctx.fillStyle=i%2?"#c0894a":"#8a5a2b"; ctx.beginPath(); ctx.ellipse(0,0,R*0.16,R*0.08,0,0,7); ctx.fill(); ctx.restore(); } }
     else if(key==="snow"){ ctx.fillStyle="rgba(255,255,255,0.9)"; for(let i=0;i<8;i++){ const px=x+(-1+((i*0.27)%2))*R, py=y+(((t*0.5+i*0.4)%2)-1)*R; ctx.beginPath(); ctx.arc(px,py,R*0.05,0,7); ctx.fill(); } }
+    // 通行證專屬特殊服裝（戰場俯視版）
+    else if(key==="halo"){ ctx.globalCompositeOperation="lighter"; ctx.strokeStyle="rgba(255,224,130,0.85)"; ctx.lineWidth=R*0.14; ctx.beginPath(); ctx.ellipse(x,y-R-2,R*0.85,R*0.32,0,0,7); ctx.stroke();
+      for(let i=0;i<6;i++){ const a=t*1.4+i*1.047, tw=0.5+0.5*Math.sin(t*4+i); ctx.fillStyle="rgba(255,245,180,"+tw.toFixed(2)+")"; ctx.beginPath(); ctx.arc(x+Math.cos(a)*R*0.85,y-R-2+Math.sin(a)*R*0.32,R*0.09*tw+1,0,7); ctx.fill(); } ctx.globalCompositeOperation="source-over"; }
+    else if(key==="flame"){ ctx.globalCompositeOperation="lighter"; for(let i=0;i<10;i++){ const a=i/10*6.283, fl=0.5+0.5*Math.sin(t*8+i*1.7); ctx.fillStyle="rgba(255,"+(110+(fl*110|0))+",40,"+(0.3+fl*0.4).toFixed(2)+")"; ctx.beginPath(); ctx.arc(x+Math.cos(a)*R*1.25,y+Math.sin(a)*R*1.25,R*0.12*(0.6+fl),0,7); ctx.fill(); } ctx.globalCompositeOperation="source-over"; }
+    else if(key==="aurora"){ ctx.globalCompositeOperation="lighter"; const cols=["#7cf6c8","#8bd3ff","#c69cff","#8bffdd"]; for(let i=0;i<8;i++){ const a=t*1.5+i*0.785, tw=0.5+0.5*Math.sin(t*3+i); ctx.fillStyle=cols[i%4]; ctx.globalAlpha=0.3+0.35*tw; ctx.beginPath(); ctx.arc(x+Math.cos(a)*R*1.3,y+Math.sin(a)*R*1.3,R*0.11,0,7); ctx.fill(); } ctx.globalAlpha=1; ctx.globalCompositeOperation="source-over"; }
+    else if(key==="phoenix"){ for(let i=0;i<6;i++){ const a=-2.4+i*0.5+Math.sin(t*2)*0.05; ctx.save(); ctx.translate(x,y); ctx.rotate(a); const grd=ctx.createLinearGradient(0,-R*0.4,0,-R*1.5); grd.addColorStop(0,"#ffca28"); grd.addColorStop(1,"#ff3d00"); ctx.fillStyle=grd; ctx.beginPath(); ctx.ellipse(0,-R,R*0.11,R*0.5,0,0,7); ctx.fill(); ctx.restore(); } }
     ctx.restore(); }
   function drawHero(h){ const r=h.r, R=r*kcfg(h.kind).sz;
     if(h._cos===undefined) h._cos=(window.__cosmeticOf&&window.__cosmeticOf(h.kind))||"";   // 一次性快取該守護者的裝備服裝，避免逐幀讀 localStorage
@@ -1421,6 +1427,7 @@
     const curLv=(duelEvent&&duelEvent.level)||getDuelLevel();
     if(win){ const eco=60+Math.floor(clock)+sz*10+curLv*8, xp=70+sz*8+curLv*6;   // 難度越高獎勵越多
       window.__awardEco&&window.__awardEco(eco); window.__awardXP&&window.__awardXP(key,xp); window.__bumpWin&&window.__bumpWin();
+      window.__taskBump&&window.__taskBump("boss",1);   // 每日任務：擊敗大首領
       const after=(window.__heroLevel&&window.__heroLevel(key))||before;
       // 記錄本次通關時間（每個人數各存一筆最佳，含玩家名字）
       const nm=playerName(), prev=getDuelBest(sz), isNew=saveDuelBest(sz,clock,nm);

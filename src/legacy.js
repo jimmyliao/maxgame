@@ -602,8 +602,12 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   function getWins(){ try{ return parseInt(localStorage.getItem("shoutu_wins")||"0",10)||0; }catch(e){ return 0; } }
   function getMaxStar(){ try{ return parseInt(localStorage.getItem("shoutu_maxstar")||"0",10)||0; }catch(e){ return 0; } }
   function bumpWin(){ try{ localStorage.setItem("shoutu_wins",String(getWins()+1)); if(matchLevel>getMaxStar()) localStorage.setItem("shoutu_maxstar",String(matchLevel)); }catch(e){} }
-  // 每日任務（每天刷新、完成領保育值）
-  const DAILY_DEFS=[ {id:"repel",name:"驅逐 3 隻外來種",goal:3,reward:60}, {id:"item",name:"撿取 5 個保育道具",goal:5,reward:40}, {id:"hard",name:"打贏 1 場 ★3 以上配對",goal:1,reward:50} ];
+  // 通行證點數（完成每日任務累積，用來在通行證兌換特殊服裝）
+  function getPassPts(){ try{ return parseInt(localStorage.getItem("shoutu_pass_pts")||"0",10)||0; }catch(e){ return 0; } }
+  function setPassPts(v){ try{ localStorage.setItem("shoutu_pass_pts",String(Math.max(0,v|0))); }catch(e){} }
+  function addPassPts(n){ setPassPts(getPassPts()+(n|0)); }
+  // 每日任務（每天刷新、完成領「通行證點數」）——精簡成 3 個一目了然、玩主線就會自然進度的任務
+  const DAILY_DEFS=[ {id:"win",name:"打贏 1 場對戰",goal:1,pp:3}, {id:"eco",name:"賺取 150 保育值",goal:150,pp:2}, {id:"boss",name:"擊敗 1 位大首領",goal:1,pp:4} ];
   function todayKey(){ try{ const d=new Date(); return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate(); }catch(e){ return "x"; } }
   function getDaily(){ let o=null; try{ o=JSON.parse(localStorage.getItem("shoutu_daily")||"null"); }catch(e){}
     if(!o || o.date!==todayKey()){ o={date:todayKey(),prog:{},claimed:{}}; saveDaily(o); } return o; }
@@ -647,19 +651,33 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
 
   function show(scr){ [titleScr,mapScr,resultScr,dexScr,lobbyScr,upgradeScr,statsScr,settingsScr,dailyScr].forEach(s=>s.classList.add("hide")); storyScr.classList.add("hide"); if(scr) scr.classList.remove("hide"); }
   function goDaily(){ state="daily"; setBattleUI(false); show(dailyScr);
+    const pp=document.getElementById("dailyPassPts"); if(pp) pp.textContent=getPassPts();
     const o=getDaily(), wrap=document.getElementById("dailyCards"); wrap.innerHTML="";
     DAILY_DEFS.forEach(d=>{ const prog=Math.min(o.prog[d.id]||0,d.goal), done=prog>=d.goal, claimed=!!o.claimed[d.id];
       const div=document.createElement("div"); div.className="card"+(claimed?" cleared":"");
       const info=document.createElement("div"); info.className="info";
       info.innerHTML=`<div class="t">${d.name}</div>`+
-        `<div class="d">進度 ${prog}/${d.goal}　·　獎勵 🌿 ${d.reward}</div>`;
+        `<div class="d">進度 ${prog}/${d.goal}　·　獎勵 🎟 ${d.pp} 點</div>`;
       div.appendChild(info);
       const btn=document.createElement("button"); btn.className="btn"; btn.style.cssText="margin:0;padding:8px 12px;font-size:13px;";
       if(claimed){ btn.textContent="已領取"; btn.className="btn sec"; btn.disabled=true; btn.style.opacity=".5"; }
-      else if(done){ btn.textContent="領取"; btn.onclick=()=>{ const oo=getDaily(); if(!oo.claimed[d.id] && (oo.prog[d.id]||0)>=d.goal){ oo.claimed[d.id]=true; saveDaily(oo); gainEco(d.reward); goDaily(); } }; }
+      else if(done){ btn.textContent="領取"; btn.onclick=()=>{ const oo=getDaily(); if(!oo.claimed[d.id] && (oo.prog[d.id]||0)>=d.goal){ oo.claimed[d.id]=true; saveDaily(oo); addPassPts(d.pp);
+        if(window.__sfx) window.__sfx.play("coin"); flyPassPts(btn, d.pp); refreshDailyNav(); goDaily(); } }; }
       else { btn.textContent="進行中"; btn.className="btn sec"; btn.disabled=true; btn.style.opacity=".5"; }
       div.appendChild(btn); wrap.appendChild(div); });
   }
+  // 完成任務領取時：一枚「🎟」票券從任務卡飛到上方通行證點數徽章，抵達時徽章彈一下，把「任務→通行證」的關聯視覺化
+  function flyPassPts(fromEl, amount){ try{
+    const badge=document.getElementById("dailyPassBadge"); if(!fromEl||!badge) return;
+    const a=fromEl.getBoundingClientRect(), b=badge.getBoundingClientRect();
+    const chip=document.createElement("div"); chip.className="pp-fly"; chip.textContent="🎟 +"+amount;
+    chip.style.left=(a.left+a.width/2)+"px"; chip.style.top=(a.top+a.height/2)+"px"; chip.style.transform="translate(-50%,-50%) scale(1)";
+    document.body.appendChild(chip);
+    const dx=(b.left+b.width/2)-(a.left+a.width/2), dy=(b.top+b.height/2)-(a.top+a.height/2);
+    requestAnimationFrame(()=>{ chip.style.transform="translate(-50%,-50%) translate("+dx+"px,"+dy+"px) scale(.6)"; chip.style.opacity="0"; });
+    setTimeout(()=>{ chip.remove(); const dp=document.getElementById("dailyPassPts"); if(dp) dp.textContent=getPassPts();
+      badge.classList.remove("bump"); void badge.offsetWidth; badge.classList.add("bump"); }, 720);
+  }catch(e){} }
   function goStats(){ state="stats"; setBattleUI(false); show(statsScr);
     const lv=Math.floor(getEcoEarned()/100)+1, ml=getMaxStar();
     document.getElementById("statsBody").innerHTML=
@@ -787,6 +805,19 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     else if(key==="star"){ g.globalCompositeOperation="lighter"; for(let i=0;i<8;i++){ const a=t*1.6+i*0.785, rr=s*(0.7+0.12*Math.sin(t*3+i)), px=Math.cos(a)*rr, py=Math.sin(a)*rr*0.6-s*0.1, tw=0.5+0.5*Math.sin(t*4+i*2); g.fillStyle="rgba(255,240,150,"+tw.toFixed(2)+")"; cosStar(g,px,py,s*0.05*(0.6+tw*0.6)); } g.globalCompositeOperation="source-over"; }
     else if(key==="leaf"){ for(let i=0;i<6;i++){ const a=t*1.1+i*1.047, rr=s*0.66, px=Math.cos(a)*rr, py=(Math.sin(t*1.5+i)*0.5)*s*0.5-s*0.05+Math.sin(a)*rr*0.4; g.save(); g.translate(px,py); g.rotate(a+t); g.fillStyle=i%2?"#c0894a":"#8a5a2b"; g.beginPath(); g.ellipse(0,0,s*0.09,s*0.045,0,0,7); g.fill(); g.restore(); } }
     else if(key==="snow"){ g.fillStyle="rgba(255,255,255,0.92)"; for(let i=0;i<14;i++){ const px=(-0.7+((i*0.19)%1.4))*s, py=(((t*0.4+i*0.37)%1.4)-0.7)*s; g.beginPath(); g.arc(px,py,s*0.022,0,7); g.fill(); } }
+    // ===== 通行證專屬特殊服裝（更華麗）=====
+    else if(key==="halo"){ const ry=hy-s*0.32; g.globalCompositeOperation="lighter"; for(let i=0;i<3;i++){ g.strokeStyle="rgba(255,224,130,"+(0.55-i*0.15).toFixed(2)+")"; g.lineWidth=s*(0.055-i*0.014); g.beginPath(); g.ellipse(0,ry,s*0.32,s*0.11,0,0,7); g.stroke(); }
+      for(let i=0;i<8;i++){ const a=t*1.4+i*0.785, px=Math.cos(a)*s*0.32, py=ry+Math.sin(a)*s*0.11, tw=0.5+0.5*Math.sin(t*4+i); g.fillStyle="rgba(255,245,180,"+tw.toFixed(2)+")"; g.beginPath(); g.arc(px,py,s*0.03*tw+s*0.012,0,7); g.fill(); } g.globalCompositeOperation="source-over"; }
+    else if(key==="flame"){ g.globalCompositeOperation="lighter"; for(let i=0;i<12;i++){ const a=i/12*6.283, fl=0.5+0.5*Math.sin(t*8+i*1.7), rr=s*(0.56+0.12*fl), px=Math.cos(a)*rr, py=Math.sin(a)*rr*0.72-s*0.04;
+      g.fillStyle="rgba(255,"+(110+(fl*110|0))+",40,"+(0.30+fl*0.4).toFixed(2)+")"; g.beginPath(); g.moveTo(px,py+s*0.11); g.quadraticCurveTo(px-s*0.05,py,px,py-s*0.11*(0.6+fl)); g.quadraticCurveTo(px+s*0.05,py,px,py+s*0.11); g.fill(); } g.globalCompositeOperation="source-over"; }
+    else if(key==="aurora"){ g.globalCompositeOperation="lighter"; const cols=["#7cf6c8","#8bd3ff","#c69cff","#8bffdd","#a0e0ff"];
+      for(const sg of [-1,1]){ for(let i=0;i<5;i++){ g.strokeStyle=cols[i]; g.globalAlpha=0.30+0.2*Math.sin(t*3+i); g.lineWidth=s*0.05; g.beginPath();
+        for(let k=0;k<=6;k++){ const yy=hy+(k/6)*s*0.72, xx=sg*(s*0.3+Math.sin(t*2+i*0.5+k*0.6)*s*0.14+k*s*0.03); if(k===0) g.moveTo(xx,yy); else g.lineTo(xx,yy); } g.stroke(); } }
+      g.globalAlpha=1; g.globalCompositeOperation="source-over"; }
+    else if(key==="phoenix"){ for(let i=0;i<7;i++){ const a=-2.5+i*0.5; g.save(); g.rotate(a); const grd=g.createLinearGradient(0,-s*0.2,0,-s*0.72); grd.addColorStop(0,"#ffca28"); grd.addColorStop(0.6,"#ff8a00"); grd.addColorStop(1,"#ff3d00");
+      g.fillStyle=grd; g.beginPath(); g.ellipse(0,-s*0.5,s*0.05,s*0.24,0,0,7); g.fill(); g.restore(); }
+      const cy2=hy-s*0.06; g.fillStyle="#ff6f00"; g.beginPath(); g.moveTo(0,cy2-s*0.18); g.lineTo(-s*0.08,cy2); g.lineTo(s*0.08,cy2); g.closePath(); g.fill();
+      g.globalCompositeOperation="lighter"; g.fillStyle="rgba(255,200,80,0.5)"; g.beginPath(); g.arc(0,cy2,s*0.1,0,7); g.fill(); g.globalCompositeOperation="source-over"; }
     g.restore(); }
   function mkCosCard(c, owned, equipped, hk){
     const key=c?c.key:"", isOwned=!c||owned.includes(key), isEq=equipped===key;
@@ -807,6 +838,30 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     COSMETICS.forEach(c=> wrap.appendChild(mkCosCard(c, owned, equipped, hk))); }
   function openCostumeShop(){ const p=document.getElementById("costumeShop"); if(!p) return; buildCostumeShop(); p.classList.remove("hide"); }
   function closeCostumeShop(){ const p=document.getElementById("costumeShop"); if(p) p.classList.add("hide"); }
+  // ===== 通行證：專屬特殊服裝（只能用「通行證點數」兌換，跟保育值服裝店分開）=====
+  const PASS_COSMETICS=[
+    {key:"halo",    name:"神聖光輪", icon:"😇", pp:8},
+    {key:"flame",   name:"聖焰之環", icon:"🔥", pp:12},
+    {key:"aurora",  name:"極光之翼", icon:"🌌", pp:16},
+    {key:"phoenix", name:"鳳凰之羽", icon:"🦅", pp:22},
+  ];
+  function mkPassCard(c, owned, equipped, hk){ const key=c.key, isOwned=owned.includes(key), isEq=equipped===key;
+    const b=document.createElement("button"); b.className="cos-card"+(isEq?" sel":"");
+    const cv=document.createElement("canvas"); cv.width=120; cv.height=120; b.appendChild(cv);
+    const cc=cv.getContext("2d"); drawCreature(cc, hk, 60, 66, 40, {t:0}); drawCosmetic(cc, key, 60, 66, 40, 0);
+    const nm=document.createElement("div"); nm.className="cos-name"; nm.textContent=c.icon+" "+c.name; b.appendChild(nm);
+    const st=document.createElement("div"); st.className="cos-status"; st.textContent=isEq?"✅ 已裝備":isOwned?"點我裝備":("🎟 "+c.pp+" 點"); if(!isOwned) st.style.color=getPassPts()>=c.pp?"#ffd54f":"#ff8a65"; b.appendChild(st);
+    b.onclick=()=>{ if(!isOwned){ if(getPassPts()>=c.pp){ setPassPts(getPassPts()-c.pp); const o=cosOwned(); o.push(key); cosOwnedSet(o); if(window.__sfx)window.__sfx.play("levelup"); buildPassShop(); } else if(window.__sfx) window.__sfx.play("back"); return; }
+      cosEquipSet(hk, isEq?"":key); if(window.__sfx)window.__sfx.play(isEq?"back":"levelup"); buildPassShop(); updateLobby(); };
+    return b; }
+  function buildPassShop(){ const wrap=document.getElementById("passGrid"); if(!wrap) return; wrap.innerHTML="";
+    const hk=HEROES[featured].key, owned=cosOwned(), equipped=cosEquipOf(hk);
+    const v=document.getElementById("passPtsVal"); if(v) v.textContent="🎟 通行證點數 "+getPassPts();
+    const hn=document.getElementById("passHero"); if(hn) hn.textContent="正在打扮："+HEROES[featured].name;
+    wrap.appendChild(mkCosCard(null, owned, equipped, hk));   // 「不穿」選項沿用一般卡
+    PASS_COSMETICS.forEach(c=> wrap.appendChild(mkPassCard(c, owned, equipped, hk))); }
+  function openPassShop(){ const p=document.getElementById("passShop"); if(!p) return; buildPassShop(); p.classList.remove("hide"); }
+  function closePassShop(){ const p=document.getElementById("passShop"); if(p) p.classList.add("hide"); }
   function updateLobby(){ const h=HEROES[featured];
     document.getElementById("hsName").textContent=h.name;
     document.getElementById("hsType").textContent=TYPE[h.type];
@@ -1208,6 +1263,10 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   { const cb=document.getElementById("navCostume"); if(cb) cb.onclick=openCostumeShop;
     const cc=document.getElementById("costumeClose"); if(cc) cc.onclick=closeCostumeShop;
     const cs=document.getElementById("costumeShop"); if(cs) cs.addEventListener("pointerdown",(e)=>{ if(e.target===cs) closeCostumeShop(); }); }   // 服裝店開關
+  { const pb=document.getElementById("navPass"); if(pb) pb.onclick=openPassShop;
+    const pc=document.getElementById("passClose"); if(pc) pc.onclick=closePassShop;
+    const ps=document.getElementById("passShop"); if(ps) ps.addEventListener("pointerdown",(e)=>{ if(e.target===ps) closePassShop(); });   // 通行證開關
+    const dp=document.getElementById("dailyToPass"); if(dp) dp.onclick=()=>transition(()=>{ goLobby(); openPassShop(); }); }
   document.getElementById("navUpg").onclick=()=>transition(goUpgrade);
   document.getElementById("upgBack").onclick=()=>transition(goLobby);
   document.getElementById("navDaily").onclick=()=>transition(goDaily);
@@ -1226,11 +1285,14 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   window.__cosmeticOf=(key)=>{ try{ return cosEquipOf(key)||""; }catch(e){ return ""; } };   // 給對戰(moba)讀取某守護者裝備的服裝，讓買的裝飾在戰場也看得到
   window.__heroLevel=(key)=> heroLevel(key);   // 守護者等級（最高 50、永不退級）
   window.__heroTalent=(key)=> talentSummary(key);   // 天賦加成摘要：{path,pathName,tier,mods:{dmg,speed,spCd,dr},active}|null
-  window.__awardEco=(n)=>{ gainEco(n); };
+  window.__awardEco=(n)=>{ gainEco(n); dailyBump("eco",n|0); refreshDailyNav(); };   // 賺保育值同時推進「賺取保育值」任務
   window.__getEco=()=> getEco();
   window.__conservationLevel=()=> Math.floor(getEcoEarned()/100)+1;   // 保育等級（跟結算頁公式一致，供其他模組讀取）
   window.__awardXP=(key,n)=>{ gainXP(key,n|0); };
-  window.__bumpWin=()=>{ try{ localStorage.setItem("shoutu_wins",String(getWins()+1)); }catch(e){} };
+  window.__bumpWin=()=>{ try{ localStorage.setItem("shoutu_wins",String(getWins()+1)); }catch(e){} dailyBump("win",1); refreshDailyNav(); };   // 打贏推進「打贏對戰」任務
+  window.__taskBump=(id,n)=>{ dailyBump(id,n||1); refreshDailyNav(); };   // 給 moba 等模組推進指定任務（如擊敗大首領 boss）
+  // 更新大廳導覽列「任務」徽章的可領取數；daily 畫面開著時一併重繪
+  function refreshDailyNav(){ const cl=dailyClaimable(), nd=document.getElementById("navDaily"); if(nd) nd.textContent=cl>0?("📋 任務 ("+cl+")"):"📋 任務"; if(state==="daily") goDaily(); }
   window.__lobbyRefresh=()=>{ if(state==="lobby"){ updateLobby(); buildRoster(); resizeHeroShow(); } };
   window.addEventListener("keydown",(e)=>{ if(state==="play"){ if(e.key==="ArrowLeft"||e.key==="a")input.left=true; else if(e.key==="ArrowRight"||e.key==="d")input.right=true;
       else if(e.key==="ArrowUp"||e.key==="w"||e.code==="Space"){ e.preventDefault(); heroJump(); } else if(e.key==="j"||e.key==="Enter")heroAttack(); else if(e.key==="k"||e.key==="Shift")heroSpecial(); else if(e.key==="q"||e.key==="Tab"){ e.preventDefault(); swapHero(); } }
