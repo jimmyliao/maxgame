@@ -54,6 +54,9 @@
   let player=null, spawnT=0, restore=0, killCount=0, surgeT=45, finalAssault=false, mshake=0, eliteFlash=0;
   let pickMode="normal", timeAttack=false;
   let battleRegion="paddy", healthBonus=0;   // 復育↔對戰核心循環：戰場棲地健康度影響數值加成
+  // 好友連線（選用）：netRole=null 純單機（預設，行為完全不變）；"host" 本機模擬+定期廣播；"guest" 不跑模擬，只接收快照渲染+送出操控
+  let netRole=null, netGuestHero=null, netBroadcastT=0, netLastRecvT=0, netStale=false;
+  const NET_BROADCAST_MS=130, NET_TIMEOUT_MS=6000;
   const REGION_LABEL={ paddy:"稻田", hill:"淺山", stream:"溪流", wetland:"濕地" };
   function fmtTime(s){ s=Math.max(0,Math.floor(s)); const m=Math.floor(s/60), ss=s%60; return m+":"+(ss<10?"0":"")+ss; }
   function getBest(size){ try{ const v=parseFloat(localStorage.getItem("shoutu_besttime_"+size)); return isNaN(v)?null:v; }catch(e){ return null; } }
@@ -187,6 +190,7 @@
       if(h.t>0) h.t-=dt; if(h.spCd>0) h.spCd-=dt; if(h.hitT>0) h.hitT-=dt; if(h.atkA>0) h.atkA-=dt; if(h.moodT>0) h.moodT-=dt; h.moving=false;
       if(h.invulnT>0) h.invulnT-=dt; if(h.stealthT>0) h.stealthT-=dt;
       if(h.isPlayer){ updatePlayer(h,dt); continue; }
+      if(h===netGuestHero){ updateNetGuestHero(h,dt); continue; }   // 好友連線：這隻由遠端玩家操控，host 端套用其搖桿輸入，不跑 AI
       // AI 守護者：聽從快捷指令（集合/攻擊/撤退），否則優先打靠近苗圃/神木的入侵種
       const dirOn=directive && directive.t>0;
       let tg = (dirOn && directive.type==="focus" && directive.target && !directive.target.dead)
@@ -223,7 +227,45 @@
 
     updateHUD();
     if(restore>=1) endGame(true);
+    // 好友連線：host 端節流廣播戰場快照給朋友（只送畫面重建需要的最小欄位，不是每幀送）
+    if(netRole==="host"){ netBroadcastT-=dt*1000; if(netBroadcastT<=0){ netBroadcastT=NET_BROADCAST_MS; if(window.__netBroadcast) window.__netBroadcast(snapshot()); } }
   }
+
+  /* ---------- 好友連線：快照序列化 / 還原 ---------- */
+  // 只送畫面重建需要的最小欄位（不送 fx/floats/hprojs 等純特效資料，guest 端靠自己收到的 hp/位置變化另外觸發本地特效）
+  function snapshot(){
+    return { t:Math.round(clock*10)/10, restore:Math.round(restore*1000)/1000, kills:killCount,
+      shrineHp:Math.round(shrine.hp), shrineMax:shrine.maxhp,
+      nurseries:nurseries.map(n=>({hp:Math.round(n.hp),max:n.maxhp,growth:Math.round(n.growth*100)/100})),
+      heroes:heroes.map((h,i)=>({i, kind:h.kind, x:Math.round(h.x), y:Math.round(h.y), face:Math.round(h.face*100)/100,
+        hp:Math.round(h.hp), max:h.maxhp, dead:h.dead, lv:h.level||1, name:h.name, isPlayer:!!h.isPlayer, isGuest:h===netGuestHero, moving:h.moving})),
+      invaders:invaders.slice(0,60).map(v=>({kind:v.kind, x:Math.round(v.x), y:Math.round(v.y), face:Math.round(v.face*100)/100,
+        hp:Math.round(v.hp), max:v.maxhp, elite:!!v.elite, moving:v.moving})),
+      ended, win:ended?(restore>=1):null };
+  }
+  // guest 端：用收到的快照直接覆蓋渲染用的陣列/物件，不做本地模擬（reuse render()/drawUnit 等既有繪製函式）
+  function applySnapshot(s){
+    if(!s) return; netLastRecvT=performance.now(); netStale=false;
+    clock=s.t||0; restore=clamp(s.restore||0,0,1); killCount=s.kills||0;
+    if(shrine){ shrine.hp=s.shrineHp||0; shrine.maxhp=s.shrineMax||shrine.maxhp; }
+    if(Array.isArray(s.nurseries)) nurseries.forEach((n,i)=>{ const d=s.nurseries[i]; if(!d) return; n.hp=d.hp||0; n.maxhp=d.max||n.maxhp; n.growth=d.growth||0; });
+    if(Array.isArray(s.heroes)) heroes=s.heroes.map(d=>{ const base=mkHero(d.kind,d.isPlayer); base.x=d.x; base.y=d.y; base.face=d.face||0;
+      base.hp=d.hp; base.maxhp=d.max||base.maxhp; base.dead=!!d.dead; base.level=d.lv||1; base.name=d.name||base.name; base.moving=!!d.moving;
+      if(d.isGuest) netGuestHero=base; return base; });
+    if(Array.isArray(s.invaders)) invaders=s.invaders.map(d=>{ const v=mkInvader(d.kind,d.elite); v.x=d.x; v.y=d.y; v.face=d.face||0; v.hp=d.hp; v.maxhp=d.max||v.maxhp; v.moving=!!d.moving; return v; });
+    player=heroes.find(h=>h.isPlayer)||heroes[0]||null;
+    if(player){ const vw=VW/zoom, vh=VH/zoom, focus=player.dead?shrine:player;
+      cam.x=clamp(focus.x-vw/2,0,Math.max(0,MW-vw)); cam.y=clamp(focus.y-vh/2,0,Math.max(0,MH-vh)); }
+    updateHUD();
+    if(s.ended && !ended){ ended=true; running=false; cancelAnimationFrame(raf);
+      showOver(s.win?"🌳 棲地復原成功！":"神木倒下了…", s.win?"枯黃的土地重新長回翠綠":"棲地失守",
+        s.win?"你和朋友一起驅逐了外來入侵種、守住台灣神木與復育苗圃！":"別氣餒，再約朋友一起守一次吧。"); }
+  }
+  window.__netApplySnapshot=applySnapshot;   // net.js 收到 Firebase 資料後呼叫這個把畫面更新成 host 廣播的內容
+  // guest 端：把本機搖桿/技能輸入送給 net.js 節流上傳到 rooms/<code>/inputs/<uid>；host 端收到後寫進 netGuestInput 套用
+  window.__netSetGuestInput=(inp)=>{ if(!inp) return; netGuestInput.mvx=inp.mvx||0; netGuestInput.mvy=inp.mvy||0; if(inp.sp) netGuestInput.sp=true; if(inp.back) netGuestInput.back=true; };
+  window.__netLocalInput=()=>{ const inp={ mvx:mv.x, mvy:mv.y, sp:wantSp, back:wantBack }; wantSp=false; wantBack=false; return inp; };
+  window.__netCheckStale=()=>{ if(netRole!=="guest"||!netLastRecvT) return false; netStale=(performance.now()-netLastRecvT)>NET_TIMEOUT_MS; return netStale; };
 
   function updatePlayer(h,dt){
     const mag=Math.hypot(mv.x,mv.y);
@@ -231,6 +273,18 @@
     keepIn(h);
     if(wantBack){ wantBack=false; h.x=shrine.x; h.y=shrine.y+100; h.hp=h.maxhp; ring(h.x,h.y,46,"#80deea"); toast("回到神木旁・補滿體力"); }
     if(wantSp){ wantSp=false; if(h.spCd<=0) castSp(h); }
+    const tg=nearestInvader(h,h.range+60);
+    h.aim=(tg && tg.d<=h.range+tg.e.r+40 && !tg.e.dead)? tg.e : null;
+    if(tg && tg.d<=h.range+tg.e.r && h.t<=0) meleeHit(h,tg.e,h.dmg);
+  }
+  // 好友連線：host 端套用遠端朋友的搖桿/技能輸入到朋友操控的那隻守護者身上（結構同 updatePlayer，資料來源是 netGuestInput 而非本機 mv/wantSp）
+  let netGuestInput={mvx:0,mvy:0,sp:false,back:false};
+  function updateNetGuestHero(h,dt){
+    const ix=netGuestInput.mvx||0, iy=netGuestInput.mvy||0, mag=Math.hypot(ix,iy);
+    if(mag>0.12){ const ang=Math.atan2(iy,ix); h.face=ang; const s=h.speed*Math.min(1,mag); h.x+=Math.cos(ang)*s*dt; h.y+=Math.sin(ang)*s*dt; h.moving=true; h.anim+=dt; }
+    keepIn(h);
+    if(netGuestInput.back){ netGuestInput.back=false; h.x=shrine.x; h.y=shrine.y+100; h.hp=h.maxhp; ring(h.x,h.y,46,"#80deea"); }
+    if(netGuestInput.sp){ netGuestInput.sp=false; if(h.spCd<=0) castSp(h); }
     const tg=nearestInvader(h,h.range+60);
     h.aim=(tg && tg.d<=h.range+tg.e.r+40 && !tg.e.dead)? tg.e : null;
     if(tg && tg.d<=h.range+tg.e.r && h.t<=0) meleeHit(h,tg.e,h.dmg);
@@ -587,10 +641,20 @@
   function txt(id,v){ const el=document.getElementById(id); if(el) el.textContent=v; }
 
   /* ---------- 迴圈 / 流程 ---------- */
-  function loop(ts){ if(!running) return; const dt=Math.min(0.04,(ts-lastT)/1000||0); lastT=ts; step(dt); render(); raf=requestAnimationFrame(loop); }
-  function start(size){ root.classList.remove("mhide"); hide("mpick"); hide("mover"); zoom=1; resize(); setup(size); running=true; ended=false; lastT=0; raf=requestAnimationFrame(loop); }
+  function loop(ts){ if(!running) return; const dt=Math.min(0.04,(ts-lastT)/1000||0); lastT=ts;
+    if(netRole==="guest"){ if(window.__netCheckStale&&window.__netCheckStale()) toast("⚠ 對方已離線…"); render(); }
+    else { step(dt); render(); }
+    raf=requestAnimationFrame(loop); }
+  function start(size){ netRole=null; netGuestHero=null; root.classList.remove("mhide"); hide("mpick"); hide("mover"); zoom=1; resize(); setup(size); running=true; ended=false; lastT=0; raf=requestAnimationFrame(loop); }
+  // 好友連線：host 端跟 start() 幾乎一樣（照舊本機模擬），但額外標記 netRole 以便定期廣播 + 收朋友輸入；guestKind 指定哪個位置是朋友操控
+  function startNetHost(size,guestKind){ start(size); netRole="host"; netBroadcastT=0;
+    netGuestHero=heroes.find(h=>!h.isPlayer && h.kind===guestKind) || heroes.find(h=>!h.isPlayer) || null; }
+  // 好友連線：guest 端不跑本機模擬，畫面完全來自 host 廣播的快照；先用一個佔位場景渲染，等第一份快照送達再覆蓋
+  function startNetGuest(size){ netRole="guest"; netGuestHero=null; root.classList.remove("mhide"); hide("mpick"); hide("mover"); zoom=1; resize(); setup(size); running=true; ended=false; lastT=0; netLastRecvT=performance.now(); netStale=false; raf=requestAnimationFrame(loop); }
   function stop(){ running=false; cancelAnimationFrame(raf); }
-  function exitToLobby(){ stop(); root.classList.add("mhide"); hide("mover"); hide("mpick"); mv.x=mv.y=0; if(window.__lobbyRefresh) window.__lobbyRefresh(); }
+  function exitToLobby(){ stop(); const wasNet=!!netRole; netRole=null; netGuestHero=null; root.classList.add("mhide"); hide("mover"); hide("mpick"); mv.x=mv.y=0;
+    if(wasNet && window.__netOnExit) window.__netOnExit();   // 好友連線對戰結束/離開：讓 net.js 收尾房間與監聽器
+    if(window.__lobbyRefresh) window.__lobbyRefresh(); }
   function endGame(win){ if(ended) return; ended=true; running=false; cancelAnimationFrame(raf);
     const key=(window.__featuredKey&&window.__featuredKey())||"leopard", before=(window.__heroLevel&&window.__heroLevel(key))||1;
     if(win){ const eco=teamSize*20+killCount, xp=60+teamSize*10+killCount;
@@ -673,5 +737,5 @@
   window.addEventListener("keydown",(e)=>{ if(!running) return; if(e.key==="ArrowLeft"||e.key==="a")mv.x=-1; else if(e.key==="ArrowRight"||e.key==="d")mv.x=1; else if(e.key==="ArrowUp"||e.key==="w")mv.y=-1; else if(e.key==="ArrowDown"||e.key==="s")mv.y=1; else if(e.key==="k"||e.key==="Shift")wantSp=true; else if(e.key==="b")wantBack=true; });
   window.addEventListener("keyup",(e)=>{ if(["ArrowLeft","a","ArrowRight","d"].includes(e.key))mv.x=0; if(["ArrowUp","w","ArrowDown","s"].includes(e.key))mv.y=0; });
 
-  window.MOBA={ start, exit:exitToLobby };
+  window.MOBA={ start, exit:exitToLobby, startNetHost, startNetGuest };
 })();
