@@ -51,7 +51,7 @@
   /* ---------- 狀態 ---------- */
   let running=false, raf=0, lastT=0, clock=0, teamSize=3, ended=false;
   let shrine=null, nurseries=[], heroes=[], invaders=[], fx=[], floats=[], hprojs=[];
-  let player=null, spawnT=0, restore=0, killCount=0, surgeT=45, finalAssault=false, mshake=0;
+  let player=null, spawnT=0, restore=0, killCount=0, surgeT=45, finalAssault=false, mshake=0, eliteFlash=0;
   let pickMode="normal", timeAttack=false;
   function fmtTime(s){ s=Math.max(0,Math.floor(s)); const m=Math.floor(s/60), ss=s%60; return m+":"+(ss<10?"0":"")+ss; }
   function getBest(size){ try{ const v=parseFloat(localStorage.getItem("shoutu_besttime_"+size)); return isNaN(v)?null:v; }catch(e){ return null; } }
@@ -79,7 +79,7 @@
   function edgePoint(){ const s=Math.floor(Math.random()*4), u=Math.random();
     if(s===0) return {x:u*MW,y:20}; if(s===1) return {x:u*MW,y:MH-20}; if(s===2) return {x:20,y:u*MH}; return {x:MW-20,y:u*MH}; }
 
-  function setup(size){ teamSize=size; clock=0; ended=false; restore=0; killCount=0; spawnT=2; surgeT=42; finalAssault=false; directive=null; directiveCd=0; bubble=null; timeAttack=(pickMode==="time");
+  function setup(size){ teamSize=size; clock=0; ended=false; restore=0; killCount=0; spawnT=2; surgeT=42; finalAssault=false; directive=null; directiveCd=0; bubble=null; eliteFlash=0; timeAttack=(pickMode==="time");
     fx=[]; floats=[]; invaders=[]; hprojs=[];
     shrine={ x:SHX, y:SHY, r:76, hp:1400, maxhp:1400, kind:"shrine", hitT:0 };
     nurseries=NPOS.map(p=>({ x:p.x, y:p.y, r:34, hp:340, maxhp:340, growth:0.15, contested:false, kind:"nursery" }));
@@ -131,10 +131,11 @@
 
   /* ---------- 更新 ---------- */
   function step(dt){
-    if(ended) return; clock+=dt; if(mshake>0) mshake=Math.max(0,mshake-dt*38);
+    if(ended) return; clock+=dt; if(mshake>0) mshake=Math.max(0,mshake-dt*38); if(eliteFlash>0) eliteFlash=Math.max(0,eliteFlash-dt*1.6);
     // 入侵浪潮：更兇、隨時間加速、精英「入侵種王」
     const RK=()=>INVADERS[Math.floor(Math.random()*INVADERS.length)];
-    const pushInv=(el)=>{ if(invaders.length<80) invaders.push(mkInvader(RK(),el)); };
+    const pushInv=(el)=>{ if(invaders.length<80){ const v=mkInvader(RK(),el); invaders.push(v);
+      if(el){ eliteFlash=0.5; mshake=Math.max(mshake,7); toast("👑 "+KNAME[v.kind]+"王　降臨！"); } } };
     spawnT-=dt;
     if(spawnT<=0){ const ramp=Math.min(1,clock/110); spawnT=Math.max(0.8, 3.0-ramp*2.0);
       const n=2+(Math.random()<ramp?1:0); for(let i=0;i<n;i++) pushInv(false);
@@ -290,6 +291,12 @@
     // 神木瀕危：紅色警示閃動
     if(shrine.hp/shrine.maxhp<0.3){ const pl=0.5+0.5*Math.sin(clock*6); const rv=ctx.createRadialGradient(VW/2,VH/2,VH*0.3,VW/2,VH/2,VH*0.78);
       rv.addColorStop(0,"rgba(255,0,0,0)"); rv.addColorStop(1,"rgba(255,0,0,"+(0.26*pl).toFixed(3)+")"); ctx.fillStyle=rv; ctx.fillRect(0,0,VW,VH); }
+    // 入侵種王登場：動漫式衝擊閃光 + 邊角速度線
+    if(eliteFlash>0){ const a=eliteFlash/0.5;
+      ctx.fillStyle="rgba(120,0,20,"+(0.5*a).toFixed(3)+")"; ctx.fillRect(0,0,VW,VH);
+      ctx.strokeStyle="rgba(255,60,60,"+(0.8*a).toFixed(3)+")"; ctx.lineWidth=3;
+      for(let i=0;i<10;i++){ const ang=i/10*6.283, cx2=VW/2, cy2=VH/2, r0=Math.min(VW,VH)*0.15, r1=Math.max(VW,VH)*0.75*a+r0;
+        ctx.beginPath(); ctx.moveTo(cx2+Math.cos(ang)*r0,cy2+Math.sin(ang)*r0); ctx.lineTo(cx2+Math.cos(ang)*r1,cy2+Math.sin(ang)*r1); ctx.stroke(); } }
     if(toastT>0){ toastT-=0.016; if(toastT<=0){ const el=document.getElementById("mtoast"); if(el) el.classList.remove("show"); } }
   }
 
@@ -505,7 +512,14 @@
     ctx.drawImage(oc,-R2,-R2,R2*2,R2*2);
     ctx.restore();
   }
-  function drawUnit(u,r,isInv){ drawCreatureTop(u,r,isInv?"inv":"ally"); const R=r*kcfg(u.kind).sz;
+  function drawUnit(u,r,isInv){ const R0=r*kcfg(u.kind).sz;
+    if(isInv && u.elite){ // 入侵種王：不祥暗紅光環，隨時提醒這是大威脅
+      const pl=0.5+0.5*Math.sin(clock*3+u.phase);
+      const aura=ctx.createRadialGradient(u.x,u.y,R0*0.4,u.x,u.y,R0*2.2);
+      aura.addColorStop(0,"rgba(180,0,30,"+(0.16+0.1*pl).toFixed(3)+")"); aura.addColorStop(1,"rgba(180,0,30,0)");
+      ctx.fillStyle=aura; ctx.beginPath(); ctx.arc(u.x,u.y,R0*2.2,0,7); ctx.fill();
+      ctx.strokeStyle="rgba(255,40,40,"+(0.35+0.25*pl).toFixed(3)+")"; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(u.x,u.y,R0*1.35,0,7); ctx.stroke(); }
+    drawCreatureTop(u,r,isInv?"inv":"ally"); const R=R0;
     if(isInv){ if(u.elite){ ctx.fillStyle="#ffca28"; ctx.font="bold 11px sans-serif"; ctx.textAlign="center"; ctx.fillText("👑"+KNAME[u.kind]+"王",u.x,u.y-R-12); }
       if(u.hp<u.maxhp) bar(u.x,u.y-R-8,u.elite?40:26,u.hp/u.maxhp,"#ff8a80");
       if(u.stun>0){ ctx.fillStyle="#ffe082"; for(let s=0;s<3;s++){ const a=clock*7+s*2.1; ctx.beginPath(); ctx.arc(u.x+Math.cos(a)*R*0.9,u.y-R-2+Math.sin(a)*3,2.4,0,7); ctx.fill(); } } } }

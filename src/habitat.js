@@ -26,18 +26,24 @@
                sky:["#f4b483","#9fb1c8"], nightSky:["#211a2c","#2d2436"], ground:["#6f7e88","#3a525c"] },
   };
 
+  const REGION_KEYS = Object.keys(REGION_INFO);
   const $ = (id) => document.getElementById(id);
   const now = () => Date.now();
   const clamp=(v,a,b)=>v<a?a:v>b?b:v;
 
-  /* ---------- 資料 / 成長邏輯（純時間函數，離線正確、不需模擬 tick） ---------- */
-  function load(){ try{ const raw=localStorage.getItem("shoutu_habitat_v1"); if(raw){ const d=JSON.parse(raw); if(d && Array.isArray(d.tiles) && d.tiles.length===N){ if(!d.region) d.region="paddy"; return d; } } }catch(e){}
-    const t=now(); const tiles=[];
+  /* ---------- 資料 / 成長邏輯（純時間函數，離線正確、不需模擬 tick） =====
+     每個地區各自獨立一塊 16 格田地，成長與收成互不干擾——要輪流照顧四個地區。 */
+  function freshTiles(){ const t=now(); const tiles=[];
     for(let i=0;i<N;i++){ if(i%5===0) tiles.push({state:"invasive"}); else tiles.push({state:"unplanted", emptySince:t}); }
-    return { tiles, region:"paddy" };
+    return tiles; }
+  function load(){ try{ const raw=localStorage.getItem("shoutu_habitat_v2"); if(raw){ const d=JSON.parse(raw);
+      if(d && d.regions && REGION_KEYS.every(k=>Array.isArray(d.regions[k]) && d.regions[k].length===N)){ if(!d.current) d.current="paddy"; return d; } } }catch(e){}
+    const regions={}; for(const k of REGION_KEYS) regions[k]=freshTiles();
+    return { regions, current:"paddy" };
   }
-  function save(d){ try{ localStorage.setItem("shoutu_habitat_v1", JSON.stringify(d)); }catch(e){} }
+  function save(d){ try{ localStorage.setItem("shoutu_habitat_v2", JSON.stringify(d)); }catch(e){} }
   let data = load();
+  function curTiles(){ return data.regions[data.current]; }
 
   function weatherNow(){ const t=Math.floor(now()/WEATHER_PERIOD_MS); const pat=["sunny","sunny","rain","cloudy","sunny","rain"]; return pat[((t%pat.length)+pat.length)%pat.length]; }
   function isNight(){ const h=new Date().getHours(); return h<6||h>=18; }
@@ -85,7 +91,7 @@
   const spots = Array.from({length:N},(_,i)=>({ i, popT:0, sway:hash(i,3)*6.28 }));
 
   function paintBackground(t){
-    const info=REGION_INFO[data.region]||REGION_INFO.paddy, night=isNight(), w=weatherNow();
+    const info=REGION_INFO[data.current]||REGION_INFO.paddy, night=isNight(), w=weatherNow();
     const pal= night? info.nightSky : info.sky;
     const sky=ctx.createLinearGradient(0,0,0,VH*0.34); sky.addColorStop(0,pal[0]); sky.addColorStop(1,pal[1]);
     ctx.fillStyle=sky; ctx.fillRect(0,0,VW,VH*0.36);
@@ -106,7 +112,7 @@
     const ga=(night? shade(info.ground[0],-40): info.ground[0]), gb=(night? shade(info.ground[1],-40): info.ground[1]);
     const g=ctx.createLinearGradient(0,VH*0.30,0,VH); g.addColorStop(0,ga); g.addColorStop(1,gb); ctx.fillStyle=g; ctx.fillRect(0,VH*0.30,VW,VH*0.70);
     // 各地區專屬地貌特徵（不只換色，要看得出是哪種棲地）
-    drawTerrain(data.region, night);
+    drawTerrain(data.current, night);
     // 天氣色調
     if(w==="rain") ctx.fillStyle="rgba(60,90,130,0.16)"; else if(w==="cloudy") ctx.fillStyle="rgba(80,80,90,0.12)"; else ctx.fillStyle="rgba(255,220,140,0.05)";
     ctx.fillRect(0,0,VW,VH);
@@ -196,14 +202,14 @@
 
   function drawSapling(kind,x,y,s,sway,pop){ drawSpecies(kind,x,y,s*0.6,sway,false,pop); }
 
-  function drawSpot(sp){ const tile=data.tiles[sp.i], st=stageOf(tile), pos=spotPos(sp.i), s=pos.scale*18, sway=sp.sway+performance.now()/1000;
+  function drawSpot(sp){ const tile=curTiles()[sp.i], st=stageOf(tile), pos=spotPos(sp.i), s=pos.scale*18, sway=sp.sway+performance.now()/1000;
     const ripe = st==="mature" && storedOf(tile)>0;
     if(sp.popT>0) sp.popT=Math.max(0,sp.popT-0.05);
     if(st==="invasive") drawInvasive(pos.x,pos.y,pos.scale,sway);
     else if(st==="empty") drawEmpty(pos.x,pos.y,pos.scale);
     else if(st==="sprout") drawSprout(pos.x,pos.y,pos.scale,sway);
-    else if(st==="sapling") drawSapling(REGION_INFO[data.region].shape,pos.x,pos.y,pos.scale,sway,sp.popT);
-    else { drawSpecies(REGION_INFO[data.region].shape,pos.x,pos.y,pos.scale,sway,ripe,sp.popT);
+    else if(st==="sapling") drawSapling(REGION_INFO[data.current].shape,pos.x,pos.y,pos.scale,sway,sp.popT);
+    else { drawSpecies(REGION_INFO[data.current].shape,pos.x,pos.y,pos.scale,sway,ripe,sp.popT);
       if(ripe){ const pl=0.5+0.5*Math.sin(performance.now()/300); ctx.save(); ctx.globalAlpha=0.5+0.4*pl; ctx.fillStyle="#fff59d";
         ctx.beginPath(); ctx.arc(pos.x,pos.y-18*pos.scale,3*pos.scale,0,7); ctx.fill(); ctx.restore();
         const stv=storedOf(tile); ctx.font="bold "+Math.round(11*pos.scale)+"px sans-serif"; ctx.textAlign="center"; ctx.fillStyle="#ffd54f"; ctx.strokeStyle="rgba(0,0,0,.6)"; ctx.lineWidth=3;
@@ -224,33 +230,43 @@
 
   /* ---------- HUD 文字 ---------- */
   function applyTheme(){
-    const info=REGION_INFO[data.region]||REGION_INFO.paddy, night=isNight(), w=weatherNow(), wm=WMETA[w];
-    document.querySelectorAll(".hregion").forEach(b=>b.classList.toggle("on", b.dataset.r===data.region));
+    const info=REGION_INFO[data.current]||REGION_INFO.paddy, night=isNight(), w=weatherNow(), wm=WMETA[w];
+    document.querySelectorAll(".hregion").forEach(b=>b.classList.toggle("on", b.dataset.r===data.current));
     $("habWeather") && ($("habWeather").textContent=(night?"🌙 夜間":"☀️ 白天")+"　"+wm.icon+" "+wm.txt);
     $("habSpecies") && ($("habSpecies").textContent="🌳 本區培育："+info.plant+"——"+info.fact);
   }
   function updateHUD(){ let totalW=0, totalStored=0;
-    for(let i=0;i<N;i++){ const tile=data.tiles[i], st=stageOf(tile);
+    for(let i=0;i<N;i++){ const tile=curTiles()[i], st=stageOf(tile);
       totalW += st==="mature"?1:st==="sapling"?0.6:st==="sprout"?0.3:0;
       if(st==="mature") totalStored += storedOf(tile); }
-    const pct=Math.round(totalW/N*100);
-    $("habRestoreTxt") && ($("habRestoreTxt").textContent="復原度 "+pct+"%");
+    const pct=Math.round(totalW/N*100), label=(REGION_INFO[data.current]||REGION_INFO.paddy).label;
+    $("habRestoreTxt") && ($("habRestoreTxt").textContent=label+"復原度 "+pct+"%");
     $("habRestoreBar") && ($("habRestoreBar").style.width=pct+"%");
-    $("habEcoTxt") && ($("habEcoTxt").textContent="🌿 可收成 "+totalStored);
+    $("habEcoTxt") && ($("habEcoTxt").textContent="🌿 本區可收成 "+totalStored);
+    updateRegionBadges();
+  }
+  // 每個地區獨立顯示自己的狀態小標：紅=有入侵種待清、金=有成熟可收成——四塊地要輪流照顧，考驗分配注意力
+  function updateRegionBadges(){
+    document.querySelectorAll(".hregion").forEach(b=>{ const key=b.dataset.r, tiles=data.regions[key]; if(!tiles) return;
+      let invasive=0, ripe=0; for(const tile of tiles){ const st=stageOf(tile); if(st==="invasive") invasive++; else if(st==="mature") ripe+=storedOf(tile)>0?1:0; }
+      const badge=b.querySelector(".hbadge"); if(!badge) return;
+      if(invasive>0){ badge.textContent=invasive; badge.className="hbadge warn show"; }
+      else if(ripe>0){ badge.textContent=ripe; badge.className="hbadge show"; }
+      else badge.className="hbadge"; });
   }
 
   /* ---------- 互動 ---------- */
   function hitTest(px,py){ let best=-1,bd=26; for(const sp of spots){ const pos=spotPos(sp.i); const d=Math.hypot(px-pos.x,py-(pos.y-10*pos.scale)); const rad=16*pos.scale+14; if(d<rad && d<bd){ bd=d; best=sp.i; } } return best; }
-  function tap(i){ const tile=data.tiles[i], st=stageOf(tile);
+  function tap(i){ const tile=curTiles()[i], st=stageOf(tile);
     if(st==="invasive"){ tile.state="unplanted"; tile.emptySince=now(); }
     else if(st==="empty"){ tile.state="planted"; tile.plantedAt=now(); tile.lastCollect=now(); delete tile.emptySince; }
     else if(st==="mature"){ const s=storedOf(tile); if(s>0) harvestTile(i,tile,s); }
     const sp=spots[i]; if(sp) sp.popT=1; save(data); updateHUD(); }
   function harvestTile(i,tile,s){ window.__awardEco && window.__awardEco(s); tile.lastCollect=now();
     const pos=spotPos(i); burstAt(pos.x,pos.y-16*pos.scale);
-    const info=REGION_INFO[data.region]||REGION_INFO.paddy; banner("🧺 收成 "+info.plant+" +"+s+" 保育值！"); }
+    const info=REGION_INFO[data.current]||REGION_INFO.paddy; banner("🧺 收成 "+info.plant+" +"+s+" 保育值！"); }
   function collectAll(){ let total=0, n=0;
-    for(let i=0;i<N;i++){ const tile=data.tiles[i]; if(stageOf(tile)==="mature"){ const s=storedOf(tile); if(s>0){ total+=s; n++; tile.lastCollect=now();
+    for(let i=0;i<N;i++){ const tile=curTiles()[i]; if(stageOf(tile)==="mature"){ const s=storedOf(tile); if(s>0){ total+=s; n++; tile.lastCollect=now();
       const pos=spotPos(i); burstAt(pos.x,pos.y-16*pos.scale); const sp=spots[i]; if(sp) sp.popT=1; } } }
     if(total>0){ window.__awardEco && window.__awardEco(total); banner("🧺 一次收成 "+n+" 棵，共 +"+total+" 保育值！"); } else banner("目前還沒有成熟可收成的植物");
     save(data); updateHUD(); }
@@ -261,7 +277,7 @@
     return { x: VW/2+dx, y: VH/2+dy }; }
   if(cv) cv.addEventListener("pointerdown",(e)=>{ e.preventDefault(); const p=toLocal(e); const i=hitTest(p.x,p.y); if(i>=0) tap(i); },{passive:false});
 
-  function setRegion(r){ if(!REGION_INFO[r]) return; data.region=r; save(data); applyTheme(); banner("🌏 已切換到"+REGION_INFO[r].label+"棲地——培育"+REGION_INFO[r].plant); }
+  function setRegion(r){ if(!REGION_INFO[r]) return; data.current=r; save(data); applyTheme(); banner("🌏 已切換到"+REGION_INFO[r].label+"棲地——培育"+REGION_INFO[r].plant); }
 
   /* ---------- 主迴圈 ---------- */
   let last=0;
