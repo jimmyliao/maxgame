@@ -37,8 +37,10 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
       c.fillStyle="#222"; c.beginPath(); c.arc(ex,ey,r*0.6,0,7); c.fill();
       c.fillStyle="rgba(255,255,255,0.95)"; c.beginPath(); c.arc(ex-r*0.32,ey-r*0.36,r*0.3,0,7); c.fill(); }; // 眼神高光
     const brow=(ex,ey,w)=>{ c.strokeStyle="#3e2723"; c.lineWidth=s*0.05; c.beginPath(); c.moveTo(ex-w,ey-2); c.lineTo(ex+w,ey+2); c.stroke(); };
+    // 共用左上打光漸層 + 細邊描邊：所有角色統一光源方向、脫離「平塗貼紙」感
+    const rg=(x0,y0,r,a,b)=>{ const g=c.createRadialGradient(x0-r*0.35,y0-r*0.4,r*0.1,x0,y0,r); g.addColorStop(0,a); g.addColorStop(1,b); return g; };
+    const edge=(col)=>{ c.strokeStyle=col||"rgba(0,0,0,0.16)"; c.lineWidth=s*0.022; c.stroke(); };
     if(kind==="leopard"){
-      const rg=(x0,y0,r,a,b)=>{ const g=c.createRadialGradient(x0-r*0.35,y0-r*0.4,r*0.1,x0,y0,r); g.addColorStop(0,a); g.addColorStop(1,b); return g; };
       // 尾巴（後方）+ 環紋
       c.lineCap="round"; c.strokeStyle="#d9974a"; c.lineWidth=s*0.18;
       c.beginPath(); c.moveTo(s*0.32,s*0.5); c.quadraticCurveTo(s*0.92,s*0.46,s*0.82,-s*0.06); c.stroke();
@@ -88,25 +90,47 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
       c.strokeStyle="rgba(255,255,255,0.85)"; c.lineWidth=s*0.014;
       for(const dy of [-0.03,0.03]){ c.beginPath(); c.moveTo(-s*0.13,-s*0.1+dy*s); c.lineTo(-s*0.44,-s*0.14+dy*s*1.8); c.moveTo(s*0.13,-s*0.1+dy*s); c.lineTo(s*0.44,-s*0.14+dy*s*1.8); c.stroke(); }
     } else if(kind==="bear"){
-      c.fillStyle="#2b2b2b"; c.beginPath(); c.ellipse(0,s*0.35,s*0.6,s*0.55,0,0,7); c.fill();
-      c.fillStyle="#fafafa"; c.beginPath(); c.moveTo(-s*0.18,s*0.1); c.lineTo(0,s*0.5); c.lineTo(s*0.18,s*0.1); c.closePath(); c.fill();
-      c.fillStyle="#2b2b2b"; c.beginPath(); c.arc(0,-s*0.28,s*0.5,0,7); c.fill();
-      c.beginPath(); c.arc(-s*0.42,-s*0.55,s*0.18,0,7); c.arc(s*0.42,-s*0.55,s*0.18,0,7); c.fill();
-      c.fillStyle="#8d6e63"; c.beginPath(); c.ellipse(0,-s*0.1,s*0.28,s*0.22,0,0,7); c.fill();
-      c.fillStyle="#222"; c.beginPath(); c.ellipse(0,-s*0.18,s*0.09,s*0.07,0,0,7); c.fill();
-      eye(-s*0.2,-s*0.34,s*0.09); eye(s*0.2,-s*0.34,s*0.09);
+      const earWag=Math.sin(t*4+(o.ph||0))*0.05;   // 耳朵隨時間微幅擺動，讀既有 o.t，不動合約
+      // 身體（漸層打光，黑毛不再是死黑一片）
+      c.fillStyle=rg(-s*0.14,s*0.05,s*0.68,"#4a4642","#161513"); c.beginPath(); c.ellipse(0,s*0.35,s*0.6,s*0.55,0,0,7); c.fill(); edge();
+      // 胸口 V 字白斑（台灣黑熊最大特徵，用曲線取代直線三角形）
+      c.fillStyle="#f6f3ec"; c.beginPath(); c.moveTo(-s*0.2,s*0.06); c.quadraticCurveTo(-s*0.02,s*0.28,-s*0.03,s*0.52); c.quadraticCurveTo(0,s*0.56,s*0.03,s*0.52); c.quadraticCurveTo(s*0.02,s*0.28,s*0.2,s*0.06); c.quadraticCurveTo(0,s*0.16,-s*0.2,s*0.06); c.fill();
+      // 頭
+      c.fillStyle=rg(-s*0.12,-s*0.42,s*0.54,"#4d4844","#18130f"); c.beginPath(); c.arc(0,-s*0.28,s*0.5,0,7); c.fill(); edge();
+      // 耳朵（外殼+內耳兩層，帶微幅搖擺）
+      c.save(); c.translate(-s*0.42,-s*0.55); c.rotate(earWag); c.fillStyle="#211d19"; c.beginPath(); c.arc(0,0,s*0.19,0,7); c.fill(); edge();
+        c.fillStyle="#6b5a52"; c.beginPath(); c.arc(0,s*0.02,s*0.1,0,7); c.fill(); c.restore();
+      c.save(); c.translate(s*0.42,-s*0.55); c.rotate(-earWag); c.fillStyle="#211d19"; c.beginPath(); c.arc(0,0,s*0.19,0,7); c.fill(); edge();
+        c.fillStyle="#6b5a52"; c.beginPath(); c.arc(0,s*0.02,s*0.1,0,7); c.fill(); c.restore();
+      // 口吻（淺棕漸層+深色鼻頭+嘴線）
+      c.fillStyle=rg(0,-s*0.14,s*0.3,"#a1876f","#7a6153"); c.beginPath(); c.ellipse(0,-s*0.1,s*0.28,s*0.22,0,0,7); c.fill();
+      c.fillStyle="#1c1512"; c.beginPath(); c.ellipse(0,-s*0.18,s*0.09,s*0.07,0,0,7); c.fill();
+      c.strokeStyle="#3a2e26"; c.lineWidth=s*0.022; c.beginPath(); c.moveTo(0,-s*0.12); c.lineTo(0,-s*0.04); c.quadraticCurveTo(-s*0.06,0,-s*0.1,-s*0.03); c.moveTo(0,-s*0.04); c.quadraticCurveTo(s*0.06,0,s*0.1,-s*0.03); c.stroke();
+      // 深棕虹膜（區別於通用 eye()）
+      const bEye=(ex)=>{ c.fillStyle="#fff"; c.beginPath(); c.ellipse(ex,-s*0.34,s*0.1,s*0.11,0,0,7); c.fill();
+        c.fillStyle="#4a2f1c"; c.beginPath(); c.arc(ex,-s*0.34,s*0.075,0,7); c.fill();
+        c.fillStyle="#1a1008"; c.beginPath(); c.arc(ex,-s*0.34,s*0.04,0,7); c.fill();
+        c.fillStyle="rgba(255,255,255,0.9)"; c.beginPath(); c.arc(ex-s*0.028,-s*0.38,s*0.026,0,7); c.fill(); };
+      bEye(-s*0.2); bEye(s*0.2);
       if(mood==="angry"){ brow(-s*0.2,-s*0.48,s*0.12); brow(s*0.2,-s*0.48,s*0.12); }
     } else if(kind==="cicada"){
-      c.fillStyle="rgba(220,240,200,.55)"; c.beginPath(); c.ellipse(-s*0.35,s*0.1,s*0.5,s*0.24,-0.5,0,7); c.fill();
-      c.beginPath(); c.ellipse(s*0.35,s*0.1,s*0.5,s*0.24,0.5,0,7); c.fill();
-      c.fillStyle="#7cb342"; c.beginPath(); c.ellipse(0,s*0.05,s*0.3,s*0.5,0,0,7); c.fill();
-      c.fillStyle="#558b2f"; c.beginPath(); c.arc(0,-s*0.35,s*0.32,0,7); c.fill();
+      // 翅膀：加翅脈線，不再是純色半透明色塊
+      const wing=(a)=>{ c.save(); c.rotate(a); c.fillStyle=rg(s*0.2,0,s*0.5,"rgba(235,248,225,.7)","rgba(210,232,195,.35)"); c.beginPath(); c.ellipse(s*0.45,0,s*0.42,s*0.13,0,0,7); c.fill();
+        c.strokeStyle="rgba(120,150,100,0.45)"; c.lineWidth=s*0.01; for(const r of [0.2,0.45,0.7]){ c.beginPath(); c.moveTo(s*0.06,0); c.lineTo(s*0.06+s*0.75*r,-s*0.1*r+s*0.02); c.stroke(); } c.restore(); };
+      wing(-0.5); wing(0.5);
+      c.fillStyle=rg(-s*0.1,-s*0.1,s*0.34,"#9ccc65","#4c7a24"); c.beginPath(); c.ellipse(0,s*0.05,s*0.3,s*0.5,0,0,7); c.fill(); edge("rgba(0,0,0,0.2)");
+      c.fillStyle=rg(-s*0.1,-s*0.42,s*0.36,"#6fa03a","#33581a"); c.beginPath(); c.arc(0,-s*0.35,s*0.32,0,7); c.fill(); edge("rgba(0,0,0,0.2)");
       eye(-s*0.2,-s*0.38,s*0.12); eye(s*0.2,-s*0.38,s*0.12);
       if(mood==="angry"){ brow(-s*0.2,-s*0.54,s*0.12); brow(s*0.2,-s*0.54,s*0.12); }
     } else if(kind==="dragonfly"){
-      c.fillStyle="rgba(180,235,245,.5)"; for(const a of [-0.6,0.6,-1.0,1.0]){ c.save(); c.rotate(a); c.beginPath(); c.ellipse(s*0.45,0,s*0.42,s*0.13,0,0,7); c.fill(); c.restore(); }
-      c.fillStyle="#26c6da"; c.beginPath(); c.ellipse(0,s*0.2,s*0.13,s*0.6,0,0,7); c.fill();
-      c.fillStyle="#00acc1"; c.beginPath(); c.arc(0,-s*0.42,s*0.26,0,7); c.fill();
+      // 翅膀：加放射翅脈 + 漸層透明感
+      const dwing=(a)=>{ c.save(); c.rotate(a); c.fillStyle=rg(s*0.2,0,s*0.5,"rgba(210,245,250,.65)","rgba(180,230,240,.28)"); c.beginPath(); c.ellipse(s*0.45,0,s*0.42,s*0.13,0,0,7); c.fill();
+        c.strokeStyle="rgba(100,180,190,0.5)"; c.lineWidth=s*0.009; for(const r of [0.3,0.55,0.8]){ c.beginPath(); c.moveTo(s*0.05,0); c.lineTo(s*0.05+s*0.78*r,-s*0.08*r); c.stroke(); } c.restore(); };
+      for(const a of [-0.6,0.6,-1.0,1.0]) dwing(a);
+      c.fillStyle=rg(-s*0.05,s*0.05,s*0.35,"#4dd8ec","#00838f"); c.beginPath(); c.ellipse(0,s*0.2,s*0.13,s*0.6,0,0,7); c.fill(); edge("rgba(0,0,0,0.22)");
+      c.fillStyle=rg(-s*0.08,-s*0.48,s*0.3,"#2fd0e4","#006d7a"); c.beginPath(); c.arc(0,-s*0.42,s*0.26,0,7); c.fill(); edge("rgba(0,0,0,0.22)");
+      // 暖色細邊：讓冷色系的勾蜓在深色背景不會「隱形」
+      c.strokeStyle="rgba(255,220,150,0.3)"; c.lineWidth=s*0.02; c.beginPath(); c.ellipse(0,s*0.2,s*0.13,s*0.6,0,0,7); c.moveTo(s*0.26,-s*0.42); c.arc(0,-s*0.42,s*0.26,0,7); c.stroke();
       eye(-s*0.16,-s*0.46,s*0.14); eye(s*0.16,-s*0.46,s*0.14);
       if(mood==="angry"){ brow(-s*0.16,-s*0.62,s*0.12); brow(s*0.16,-s*0.62,s*0.12); }
     } else if(kind==="snail"){
@@ -136,27 +160,38 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
       c.strokeStyle="#222"; c.lineWidth=s*0.08; c.beginPath(); c.moveTo(-s*0.4,-s*0.28); c.quadraticCurveTo(-s*0.85,-s*0.2,-s*0.8,s*0.15); c.stroke();
       eye(-s*0.18,-s*0.34,s*0.08); brow(-s*0.18,-s*0.46,s*0.1);
     } else if(kind==="deer"){
-      c.fillStyle="#c8884a"; c.beginPath(); c.ellipse(0,s*0.32,s*0.5,s*0.44,0,0,7); c.fill();
+      // 身體（漸層打光）+ 胸腹淺色 + 加大加亮的梅花斑（原本太小太淡，60px 縮圖幾乎看不見）
+      c.fillStyle=rg(-s*0.15,s*0.1,s*0.62,"#dc9c58","#a8672f"); c.beginPath(); c.ellipse(0,s*0.32,s*0.5,s*0.44,0,0,7); c.fill(); edge();
       c.fillStyle="#f5e2c8"; c.beginPath(); c.ellipse(0,s*0.42,s*0.26,s*0.3,0,0,7); c.fill();
-      c.fillStyle="#fff6e6"; for(const p of [[-0.26,0.18],[0.24,0.16],[-0.1,0.34],[0.12,0.36],[-0.28,0.42]]){ c.beginPath(); c.arc(p[0]*s,p[1]*s,s*0.045,0,7); c.fill(); }
-      c.strokeStyle="#a86a36"; c.lineWidth=s*0.1; c.lineCap="round"; c.beginPath(); c.moveTo(-s*0.2,s*0.6); c.lineTo(-s*0.22,s*0.78); c.moveTo(s*0.2,s*0.6); c.lineTo(s*0.22,s*0.78); c.stroke();
-      c.fillStyle="#c8884a"; c.beginPath(); c.ellipse(0,-s*0.18,s*0.18,s*0.26,0,0,7); c.fill();
-      c.beginPath(); c.ellipse(0,-s*0.42,s*0.26,s*0.22,0,0,7); c.fill();
-      c.beginPath(); c.ellipse(-s*0.26,-s*0.5,s*0.1,s*0.16,-0.4,0,7); c.fill(); c.beginPath(); c.ellipse(s*0.26,-s*0.5,s*0.1,s*0.16,0.4,0,7); c.fill();
-      c.strokeStyle="#8a5a2a"; c.lineWidth=s*0.05; c.beginPath(); c.moveTo(-s*0.12,-s*0.56); c.lineTo(-s*0.16,-s*0.74); c.moveTo(-s*0.16,-s*0.66); c.lineTo(-s*0.26,-s*0.72); c.moveTo(s*0.12,-s*0.56); c.lineTo(s*0.16,-s*0.74); c.moveTo(s*0.16,-s*0.66); c.lineTo(s*0.26,-s*0.72); c.stroke();
+      c.fillStyle="#fffaf0"; for(const p of [[-0.28,0.14,1.15],[0.26,0.12,1.05],[-0.1,0.3,1],[0.14,0.32,0.95],[-0.3,0.4,0.9],[0.3,0.42,0.85],[0,0.05,0.8]]){ c.beginPath(); c.arc(p[0]*s,p[1]*s,s*0.07*p[2],0,7); c.fill();
+        c.strokeStyle="rgba(168,106,54,0.5)"; c.lineWidth=s*0.008; c.stroke(); }
+      // 鹿角（加粗、加分岔，原本太細幾乎消失）
+      c.strokeStyle="#8a5a2a"; c.lineWidth=s*0.11; c.lineCap="round"; c.beginPath(); c.moveTo(-s*0.2,s*0.6); c.lineTo(-s*0.22,s*0.78); c.moveTo(s*0.2,s*0.6); c.lineTo(s*0.22,s*0.78); c.stroke();
+      c.fillStyle=rg(0,-s*0.24,s*0.32,"#dc9c58","#a8672f"); c.beginPath(); c.ellipse(0,-s*0.18,s*0.18,s*0.26,0,0,7); c.fill();
+      c.beginPath(); c.ellipse(0,-s*0.42,s*0.26,s*0.22,0,0,7); c.fill(); edge();
+      c.fillStyle="#c8884a"; c.beginPath(); c.ellipse(-s*0.26,-s*0.5,s*0.1,s*0.16,-0.4,0,7); c.fill(); c.beginPath(); c.ellipse(s*0.26,-s*0.5,s*0.1,s*0.16,0.4,0,7); c.fill();
+      c.strokeStyle="#7a4a1e"; c.lineWidth=s*0.062; c.lineCap="round"; c.beginPath(); c.moveTo(-s*0.12,-s*0.56); c.lineTo(-s*0.16,-s*0.78); c.moveTo(-s*0.16,-s*0.68); c.lineTo(-s*0.28,-s*0.76); c.moveTo(s*0.12,-s*0.56); c.lineTo(s*0.16,-s*0.78); c.moveTo(s*0.16,-s*0.68); c.lineTo(s*0.28,-s*0.76); c.stroke();
       c.fillStyle="#f5e2c8"; c.beginPath(); c.ellipse(0,-s*0.34,s*0.13,s*0.1,0,0,7); c.fill();
-      c.fillStyle="#5d4037"; c.beginPath(); c.ellipse(0,-s*0.3,s*0.05,s*0.04,0,0,7); c.fill();
+      c.fillStyle="#3a281c"; c.beginPath(); c.ellipse(0,-s*0.3,s*0.055,s*0.045,0,0,7); c.fill();
       eye(-s*0.12,-s*0.44,s*0.07); eye(s*0.12,-s*0.44,s*0.07);
       if(mood==="angry"){ brow(-s*0.12,-s*0.54,s*0.08); brow(s*0.12,-s*0.54,s*0.08); }
     } else if(kind==="magpie"){
-      c.strokeStyle="#2962a8"; c.lineWidth=s*0.12; c.lineCap="round"; c.beginPath(); c.moveTo(s*0.2,s*0.4); c.quadraticCurveTo(s*0.7,s*0.6,s*0.95,s*0.18); c.stroke();
-      c.fillStyle="#dbe9f7"; c.beginPath(); c.arc(s*0.95,s*0.18,s*0.06,0,7); c.fill();
-      c.fillStyle="#2f73c4"; c.beginPath(); c.ellipse(-s*0.05,s*0.25,s*0.4,s*0.42,0,0,7); c.fill();
-      c.fillStyle="#dbe9f7"; c.beginPath(); c.ellipse(-s*0.05,s*0.36,s*0.2,s*0.26,0,0,7); c.fill();
-      c.fillStyle="#235a9e"; c.beginPath(); c.ellipse(-s*0.22,s*0.22,s*0.18,s*0.3,-0.3,0,7); c.fill();
-      c.strokeStyle="#e53935"; c.lineWidth=s*0.05; c.beginPath(); c.moveTo(-s*0.12,s*0.62); c.lineTo(-s*0.12,s*0.76); c.moveTo(s*0.06,s*0.62); c.lineTo(s*0.06,s*0.76); c.stroke();
-      c.fillStyle="#1a1a1a"; c.beginPath(); c.arc(0,-s*0.28,s*0.3,0,7); c.fill();
-      c.fillStyle="#e53935"; c.beginPath(); c.moveTo(s*0.26,-s*0.3); c.lineTo(s*0.48,-s*0.24); c.lineTo(s*0.26,-s*0.17); c.closePath(); c.fill();
+      const tailWag=Math.sin(t*3+(o.ph||0))*0.04;
+      // 長尾羽（藍鵲招牌特徵，加粗、加層次、帶微幅擺動）
+      c.save(); c.rotate(tailWag);
+      c.strokeStyle="#1d4f8f"; c.lineWidth=s*0.15; c.lineCap="round"; c.beginPath(); c.moveTo(s*0.2,s*0.4); c.quadraticCurveTo(s*0.7,s*0.62,s*0.98,s*0.16); c.stroke();
+      c.strokeStyle="#2f73c4"; c.lineWidth=s*0.09; c.beginPath(); c.moveTo(s*0.2,s*0.4); c.quadraticCurveTo(s*0.7,s*0.6,s*0.95,s*0.18); c.stroke();
+      c.fillStyle="#dbe9f7"; c.beginPath(); c.arc(s*0.97,s*0.17,s*0.07,0,7); c.fill();
+      c.restore();
+      // 身體（漸層打光，藍羽更有光澤感）
+      c.fillStyle=rg(-s*0.2,s*0.05,s*0.46,"#4a94e0","#1d4f8f"); c.beginPath(); c.ellipse(-s*0.05,s*0.25,s*0.4,s*0.42,0,0,7); c.fill(); edge("rgba(0,0,0,0.22)");
+      c.fillStyle="#eef5fc"; c.beginPath(); c.ellipse(-s*0.05,s*0.36,s*0.2,s*0.26,0,0,7); c.fill();
+      c.fillStyle=rg(-s*0.28,s*0.14,s*0.26,"#3a7ecb","#1a4a86"); c.beginPath(); c.ellipse(-s*0.22,s*0.22,s*0.18,s*0.3,-0.3,0,7); c.fill();
+      c.strokeStyle="#e53935"; c.lineWidth=s*0.055; c.lineCap="round"; c.beginPath(); c.moveTo(-s*0.12,s*0.62); c.lineTo(-s*0.12,s*0.78); c.moveTo(s*0.06,s*0.62); c.lineTo(s*0.06,s*0.78); c.stroke();
+      // 頭（黑羽也給一點漸層，不是死黑）
+      c.fillStyle=rg(-s*0.1,-s*0.36,s*0.32,"#3a3a3a","#0d0d0d"); c.beginPath(); c.arc(0,-s*0.28,s*0.3,0,7); c.fill(); edge("rgba(0,0,0,0.3)");
+      c.fillStyle="#e53935"; c.beginPath(); c.moveTo(s*0.26,-s*0.3); c.lineTo(s*0.5,-s*0.24); c.lineTo(s*0.26,-s*0.15); c.closePath(); c.fill();
+      c.strokeStyle="#a82420"; c.lineWidth=s*0.015; c.stroke();
       eye(-s*0.02,-s*0.32,s*0.08);
       if(mood==="angry"){ brow(-s*0.02,-s*0.44,s*0.1); }
     }
