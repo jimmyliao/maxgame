@@ -87,8 +87,8 @@
   #mtoast{ position:absolute; left:50%; top:24%; transform:translateX(-50%); font-size:20px; font-weight:900; color:#fff;
     text-shadow:0 2px 6px #000; pointer-events:none; opacity:0; transition:opacity .3s; text-align:center; white-space:nowrap; }
   #mtoast.show{ opacity:1; }
-  #mpick .row{ margin:6px 0; } #mpick .btn{ min-width:120px; font-size:20px; }
-  .mode-tab{ font-size:15px; padding:9px 16px; opacity:.55; }
+  #mpick{ padding:12px 20px; } #mpick .row{ margin:4px 0; } #mpick .btn{ min-width:110px; font-size:16px; margin-top:8px; padding:9px 20px; }
+  .mode-tab{ font-size:12.5px; padding:6px 12px; opacity:.55; }
   .mode-tab.on{ opacity:1; background:#2e7d32; box-shadow:0 4px 0 #1b5e20; }
   #coopJoinRow.hide{ display:none; }
   /* 棲地基地：全螢幕場景（跟 MOBA 同一套滿版做法），UI 浮在畫面上而不佔版位 */
@@ -158,9 +158,9 @@
   .scr{ position:absolute; inset:0; z-index:10; display:flex; flex-direction:column; align-items:center; justify-content:center;
     text-align:center; padding:20px; background:rgba(7,20,12,.92); overflow:auto; }
   .scr.hide{ display:none; }
-  .scr h1{ font-size:28px; letter-spacing:2px; margin-bottom:6px; }
-  .scr h2{ font-size:16px; color:#a5d6a7; margin-bottom:14px; }
-  .scr p{ font-size:14px; line-height:1.7; color:#c8e6c9; max-width:460px; margin-bottom:8px; }
+  .scr h1{ font-size:22px; letter-spacing:1.5px; margin-bottom:4px; }
+  .scr h2{ font-size:13px; color:#a5d6a7; margin-bottom:9px; }
+  .scr p{ font-size:12.5px; line-height:1.5; color:#c8e6c9; max-width:460px; margin-bottom:6px; }
   .btn{ margin-top:12px; background:#43a047; color:#fff; border:none; padding:12px 28px; font-size:16px; font-weight:800;
     border-radius:30px; cursor:pointer; box-shadow:0 4px 0 #2e7d32; }
   .btn:active{ transform:translateY(2px); box-shadow:0 2px 0 #2e7d32; }
@@ -208,9 +208,16 @@
   #lobby .lb-bottom{ position:absolute; left:0; right:0; bottom:0; z-index:2; display:flex; flex-direction:column;
     align-items:center; padding:0 16px 14px; padding-bottom:max(14px,env(safe-area-inset-bottom));
     background:linear-gradient(rgba(7,20,12,0), rgba(7,20,12,.55) 30%, rgba(7,20,12,.85)); }
-  #lobby .hero-name{ font-size:26px; font-weight:900; color:#fff; text-shadow:0 3px 10px rgba(0,0,0,.7); }
-  #lobby .hero-name .ht{ font-size:15px; color:#ffd54f; margin-left:8px; }
-  #lobby .hero-tag{ font-size:13px; color:#d4ecc4; margin-top:4px; text-align:center; padding:0 12px; text-shadow:0 1px 4px rgba(0,0,0,.6); }
+  #lobby .hero-name{ font-size:22px; font-weight:900; color:#fff; text-shadow:0 3px 10px rgba(0,0,0,.7); }
+  #lobby .hero-name .ht{ font-size:13px; color:#ffd54f; margin-left:8px; }
+  #lobby .hero-tag{ font-size:11.5px; color:#d4ecc4; margin-top:2px; text-align:center; padding:0 12px; text-shadow:0 1px 4px rgba(0,0,0,.6); }
+  /* 橫向時螢幕高度變短，大廳底部這一整疊（名稱/圖鑑列/按鈕/導覽）要壓縮，角色本體才不會被擋住 */
+  #app.rot #lobby .lb-bottom{ padding-bottom:6px; }
+  #app.rot #lobby .roster{ padding:5px 0 6px; gap:6px; }
+  #app.rot #lobby .rb{ width:38px; height:38px; border-radius:11px; }
+  #app.rot #lobby .play-btn{ padding:9px; font-size:16px; }
+  #app.rot #lobby .lobby-nav.primary{ margin-top:5px; } #app.rot #lobby .lobby-nav.secondary{ margin-top:4px; }
+  #app.rot #lobby .navb{ padding:7px 6px; font-size:11.5px; } #app.rot #lobby .navb.sm{ padding:5px 4px; font-size:10px; }
   #lobby .roster{ display:flex; gap:9px; justify-content:center; padding:11px 0 12px; flex-wrap:wrap; }
   #lobby .rb{ width:56px; height:56px; border-radius:16px; border:2px solid rgba(255,255,255,.22);
     background:radial-gradient(circle at 50% 30%, rgba(255,255,255,.12), rgba(0,0,0,.4) 70%); cursor:pointer; padding:0; overflow:hidden;

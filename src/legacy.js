@@ -665,10 +665,12 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     for(let i=0;i<28;i++){ const sp=14+(i%5)*6; const yy=Hd-((tt*sp+i*73)%(Hd+40)); const xx=((i*137.5)%Wd)+Math.sin(tt*0.8+i)*14; const tw=0.3+0.7*(0.5+0.5*Math.sin(tt*3+i)); g.fillStyle=(i%4===0)?"rgba(255,213,120,"+(tw*0.85).toFixed(3)+")":"rgba(170,230,150,"+(tw*0.6).toFixed(3)+")"; g.beginPath(); g.arc(xx,yy,1.4+1.3*tw,0,7); g.fill(); }
     g.restore();
     // 自適應安全區：量測下方名稱列(.lb-bottom)實際位置，角色一律落在它上方，永不擋字
-    const topBound=Hd*0.13; let lbTop=Hd*0.62;
-    const lbEl=document.querySelector("#lobby .lb-bottom");
-    if(lbEl && heroShow){ const r=lbEl.getBoundingClientRect(), cr=heroShow.getBoundingClientRect();
-      const t=(r.top-cr.top)*(Hd/Math.max(1,cr.height)); if(t>topBound+60) lbTop=t; }
+    // 旋轉橫向時，getBoundingClientRect 量到的是「螢幕座標」，跟畫布內部橫向座標系軸向不一致
+    // （90度旋轉會讓寬高軸互換），量測比例會失真，改用針對橫向版面調校過的安全值，不用動態量測。
+    const topBound=Hd*0.1; let lbTop=rot? Hd*0.4 : Hd*0.62;
+    if(!rot){ const lbEl=document.querySelector("#lobby .lb-bottom");
+      if(lbEl && heroShow){ const r=lbEl.getBoundingClientRect(), cr=heroShow.getBoundingClientRect();
+        const t=(r.top-cr.top)*(Hd/Math.max(1,cr.height)); if(t>topBound+60) lbTop=t; } }
     const region=Math.max(90, lbTop-topBound);
     // 角色尺寸與站位都由安全區推導
     const s=Math.min(Math.min(Wd,Hd)*0.2, region*0.42), h=HEROES[featured];
