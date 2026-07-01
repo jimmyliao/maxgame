@@ -1194,7 +1194,18 @@
     if(isInv){ if(u.elite){ ctx.fillStyle="#ffca28"; ctx.font="bold 11px sans-serif"; ctx.textAlign="center"; ctx.fillText("👑"+KNAME[u.kind]+"王",u.x,u.y-R-12); }
       if(u.hp<u.maxhp) bar(u.x,u.y-R-8,u.elite?40:26,u.hp/u.maxhp,"#ff8a80");
       if(u.stun>0){ ctx.fillStyle="#ffe082"; for(let s=0;s<3;s++){ const a=clock*7+s*2.1; ctx.beginPath(); ctx.arc(u.x+Math.cos(a)*R*0.9,u.y-R-2+Math.sin(a)*3,2.4,0,7); ctx.fill(); } } } }
+  // 服裝店買的裝飾在戰場也看得到：畫在守護者頭上/周圍（螢幕空間、不隨朝向旋轉），純程序繪製無粒子洩漏
+  function drawCosmeticTop(x,y,R,key){ const t=clock; ctx.save();
+    if(key==="crown"){ const cy=y-R-4,w=R*0.7,h=R*0.42; ctx.fillStyle="#ffd54f"; ctx.strokeStyle="#b8860b"; ctx.lineWidth=1.4;
+      ctx.beginPath(); ctx.moveTo(x-w/2,cy); ctx.lineTo(x-w/2,cy-h*0.4); ctx.lineTo(x-w*0.25,cy-h); ctx.lineTo(x,cy-h*0.4); ctx.lineTo(x+w*0.25,cy-h); ctx.lineTo(x+w/2,cy-h*0.4); ctx.lineTo(x+w/2,cy); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+    else if(key==="bow"){ const cy=y-R-4,r=R*0.22; ctx.fillStyle="#ff6f91"; for(const s of[-1,1]){ ctx.beginPath(); ctx.moveTo(x,cy); ctx.lineTo(x+s*r*1.6,cy-r); ctx.lineTo(x+s*r*1.6,cy+r); ctx.closePath(); ctx.fill(); } ctx.fillStyle="#e91e63"; ctx.beginPath(); ctx.arc(x,cy,r*0.5,0,7); ctx.fill(); }
+    else if(key==="wreath"){ const n=8; for(let i=0;i<n;i++){ const a=i/n*6.283+t*0.4; ctx.fillStyle=i%2?"#ffb7c5":"#fff59d"; ctx.beginPath(); ctx.arc(x+Math.cos(a)*R*1.2,y+Math.sin(a)*R*1.2,R*0.11,0,7); ctx.fill(); } }
+    else if(key==="star"){ ctx.globalCompositeOperation="lighter"; for(let i=0;i<6;i++){ const a=t*1.8+i*1.047, tw=0.5+0.5*Math.sin(t*4+i); ctx.fillStyle="rgba(255,240,150,"+tw.toFixed(2)+")"; ctx.beginPath(); ctx.arc(x+Math.cos(a)*R*1.25,y+Math.sin(a)*R*1.25,R*0.1*tw+1,0,7); ctx.fill(); } }
+    else if(key==="leaf"){ for(let i=0;i<5;i++){ const a=t*1.2+i*1.257; ctx.save(); ctx.translate(x+Math.cos(a)*R*1.2,y+Math.sin(a)*R*1.2); ctx.rotate(a+t); ctx.fillStyle=i%2?"#c0894a":"#8a5a2b"; ctx.beginPath(); ctx.ellipse(0,0,R*0.16,R*0.08,0,0,7); ctx.fill(); ctx.restore(); } }
+    else if(key==="snow"){ ctx.fillStyle="rgba(255,255,255,0.9)"; for(let i=0;i<8;i++){ const px=x+(-1+((i*0.27)%2))*R, py=y+(((t*0.5+i*0.4)%2)-1)*R; ctx.beginPath(); ctx.arc(px,py,R*0.05,0,7); ctx.fill(); } }
+    ctx.restore(); }
   function drawHero(h){ const r=h.r, R=r*kcfg(h.kind).sz;
+    if(h._cos===undefined) h._cos=(window.__cosmeticOf&&window.__cosmeticOf(h.kind))||"";   // 一次性快取該守護者的裝備服裝，避免逐幀讀 localStorage
     // 手上握有撿到的守護之力：腳下金色脈動光環，提醒可以按【必殺】
     if(h.ult){ const pl=0.5+0.5*Math.sin(clock*4); ctx.save(); ctx.globalCompositeOperation="lighter";
       const ag=ctx.createRadialGradient(h.x,h.y,R*0.3,h.x,h.y,R*1.9); ag.addColorStop(0,"rgba(255,213,79,"+(0.28+0.15*pl).toFixed(3)+")"); ag.addColorStop(1,"rgba(255,213,79,0)");
@@ -1203,6 +1214,7 @@
     const stealthy=h.stealthT>0; if(stealthy) ctx.globalAlpha=0.4;
     drawCreatureTop(h,r,"ally");
     if(stealthy){ ctx.globalAlpha=1; ctx.fillStyle="#b0bec5"; ctx.font="12px sans-serif"; ctx.textAlign="center"; ctx.fillText("👻",h.x,h.y-R-30); }
+    if(h._cos && !stealthy) drawCosmeticTop(h.x,h.y,R,h._cos);   // 戰場上顯示裝備的服裝
     if(h.shieldT>0){ ctx.strokeStyle="rgba(77,208,225,0.85)"; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(h.x,h.y,R*1.25,0,7); ctx.stroke(); }
     if(h.invulnT>0){ ctx.strokeStyle="rgba(128,222,234,0.7)"; ctx.lineWidth=2; ctx.setLineDash([4,4]); ctx.beginPath(); ctx.arc(h.x,h.y,R*1.15,0,7); ctx.stroke(); ctx.setLineDash([]); }
     ctx.globalAlpha=1;
