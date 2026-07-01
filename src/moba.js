@@ -1234,6 +1234,12 @@
     show("mover"); }
   function show(id){ const e=document.getElementById(id); if(e) e.classList.remove("hide"); }
   function hide(id){ const e=document.getElementById(id); if(e) e.classList.add("hide"); }
+  // 開場 3-2-1 倒數（所有對戰模式共用）：蓋在戰場上數 3→2→1→開始！數完才真正 start()。好友連線走 net.js 自己的倒數，這裡只給單機各模式用。
+  function mCountdown(fn){ const ov=document.getElementById("mCountdown"); if(!ov){ fn(); return; }
+    root.classList.remove("mhide"); hide("mpick"); hide("mover"); ov.classList.remove("hide");
+    const num=document.getElementById("mccNum"); let n=3;
+    (function tick(){ if(n>=1){ if(num){ num.textContent=String(n); num.style.animation="none"; void num.offsetWidth; num.style.animation="ccPop .8s ease"; } n--; setTimeout(tick,700); }
+      else { if(num){ num.textContent="開始！"; num.style.animation="none"; void num.offsetWidth; num.style.animation="ccPop .8s ease"; } setTimeout(()=>{ ov.classList.add("hide"); fn(); },650); } })(); }
 
   /* ---------- 控制：虛擬搖桿 ---------- */
   const stick=document.getElementById("mstick"), knob=document.getElementById("mknob");
@@ -1307,10 +1313,10 @@
     el.textContent="🎯 "+(KNAME[pvePickTarget]||pvePickTarget)+"　第 "+lv+" 關　需驅逐 "+pp.need+" 隻・限時 "+pp.dur+" 秒"+(lv>1?"（越後面越難！）":"");
     el.classList.remove("hide"); }
   document.querySelectorAll("#pveTargets .hregion").forEach(b=>b.addEventListener("pointerdown",(e)=>{ e.preventDefault(); setPveTarget(b.dataset.pv); },{passive:false}));
-  tap("pick3",()=>start(3)); tap("pick5",()=>start(5)); tap("pickBack",()=>hide("mpick"));
-  tap("moverAgain",()=>start(teamSize)); tap("moverHome",exitToLobby);
+  tap("pick3",()=>mCountdown(()=>start(3))); tap("pick5",()=>mCountdown(()=>start(5))); tap("pickBack",()=>hide("mpick"));
+  tap("moverAgain",()=>mCountdown(()=>start(teamSize))); tap("moverHome",exitToLobby);
   // PVE 過關「下一關」：關卡已在 endGamePve 推進並存進 localStorage，start() 會自動載入更難的那關
-  tap("moverNext",()=>start(teamSize));
+  tap("moverNext",()=>mCountdown(()=>start(teamSize)));
   window.addEventListener("keydown",(e)=>{ if(!running) return; if(e.key==="ArrowLeft"||e.key==="a")mv.x=-1; else if(e.key==="ArrowRight"||e.key==="d")mv.x=1; else if(e.key==="ArrowUp"||e.key==="w")mv.y=-1; else if(e.key==="ArrowDown"||e.key==="s")mv.y=1; else if(e.key==="k"||e.key==="Shift")wantSp=true; else if(e.key==="b")wantBack=true; else if(e.key==="j"||e.key===" "){ wantAtk=true; wantAtkT=0.28; } else if(e.key==="l"){ if(player&&player.ult) wantUlt=true; } });
   window.addEventListener("keyup",(e)=>{ if(["ArrowLeft","a","ArrowRight","d"].includes(e.key))mv.x=0; if(["ArrowUp","w","ArrowDown","s"].includes(e.key))mv.y=0; });
 
