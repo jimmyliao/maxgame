@@ -818,17 +818,49 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     const p=document.getElementById("heroPicker"); if(p && !p.classList.contains("hide")) [...document.querySelectorAll("#heroPickerGrid .hp-card")].forEach((b,i)=>b.classList.toggle("sel",i===featured)); }
   function goLobby(){ state="lobby"; setBattleUI(false); show(lobbyScr); buildRoster(); updateLobby(); resizeHeroShow(); }
   const TICKERS=["🌿 石虎全台僅存數百隻，路殺是最大威脅之一","🐻 台灣黑熊胸前的白色 V 是月亮的印記","💧 福壽螺來自南美，是稻田的大害","🦎 綠鬣蜥棄養野化，正衝擊南部生態","🕊 埃及聖䴉搶佔黑面琵鷺的濕地","🪲 爺蟬幼蟲在地下蟄伏多年才羽化"];
+  // ===== 天空主題：依「當地時間(時態)」變色 + 依「時區推測半球」決定季節（皆不需權限：時間讀裝置時鐘、地區讀 Intl 時區） =====
+  function _hx(h){ const n=parseInt(h.slice(1),16); return [n>>16,(n>>8)&255,n&255]; }
+  function _mix(a,b,t){ const A=_hx(a),B=_hx(b); return "rgb("+Math.round(A[0]+(B[0]-A[0])*t)+","+Math.round(A[1]+(B[1]-A[1])*t)+","+Math.round(A[2]+(B[2]-A[2])*t)+")"; }
+  let _seasonCache=null;
+  function localSeason(){ if(_seasonCache) return _seasonCache;
+    let south=false; try{ const tz=(Intl.DateTimeFormat().resolvedOptions().timeZone)||"";
+      south=/Australia|Pacific\/(Auckland|Fiji|Port_Moresby|Noumea)|America\/(Argentina|Sao_Paulo|Santiago|Montevideo|La_Paz|Lima|Asuncion|Bahia|Recife)|Africa\/(Johannesburg|Windhoek|Maputo|Harare|Gaborone|Lusaka)|Antarctica|Indian\/(Mauritius|Reunion|Antananarivo)/.test(tz); }catch(e){}
+    const m=new Date().getMonth(); let s=(m===11||m<2)?3:(m<5)?0:(m<8)?1:2;   // 北半球 0春1夏2秋3冬
+    if(south) s=(s+2)%4; return (_seasonCache=["spring","summer","autumn","winter"][s]); }
+  function skyTheme(){ const d=new Date(), h=d.getHours()+d.getMinutes()/60;
+    const K={ night:{top:"#0e1730",mid:"#1b3a4d",night:1}, dawn:{top:"#43507f",mid:"#e79a72",night:0},
+              day:{top:"#4a90c9",mid:"#a7d3ea",night:0}, dusk:{top:"#33305e",mid:"#e0795a",night:0} };
+    let a,b,f;
+    if(h<5){a=K.night;b=K.night;f=0;} else if(h<7){a=K.night;b=K.dawn;f=(h-5)/2;}
+    else if(h<9){a=K.dawn;b=K.day;f=(h-7)/2;} else if(h<16){a=K.day;b=K.day;f=0;}
+    else if(h<18){a=K.day;b=K.dusk;f=(h-16)/2;} else if(h<20){a=K.dusk;b=K.night;f=(h-18)/2;}
+    else {a=K.night;b=K.night;f=0;}
+    return { top:_mix(a.top,b.top,f), mid:_mix(a.mid,b.mid,f), night:(f<0.5?a.night:b.night), season:localSeason() }; }
+  const SEASON_TINT={ spring:"rgba(255,183,197,0.09)", summer:"rgba(120,220,160,0.07)", autumn:"rgba(230,150,70,0.11)", winter:"rgba(190,215,255,0.11)" };
+  const SEASON_PARTICLE={ spring:"#ffc4d6", summer:"#c8f0a8", autumn:"#e6a24a", winter:"#ffffff" };
+
   function drawLobby(ts){ if(!hsW) resizeHeroShow(); if(!hsW) return;
     const g=hctx, Wd=hsW, Hd=hsH, tt=ts/1000;
-    // 霓虹黃昏天空
-    const sky=g.createLinearGradient(0,0,0,Hd); sky.addColorStop(0,"#15233f"); sky.addColorStop(.4,"#244b5e"); sky.addColorStop(.68,"#3f7a4e"); sky.addColorStop(1,"#1d5a2b");
+    const th=skyTheme();
+    // 天空：隨當地時態（清晨/白天/黃昏/夜晚）變色；下半仍是山林綠地
+    const sky=g.createLinearGradient(0,0,0,Hd); sky.addColorStop(0,th.top); sky.addColorStop(.4,th.mid); sky.addColorStop(.68,"#3f7a4e"); sky.addColorStop(1,"#1d5a2b");
     g.fillStyle=sky; g.fillRect(0,0,Wd,Hd);
-    // 月亮光暈
-    const moon=g.createRadialGradient(Wd*0.76,Hd*0.15,4,Wd*0.76,Hd*0.15,Hd*0.2); moon.addColorStop(0,"rgba(255,247,210,0.95)"); moon.addColorStop(.3,"rgba(255,240,180,0.5)"); moon.addColorStop(1,"rgba(255,240,180,0)");
+    // 太陽/月亮光暈：白天亮暖、夜晚柔黃
+    const orbA=th.night?0.95:0.85, orbCol=th.night?"255,247,210":"255,250,225";
+    const moon=g.createRadialGradient(Wd*0.76,Hd*0.15,4,Wd*0.76,Hd*0.15,Hd*(th.night?0.2:0.26)); moon.addColorStop(0,"rgba("+orbCol+","+orbA+")"); moon.addColorStop(.3,"rgba("+orbCol+",0.5)"); moon.addColorStop(1,"rgba("+orbCol+",0)");
     g.fillStyle=moon; g.fillRect(0,0,Wd,Hd);
-    // 星 / 螢火
-    for(let i=0;i<46;i++){ const x=(i*89.7)%Wd, y=(i*47.3)%(Hd*0.52); const tw=0.4+0.6*(0.5+0.5*Math.sin(tt*2+i*1.3)); g.globalAlpha=tw*0.8; g.fillStyle=i%5===0?"#fff59d":"#ffffff"; g.beginPath(); g.arc(x,y,i%7===0?1.8:1.1,0,7); g.fill(); }
+    // 星星：只有夜晚明顯（白天幾乎看不到）
+    const starMul=th.night?0.85:0.1;
+    for(let i=0;i<46;i++){ const x=(i*89.7)%Wd, y=(i*47.3)%(Hd*0.52); const tw=0.4+0.6*(0.5+0.5*Math.sin(tt*2+i*1.3)); g.globalAlpha=tw*starMul; g.fillStyle=i%5===0?"#fff59d":"#ffffff"; g.beginPath(); g.arc(x,y,i%7===0?1.8:1.1,0,7); g.fill(); }
     g.globalAlpha=1;
+    // 季節微粒：春櫻粉/夏綠光/秋落葉/冬雪，飄落（決定式位置、不 push 陣列，零洩漏）
+    const pc=SEASON_PARTICLE[th.season]||"#ffffff"; g.fillStyle=pc;
+    for(let i=0;i<14;i++){ const px=((i*97.3 + tt*(th.season==="winter"?14:22))%Wd); const py=((i*63.7 + tt*(th.season==="winter"?26:40))%(Hd*0.72)); const sw=Math.sin(tt*1.4+i)*6;
+      g.globalAlpha=0.5; if(th.season==="autumn"){ g.save(); g.translate(px+sw,py); g.rotate(tt+i); g.beginPath(); g.ellipse(0,0,3.4,1.6,0,0,7); g.fill(); g.restore(); }
+      else { g.beginPath(); g.arc(px+sw,py,th.season==="winter"?1.8:2.2,0,7); g.fill(); } }
+    g.globalAlpha=1;
+    // 季節色調：整體天空罩一層極淡的季節色（春粉/夏綠/秋橙/冬藍）
+    g.fillStyle=SEASON_TINT[th.season]||"rgba(0,0,0,0)"; g.fillRect(0,0,Wd,Hd*0.72);
     // 多層遠山
     const ridge=(yB,amp,col)=>{ g.fillStyle=col; g.beginPath(); g.moveTo(0,yB); for(let x=0;x<=Wd;x+=Wd/8){ g.lineTo(x, yB - amp*Math.sin(x/Wd*3.14159) - amp*0.4*Math.sin(x/Wd*9+1)); } g.lineTo(Wd,Hd); g.lineTo(0,Hd); g.closePath(); g.fill(); };
     ridge(Hd*0.5,Hd*0.07,"rgba(30,55,60,0.55)"); ridge(Hd*0.57,Hd*0.06,"rgba(18,52,38,0.7)"); ridge(Hd*0.64,Hd*0.05,"rgba(10,40,26,0.88)");
