@@ -67,7 +67,7 @@ cd /home/user/maxgame && python3 -m http.server 8099   # 開 http://localhost:80
 - 資料結構 `HEROES[] / CH[] / TYPE / ADV / eff()` 欄位不可刪改名；屬性鍵 `forest/water/sky/bug` 與相剋 🌲>💧>🌪>🪲>🌲 不可動。
 - 狀態機 `title/map/dex/story/play/post/lose/result` 與切換函式流程不可破壞。
 - 輸入全用 **Pointer Events** + `e.preventDefault()` + `{passive:false}`；CSS `touch-action:none`、安全區 `env(safe-area-inset-*)` 不可移除；dock 按鈕 id `bLeft/bRight/bSwap/bJump/bSp/bAtk` 不可改名。
-- **單檔零外部資源**：無 CDN／外部 script／img／字型／音檔，所有美術用 canvas 程式繪製。PWA：改檔需同步更新 `sw.js` 的 `ASSETS` 並提升 `CACHE` 版本號。
+- **零外部依賴 + 本地素材（原「單檔零外部資源」已於 Beta 1.0 後修訂）**：不可用 CDN／外部 script／字型／外部網址資源。**美術改為「圖檔優先」**：`assets/heroes|bosses/*.png`（AI 產圖去背，見 `docs/ART-PROMPTS.md`）有圖就用真圖、**沒圖一律 canvas 程式繪製 fallback**（`drawCreature` 內建）。所有圖檔須為 **repo 內本地檔** 且加入 `sw.js` 的 `ASSETS` 預快取（離線 PWA 不破）。改檔一律同步 `sw.js` `ASSETS` 並提升 `CACHE` 版本號。音效仍為程序化 Web Audio（零檔案）。
 - 進度鍵 `localStorage["shoutu_unlocked"]` 不可改名。
 - 粒子/特效必須有**硬上限 + 回收**（禁止每幀無上限 push）。
 

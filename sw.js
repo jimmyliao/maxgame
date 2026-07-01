@@ -1,6 +1,9 @@
 // 守土 Service Worker — 線上優先、離線可玩
-const CACHE = "shoutu-v101";
-const ASSETS = ["./", "./index.html", "./src/fullscreen.js", "./src/sfx.js", "./src/legacy.js", "./src/moba.js", "./src/battleshop.js", "./src/net.js", "./src/habitat.js", "./src/data/types-chart.js", "./manifest.json", "./icon.svg", "./dino.html"];
+const CACHE = "shoutu-v102";
+const ASSETS = ["./", "./index.html", "./src/fullscreen.js", "./src/sfx.js", "./src/legacy.js", "./src/moba.js", "./src/battleshop.js", "./src/net.js", "./src/habitat.js", "./src/data/types-chart.js", "./manifest.json", "./icon.svg", "./dino.html",
+  // 守護者/入侵種寫實插畫（圖檔優先、沒圖時 canvas fallback）：預快取確保離線也看得到
+  "./assets/heroes/leopard.png", "./assets/heroes/bear.png", "./assets/heroes/cicada.png", "./assets/heroes/dragonfly.png", "./assets/heroes/deer.png", "./assets/heroes/magpie.png",
+  "./assets/bosses/snail.png", "./assets/bosses/iguana.png", "./assets/bosses/frog.png", "./assets/bosses/ibis.png"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
