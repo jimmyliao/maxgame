@@ -5,3 +5,13 @@ playwright-report/
 *.log
 .DS_Store
 .claude/worktrees/
+
+# --- AI 產圖工具（tools/gen-image.mjs）：金鑰與產出圖，勿上傳 ---
+# 金鑰檔（環境變數為主，這些為次要方式）
+.env
+.env.*
+*.key
+# AI 產圖輸出（概念/參考圖，勿 commit 大圖、勿進 sw.js ASSETS）
+scratchpad/
+tools/out/
+docs/research/refs/
