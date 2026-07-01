@@ -27,6 +27,10 @@
     frog:{sz:1.08, long:0.82, wide:0.98},     ibis:{sz:1.10, long:1.04, wide:0.58}
   };
   const kcfg=(k)=>KCFG[k]||{sz:1,long:1,wide:0.74};
+  // 圖檔優先：放 assets/top/<kind>.png(俯視角、面向右、去背)就自動改用寫實圖，沒有就用程式圖
+  const SPRITES_TOP={};
+  ["leopard","bear","cicada","dragonfly","deer","magpie","snail","iguana","frog","ibis"].forEach(k=>{
+    try{ const im=new Image(); im.onload=()=>{ if(im.naturalWidth>0) SPRITES_TOP[k]=im; }; im.onerror=()=>{}; im.src="assets/top/"+k+".png"; }catch(e){} });
 
   /* ---------- 視窗 / 世界 ---------- */
   let VW=0, VH=0, dpr=1, rot=false;
@@ -225,7 +229,7 @@
   function render(){
     ctx.clearRect(0,0,VW,VH);
     // 棲地：枯黃(低復原) → 翠綠(高復原)
-    const top=mix("#6f6a44","#3f6b34",restore), bot=mix("#574e30","#2e5226",restore);
+    const top=mix("#8a9a5e","#4a8a3e",restore), bot=mix("#6b7742","#2f6a26",restore);
     const g=ctx.createLinearGradient(0,0,0,VH); g.addColorStop(0,top); g.addColorStop(1,bot); ctx.fillStyle=g; ctx.fillRect(0,0,VW,VH);
     ctx.save(); if(mshake>0) ctx.translate((Math.random()-0.5)*mshake,(Math.random()-0.5)*mshake); ctx.scale(zoom,zoom); ctx.translate(-cam.x,-cam.y);
     drawField();
@@ -306,18 +310,23 @@
       ctx.fillStyle="#fbc02d"; ctx.beginPath(); ctx.arc(x,y,1.8,0,7); ctx.fill(); } }
   function hgrid(i,k){ const s=Math.sin(i*(k===1?127.1:311.7)+k)*43758.5; const f=s-Math.floor(s); return f*(k===1?MW:MH); }
 
-  function drawShrine(n){
-    ctx.fillStyle="rgba(0,0,0,0.3)"; ctx.beginPath(); ctx.ellipse(n.x,n.y+n.r*0.5,n.r*1.1,n.r*0.4,0,0,7); ctx.fill();
-    ctx.fillStyle="#6d4c2f"; ctx.fillRect(n.x-16,n.y-6,32,n.r*0.75);
-    const cols=["#245c28","#39913c","#63bb62"];
-    for(let i=0;i<3;i++){ ctx.fillStyle=cols[i]; const rr=n.r*(1-i*0.2);
-      ctx.beginPath(); ctx.arc(n.x-rr*0.42,n.y-n.r*0.3,rr*0.72,0,7); ctx.arc(n.x+rr*0.42,n.y-n.r*0.3,rr*0.72,0,7); ctx.arc(n.x,n.y-n.r*0.72,rr*0.78,0,7); ctx.fill(); }
-    ctx.fillStyle="rgba(170,220,130,0.5)"; ctx.beginPath(); ctx.arc(n.x-n.r*0.4,n.y-n.r*0.62,n.r*0.42,0,7); ctx.arc(n.x-n.r*0.05,n.y-n.r*0.85,n.r*0.3,0,7); ctx.fill(); // 受光樹冠
-    const gl=ctx.createRadialGradient(n.x,n.y-n.r*0.4,4,n.x,n.y-n.r*0.4,n.r*1.7); gl.addColorStop(0,"rgba(197,225,165,0.4)"); gl.addColorStop(1,"rgba(0,0,0,0)");
-    ctx.fillStyle=gl; ctx.beginPath(); ctx.arc(n.x,n.y-n.r*0.4,n.r*1.7,0,7); ctx.fill();
-    ctx.lineWidth=6; ctx.strokeStyle="rgba(0,0,0,0.4)"; ctx.beginPath(); ctx.arc(n.x,n.y-n.r*0.4,n.r*1.05,0,7); ctx.stroke();
-    ctx.strokeStyle=n.hp/n.maxhp>0.3?"#66bb6a":"#ef5350"; ctx.beginPath(); ctx.arc(n.x,n.y-n.r*0.4,n.r*1.05,-1.57,-1.57+6.283*(n.hp/n.maxhp)); ctx.stroke();
-    ctx.fillStyle="#fff"; ctx.font="bold 16px sans-serif"; ctx.textAlign="center"; ctx.fillText("🌳 台灣神木",n.x,n.y+n.r*0.92);
+  function drawShrine(n){ const R=n.r, INK="#20140c", cx=n.x, cy=n.y-R*0.35;
+    ctx.fillStyle="rgba(0,0,0,0.3)"; ctx.beginPath(); ctx.ellipse(n.x,n.y+R*0.52,R*1.15,R*0.4,0,0,7); ctx.fill();
+    // 樹幹（粗黑描邊 + 高光）
+    ctx.beginPath(); ctx.moveTo(n.x-17,n.y+R*0.56); ctx.lineTo(n.x-13,n.y-R*0.18); ctx.lineTo(n.x+13,n.y-R*0.18); ctx.lineTo(n.x+17,n.y+R*0.56); ctx.closePath();
+    ctx.fillStyle="#6d4c2f"; ctx.fill(); ctx.strokeStyle=INK; ctx.lineWidth=5; ctx.stroke();
+    ctx.fillStyle="#845c38"; ctx.fillRect(n.x-12,n.y-R*0.12,6,R*0.62);
+    // 樹冠：黑輪廓底 → 平塗綠 → 硬邊高光/陰影（漫畫賽璐璐）
+    const clumps=[[-0.46,-0.32,0.62],[0.46,-0.32,0.62],[0,-0.74,0.72],[-0.22,-0.05,0.5],[0.26,-0.02,0.5]];
+    ctx.fillStyle=INK; for(const c of clumps){ ctx.beginPath(); ctx.arc(cx+c[0]*R,cy+c[1]*R,c[2]*R+6,0,7); ctx.fill(); }
+    ctx.fillStyle="#3f9e42"; for(const c of clumps){ ctx.beginPath(); ctx.arc(cx+c[0]*R,cy+c[1]*R,c[2]*R,0,7); ctx.fill(); }
+    ctx.fillStyle="#6fc46a"; for(const c of [[-0.46,-0.5,0.34],[0,-0.92,0.32],[-0.22,-0.3,0.24]]){ ctx.beginPath(); ctx.arc(cx+c[0]*R,cy+c[1]*R,c[2]*R,0,7); ctx.fill(); }
+    ctx.fillStyle="#2c6e2f"; for(const c of [[0.5,-0.12,0.32],[0.32,-0.42,0.26]]){ ctx.beginPath(); ctx.arc(cx+c[0]*R,cy+c[1]*R,c[2]*R,0,7); ctx.fill(); }
+    // 光暈 + 血環
+    const gl=ctx.createRadialGradient(cx,cy,4,cx,cy,R*1.8); gl.addColorStop(0,"rgba(197,225,165,0.28)"); gl.addColorStop(1,"rgba(0,0,0,0)"); ctx.fillStyle=gl; ctx.beginPath(); ctx.arc(cx,cy,R*1.8,0,7); ctx.fill();
+    ctx.lineWidth=6; ctx.strokeStyle="rgba(0,0,0,0.4)"; ctx.beginPath(); ctx.arc(cx,cy,R*1.2,0,7); ctx.stroke();
+    ctx.strokeStyle=n.hp/n.maxhp>0.3?"#66bb6a":"#ef5350"; ctx.beginPath(); ctx.arc(cx,cy,R*1.2,-1.57,-1.57+6.283*(n.hp/n.maxhp)); ctx.stroke();
+    ctx.fillStyle="#fff"; ctx.font="bold 16px sans-serif"; ctx.textAlign="center"; ctx.fillText("🌳 台灣神木",n.x,n.y+R*0.98);
   }
   function drawNursery(n){
     ctx.fillStyle="rgba(0,0,0,0.25)"; ctx.beginPath(); ctx.ellipse(n.x,n.y+n.r*0.4,n.r,n.r*0.4,0,0,7); ctx.fill();
@@ -332,7 +341,7 @@
   }
   // 立體感俯視角生物：全身 + 3D 漸層 + 走路/待機/攻擊/拍翅動畫
   function drawCreatureTop(u,r0,faction){
-    const col=KCOL[u.kind]||"#888", dark=shade(col,-44), lite=shade(col,52);
+    const col=KCOL[u.kind]||"#888", dark=shade(col,-44), lite=shade(col,52), INK="#20140c";
     const cfg=kcfg(u.kind), r=r0*cfg.sz, gt=clock, f=u.face;
     const flyer=(u.kind==="dragonfly"||u.kind==="cicada"), bird=(u.kind==="magpie"||u.kind==="ibis");
     const mammal=(u.kind==="leopard"||u.kind==="bear"||u.kind==="deer"), angry=u.atkA>0;
@@ -341,6 +350,13 @@
     const breath=1+(u.moving?0:Math.sin(gt*2.2+u.phase)*0.03);
     const lunge=u.atkA>0?Math.sin((1-u.atkA/0.2)*3.14159)*r*0.5:0;
     const gy=u.y-bob-(flyer?r*0.5:0);
+    // 圖檔優先：有寫實貼圖就用圖（面向右，依朝向旋轉）
+    const spr=SPRITES_TOP[u.kind];
+    if(spr){ const S=r*2.7*(u.elite?1.15:1);
+      ctx.fillStyle="rgba(0,0,0,0.22)"; ctx.beginPath(); ctx.ellipse(u.x+r*0.2,u.y+r*0.6,r*1.0,r*0.38,0,0,7); ctx.fill();
+      ctx.fillStyle=faction==="inv"?"rgba(239,83,80,0.28)":"rgba(102,187,106,0.34)"; ctx.beginPath(); ctx.ellipse(u.x,u.y+r*0.55,r*1.05,r*0.4,0,0,7); ctx.fill();
+      ctx.save(); ctx.translate(u.x+Math.cos(f)*lunge,gy+Math.sin(f)*lunge*0.4); ctx.rotate(f); if(u.hitT>0) ctx.globalAlpha=0.85;
+      ctx.drawImage(spr,-S/2,-S/2,S,S); ctx.restore(); return; }
     const bLen=r*cfg.long, bW=r*cfg.wide;
     // 影子（方向性、柔和；光源在左上，影子落右下）
     ctx.fillStyle="rgba(0,0,0,0.13)"; ctx.beginPath(); ctx.ellipse(u.x+r*0.28,u.y+r*0.66,bLen*1.08,r*0.42,0,0,7); ctx.fill();
@@ -358,16 +374,15 @@
       const ly=bW*0.98, lxf=bLen*0.42, lxb=bLen*0.5;
       const legs=bird?[[-r*0.05,-ly*0.6,1],[-r*0.05,ly*0.6,-1]]
         :[[lxf,-ly,1],[lxf,ly,-1],[-lxb,-ly,-1],[-lxb,ly,1]];
-      ctx.fillStyle=footCol; ctx.strokeStyle="rgba(0,0,0,0.28)"; ctx.lineWidth=1.2;
+      ctx.fillStyle=footCol; ctx.strokeStyle=INK; ctx.lineWidth=Math.max(1.5,r*0.08);
       for(const L of legs){ ctx.beginPath(); ctx.ellipse(L[0]+L[2]*sw,L[1],lr,lr*1.2,0,0,7); ctx.fill(); ctx.stroke(); } }
-    // 身體（3D 漸層 + 深色描邊 + 頂光）
-    const bg=ctx.createRadialGradient(bLen*0.15,-bW*0.4,r*0.1,0,0,bLen*1.15); bg.addColorStop(0,lite); bg.addColorStop(0.55,col); bg.addColorStop(1,dark);
-    ctx.beginPath(); ctx.ellipse(0,0,bLen,bW,0,0,7); ctx.fillStyle=u.hitT>0?"#fff":bg; ctx.fill();
-    ctx.strokeStyle="rgba(0,0,0,0.38)"; ctx.lineWidth=Math.max(1.3,r*0.08); ctx.stroke();
-    if(u.hitT<=0){ ctx.save(); ctx.globalAlpha=0.45; ctx.fillStyle=lite; ctx.beginPath(); ctx.ellipse(-bLen*0.08,-bW*0.42,bLen*0.56,bW*0.32,0,0,7); ctx.fill(); ctx.restore();
-      // 固定光源(左上)的邊緣受光 + 毛流質感
-      ctx.save(); ctx.rotate(-f); ctx.globalAlpha=0.3; ctx.fillStyle="#fff8e1"; ctx.beginPath(); ctx.ellipse(-bLen*0.32,-bW*0.55,bLen*0.44,bW*0.22,0.4,0,7); ctx.fill(); ctx.restore();
-      if(u.kind==="leopard"||u.kind==="bear"||u.kind==="deer"){ ctx.strokeStyle="rgba(0,0,0,0.09)"; ctx.lineWidth=1; for(let i=-2;i<=2;i++){ ctx.beginPath(); ctx.moveTo(i*bLen*0.22,-bW*0.45); ctx.lineTo(i*bLen*0.22-r*0.05,bW*0.35); ctx.stroke(); } } }
+    // 身體（漫畫賽璐璐：平塗色 + 硬邊高光/陰影 + 粗黑描邊）
+    ctx.beginPath(); ctx.ellipse(0,0,bLen,bW,0,0,7); ctx.fillStyle=u.hitT>0?"#fff":col; ctx.fill();
+    if(u.hitT<=0){ ctx.save(); ctx.clip(); ctx.rotate(-f);   // 光源固定左上
+      ctx.fillStyle=shade(col,-46); ctx.beginPath(); ctx.ellipse(bLen*0.42,bW*0.5,bLen*1.05,bW*1.05,0,0,7); ctx.fill();   // 硬邊陰影(右下)
+      ctx.fillStyle=shade(col,54); ctx.beginPath(); ctx.ellipse(-bLen*0.5,-bW*0.55,bLen*0.62,bW*0.5,0,0,7); ctx.fill();     // 硬邊高光(左上)
+      ctx.restore(); }
+    ctx.strokeStyle=INK; ctx.lineWidth=Math.max(2,r*0.13); ctx.stroke();
     // 背部花紋 / 殼 / 棘
     if(u.kind==="leopard"){ ctx.strokeStyle="rgba(62,40,16,0.6)"; ctx.lineWidth=r*0.05; for(const o of [[-.35,-.25],[-.05,.2],[.15,-.28],[.35,.08],[-.15,-.02],[.2,.35]]){ ctx.beginPath(); ctx.arc(o[0]*bLen*1.15,o[1]*bW*1.35,r*0.1,0,7); ctx.stroke(); } }
     else if(u.kind==="bear"){ ctx.fillStyle="rgba(255,255,255,0.9)"; ctx.beginPath(); ctx.moveTo(bLen*0.35,-bW*0.5); ctx.lineTo(bLen*0.55,0); ctx.lineTo(bLen*0.35,bW*0.5); ctx.lineWidth=r*0.12; ctx.strokeStyle="rgba(255,255,255,0.9)"; ctx.stroke(); } // 胸前白 V
@@ -380,10 +395,12 @@
     const hx=bLen*(bird?0.62:0.72), hr=r*(bird?0.32:0.46);
     // 耳（先畫於頭後：貓/鹿尖耳含粉內耳、熊圓耳）
     if(u.kind==="leopard"||u.kind==="bear"||u.kind==="deer"){ const er=hr*(u.kind==="bear"?0.5:0.44);
-      for(const s of [-1,1]){ ctx.fillStyle=dark; ctx.beginPath(); ctx.arc(hx-hr*0.15,s*hr*0.9,er,0,7); ctx.fill(); ctx.strokeStyle="rgba(0,0,0,0.3)"; ctx.lineWidth=1; ctx.stroke();
+      for(const s of [-1,1]){ ctx.fillStyle=shade(col,10); ctx.beginPath(); ctx.arc(hx-hr*0.15,s*hr*0.9,er,0,7); ctx.fill(); ctx.strokeStyle=INK; ctx.lineWidth=Math.max(1.5,r*0.08); ctx.stroke();
         if(u.kind!=="bear"){ ctx.fillStyle="#e79ab0"; ctx.beginPath(); ctx.arc(hx-hr*0.1,s*hr*0.9,er*0.5,0,7); ctx.fill(); } } }
-    ctx.beginPath(); ctx.arc(hx,0,hr,0,7); ctx.fillStyle=u.hitT>0?"#fff":shade(col,18); ctx.fill();
-    ctx.strokeStyle="rgba(0,0,0,0.34)"; ctx.lineWidth=Math.max(1,r*0.06); ctx.stroke();
+    // 頭（平塗 + 硬邊陰影 + 粗黑描邊）
+    ctx.beginPath(); ctx.arc(hx,0,hr,0,7); ctx.fillStyle=u.hitT>0?"#fff":shade(col,14); ctx.fill();
+    if(u.hitT<=0){ ctx.save(); ctx.clip(); ctx.fillStyle=shade(col,-34); ctx.beginPath(); ctx.arc(hx+hr*0.5,hr*0.5,hr,0,7); ctx.fill(); ctx.restore(); }
+    ctx.strokeStyle=INK; ctx.lineWidth=Math.max(1.6,r*0.09); ctx.stroke();
     // 口鼻（哺乳類頭前突出，增加立體）
     if(mammal){ ctx.fillStyle=u.hitT>0?"#fff":lite; ctx.beginPath(); ctx.ellipse(hx+hr*0.58,0,hr*0.5,hr*0.4,0,0,7); ctx.fill(); ctx.strokeStyle="rgba(0,0,0,0.28)"; ctx.lineWidth=1; ctx.stroke(); }
     // 青蛙凸眼（頭頂兩側）
