@@ -723,6 +723,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   window.__heroLevel=(key)=> heroLevel(key);   // 守護者等級（最高 50、永不退級）
   window.__awardEco=(n)=>{ gainEco(n); };
   window.__getEco=()=> getEco();
+  window.__conservationLevel=()=> Math.floor(getEcoEarned()/100)+1;   // 保育等級（跟結算頁公式一致，供其他模組讀取）
   window.__awardXP=(key,n)=>{ gainXP(key,n|0); };
   window.__bumpWin=()=>{ try{ localStorage.setItem("shoutu_wins",String(getWins()+1)); }catch(e){} };
   window.__lobbyRefresh=()=>{ if(state==="lobby"){ updateLobby(); buildRoster(); resizeHeroShow(); } };

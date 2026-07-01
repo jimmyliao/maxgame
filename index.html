@@ -105,6 +105,11 @@
     font-size:9px; font-weight:900; line-height:15px; padding:0 3px; box-shadow:0 1px 3px rgba(0,0,0,.5); }
   .hbadge.warn{ background:#ef5350; color:#fff; }
   .hbadge.show{ display:block; }
+  .hregion.hide{ display:none; }
+  .hregion.corridor-btn{ background:rgba(93,64,55,.55); }
+  #habUnlockTip.hide{ display:none; }
+  #habUnlockTip{ font-size:11.5px; font-weight:800; color:#1b5e20; background:linear-gradient(90deg,#ffe082,#ffd54f); border-radius:14px;
+    padding:5px 12px; pointer-events:auto; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.4); }
   #habWeather{ font-size:12px; font-weight:800; color:#b3e5fc; text-shadow:0 1px 3px #000; }
   #habSpecies{ font-size:11px; color:#c5e1a5; line-height:1.5; text-align:center; max-width:420px; text-shadow:0 1px 3px #000; }
   #habHeader{ display:flex; justify-content:space-between; width:100%; max-width:380px; font-size:13px; font-weight:800; color:#ffd54f; text-shadow:0 1px 3px #000; }
@@ -118,6 +123,23 @@
     border-radius:18px; padding:14px 26px; font-size:18px; font-weight:900; color:#ffd54f; z-index:50; opacity:0; pointer-events:none; transition:opacity .3s, transform .3s; text-align:center; white-space:nowrap; }
   #habBanner.show{ opacity:1; transform:translate(-50%,0); }
   .htile .hpip{ position:absolute; top:2px; right:4px; font-size:9px; color:#ffd54f; font-weight:800; }
+  /* 生態走廊面板 */
+  #habCorridorPanel{ position:absolute; inset:0; z-index:5; background:rgba(6,16,10,.82); display:flex; align-items:center; justify-content:center; padding:16px; }
+  #habCorridorPanel.hide{ display:none; }
+  #habCorridorCard{ width:100%; max-width:420px; max-height:82vh; overflow:auto; background:rgba(16,34,22,.96); border:2px solid #66bb6a;
+    border-radius:20px; padding:16px; box-shadow:0 10px 30px rgba(0,0,0,.5); }
+  .hc-hdr{ font-size:17px; font-weight:900; color:#ffd54f; display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .hc-hdr span{ font-size:14px; color:#c8e6c9; cursor:pointer; padding:2px 8px; border-radius:10px; background:rgba(255,255,255,.1); }
+  .hc-sub{ font-size:12px; color:#c5e1a5; line-height:1.6; margin-bottom:12px; }
+  .hc-item{ background:rgba(255,255,255,.06); border-radius:14px; padding:10px 12px; margin-bottom:10px; border:1.5px solid rgba(255,255,255,.1); }
+  .hc-item.built{ border-color:#66bb6a; }
+  .hc-item .hc-t{ font-size:14px; font-weight:800; color:#fff; }
+  .hc-item .hc-d{ font-size:11.5px; color:#a5d6a7; line-height:1.5; margin:4px 0 8px; }
+  .hc-item .hc-row{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .hc-item .hc-cost{ font-size:12px; color:#ffd54f; font-weight:800; }
+  .hc-item button{ border:none; border-radius:16px; padding:7px 14px; font-size:12.5px; font-weight:800; cursor:pointer; background:#43a047; color:#fff; box-shadow:0 3px 0 #2e7d32; }
+  .hc-item button:disabled{ background:#546e7a; box-shadow:0 3px 0 #37474f; opacity:.6; cursor:not-allowed; }
+  .hc-item .hc-built-tag{ font-size:12px; font-weight:800; color:#a5d6a7; }
   #moba, #mpick, #mover{ z-index:40; } #mpick, #mover{ z-index:41; }
   .scr{ position:absolute; inset:0; z-index:10; display:flex; flex-direction:column; align-items:center; justify-content:center;
     text-align:center; padding:20px; background:rgba(7,20,12,.92); overflow:auto; }
@@ -404,7 +426,11 @@
       <button class="hregion" data-r="hill">⛰ 淺山<span class="hbadge"></span></button>
       <button class="hregion" data-r="stream">💧 溪流<span class="hbadge"></span></button>
       <button class="hregion" data-r="wetland">🌫 濕地<span class="hbadge"></span></button>
+      <button class="hregion hide" data-r="alpine">🏔 高山寒原<span class="hbadge"></span></button>
+      <button class="hregion hide" data-r="estuary">🦩 濕地河口<span class="hbadge"></span></button>
+      <button class="hregion corridor-btn" id="habCorridorBtn">🌉 生態走廊</button>
     </div>
+    <div id="habUnlockTip" class="hide"></div>
     <div id="habWeather"></div>
     <div id="habSpecies"></div>
     <div id="habHeader">
@@ -417,6 +443,13 @@
   <div id="habBtns">
     <button class="btn sec" id="habBack">返回大廳</button>
     <button class="btn" id="habCollectAll">🧺 全部收成</button>
+  </div>
+</div>
+<div id="habCorridorPanel" class="hide">
+  <div id="habCorridorCard">
+    <div class="hc-hdr">🌉 生態走廊<span id="habCorridorClose">✕</span></div>
+    <p class="hc-sub">花費保育值建造走廊，串聯兩個棲地，讓物種能真正遷徙過去——串通後才會解鎖新棲地分頁與跨物種協力任務。</p>
+    <div id="habCorridorList"></div>
   </div>
 </div></div>
 <div id="habBanner"></div>
