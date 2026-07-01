@@ -589,6 +589,7 @@
     markVisitorSeen(info.id); markVisitHandled(v.region,v.wid);
     v.collected=true; v.phase="out"; v.phaseT=0; v.autoLeftNotified=true;
     burstAt(v.x,v.y-16); burstAt(v.x-8,v.y-10); burstAt(v.x+8,v.y-10);
+    if(window.__sfx) window.__sfx.play(wasNew?"levelup":"pickup");
     showVisitorFact(info,reward,wasNew);
   }
   let visitorPanelT=null;
@@ -689,6 +690,7 @@
   function celebrateStage(st, advanced){
     const multi = advanced>1? ("　連過 "+advanced+" 關！") : "";
     banner("🎉 過關！Lv."+loadStageIdx()+"「"+st.name+"」達成　🏅 稱號："+st.title+"　🌿 +"+st.reward+multi);
+    if(window.__sfx) window.__sfx.play("levelup");
     if(VW&&VH){ for(let k=0;k<3;k++) burstAt(VW*(0.36+0.14*k), VH*0.4); burstAt(VW*0.5,VH*0.32); }
     const p=$("habStagePanel"); if(p){ p.classList.remove("hstg-pop"); void p.offsetWidth; p.classList.add("hstg-pop"); }
   }
@@ -704,10 +706,11 @@
 
   /* ---------- 互動 ---------- */
   function hitTest(px,py){ let best=-1,bd=26; for(const sp of spots){ const pos=spotPos(sp.i); const d=Math.hypot(px-pos.x,py-(pos.y-10*pos.scale)); const rad=16*pos.scale+14; if(d<rad && d<bd){ bd=d; best=sp.i; } } return best; }
+  function sfx(n){ if(window.__sfx) window.__sfx.play(n); }
   function tap(i){ const tile=curTiles()[i], st=stageOf(tile);
-    if(st==="invasive"){ tile.state="unplanted"; tile.emptySince=now(); }
-    else if(st==="empty"){ tile.state="planted"; tile.plantedAt=now(); tile.lastCollect=now(); delete tile.emptySince; }
-    else if(st==="mature"){ const s=storedOf(tile); if(s>0) harvestTile(i,tile,s); }
+    if(st==="invasive"){ tile.state="unplanted"; tile.emptySince=now(); sfx("hit"); }
+    else if(st==="empty"){ tile.state="planted"; tile.plantedAt=now(); tile.lastCollect=now(); delete tile.emptySince; sfx("plant"); }
+    else if(st==="mature"){ const s=storedOf(tile); if(s>0){ harvestTile(i,tile,s); sfx("harvest"); } }
     const sp=spots[i]; if(sp) sp.popT=1; save(data); updateHUD(); }
   function harvestTile(i,tile,s){ const gain=harvestGain(s); window.__awardEco && window.__awardEco(gain); tile.lastCollect=now(); tile.harvestCount=(tile.harvestCount||0)+1;
     data.totalHarvests=(data.totalHarvests||0)+1;
@@ -717,7 +720,7 @@
   function collectAll(){ let total=0, n=0;
     for(let i=0;i<N;i++){ const tile=curTiles()[i]; if(stageOf(tile)==="mature"){ const s=storedOf(tile); if(s>0){ total+=harvestGain(s); n++; tile.lastCollect=now(); tile.harvestCount=(tile.harvestCount||0)+1; data.totalHarvests=(data.totalHarvests||0)+1;
       const pos=spotPos(i); burstAt(pos.x,pos.y-16*pos.scale); const sp=spots[i]; if(sp) sp.popT=1; } } }
-    if(total>0){ window.__awardEco && window.__awardEco(total); banner("🧺 一次收成 "+n+" 棵，共 +"+total+" 保育值！"); } else banner("目前還沒有成熟可收成的植物");
+    if(total>0){ window.__awardEco && window.__awardEco(total); banner("🧺 一次收成 "+n+" 棵，共 +"+total+" 保育值！"); sfx("harvest"); } else banner("目前還沒有成熟可收成的植物");
     save(data); updateHUD(); }
 
   function toLocal(e){ const r=cv.getBoundingClientRect();

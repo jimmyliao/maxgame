@@ -35,6 +35,7 @@
     const player=window.__mobaPlayer && window.__mobaPlayer(); if(!player) return;
     gold-=cost; upgradeLevels[u.key]=(upgradeLevels[u.key]||0)+1;
     u.apply(player);
+    if(window.__sfx) window.__sfx.play("coin");
     if(window.__mobaFx) window.__mobaFx(player.x,player.y);
     if(window.__mobaToast) window.__mobaToast("🛒 購入「"+u.name+"」"+u.desc);
     renderShop(); }
