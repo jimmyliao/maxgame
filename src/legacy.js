@@ -1112,7 +1112,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     if(matchMode){ state="lose"; setBattleUI(false);
       showResult("被擊退了…", boss.name+" 太強", "換隻角色、用對屬性(🌲>💧>🌪>🪲>🌲)再來！<br><br>🌱 "+CONS_INV[boss.kind], "⚔ 再配對", quickMatch); return; }
     state="lose"; setBattleUI(false);
-    showResult("全隊被擊倒了…", CH[chapter].boss.name+"太強了", "撐住！等魔王出招『後』再反擊；按『換手』用屬性剋制牠（🌲>💧>🌪>🪲>🌲）。", "再挑戰一次", ()=>startChapter(chapter)); }
+    showResult("全隊被擊倒了…", CH[chapter].boss.name+"太強了", "撐住！等首領出招『後』再反擊；按『換手』用屬性剋制牠（🌲>💧>🌪>🪲>🌲）。", "再挑戰一次", ()=>startChapter(chapter)); }
   function showResult(title,sub,body,mainTxt,mainFn){ state="result"; show(resultScr);
     document.getElementById("rTitle").textContent=title; document.getElementById("rSub").textContent=sub;
     document.getElementById("rBody").innerHTML=body; const mb=document.getElementById("rMain"); mb.textContent=mainTxt; mb.onclick=()=>transition(mainFn); }
