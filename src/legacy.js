@@ -403,7 +403,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
       status:"台灣特有", fact:"台灣體型最大的蟬之一，鳴聲宏亮可傳數百公尺。幼蟲在地下生活多年才羽化。" },
     { key:"dragonfly", name:"勾蜓", type:"sky", speed:265, atkDmg:6, atkCd:0.3, reach:60, spName:"疾風", spCd:4.5, sp:"dash",
       status:"保育類", fact:"無霸勾蜓是台灣最大的蜻蜓，飛行迅速，是乾淨溪流與濕地的指標生物。" },
-    { key:"deer", name:"梅花鹿", type:"forest", speed:250, atkDmg:8, atkCd:0.36, reach:70, spName:"鹿躍", spCd:4.6, sp:"dash", locked:true, cost:300,
+    { key:"deer", name:"梅花鹿", type:"forest", speed:250, atkDmg:8, atkCd:0.36, reach:70, spName:"鹿躍", spCd:4.6, sp:"dash",
       status:"台灣特有亞種・復育中", fact:"梅花鹿曾因獵捕在野外滅絕，經人工復育後重返墾丁等地，是台灣復育成功的象徵。" },
     { key:"magpie", name:"台灣藍鵲", type:"sky", speed:272, atkDmg:6, atkCd:0.3, reach:62, spName:"群襲", spCd:4.2, sp:"dash", locked:true, cost:400,
       status:"台灣特有・國鳥之一", fact:"台灣藍鵲尾羽極長、藍紅相間，群體護巢性極強，俗稱長尾山娘。" },

@@ -63,7 +63,7 @@
     const heroKey=(window.__featuredKey&&window.__featuredKey())||pickDefaultHero(null);
     // mode:"invite"（好友邀請碼房間）——欄位保留給未來「配對中」房型（如 mode:"quickmatch"）共用同一套 rooms/ schema，不寫死只能靠邀請碼
     await set(ref(fbDb,"rooms/"+code),{ host:uid, mode:"invite", status:"waiting", createdAt:Date.now(),
-      config:{ gameMode:"normal", size:3 },   // 房主可在房間內改：gameMode(模式) 與 size(隊伍人數 1~5)
+      config:{ gameMode:"duel", size:3 },   // 房主可在房間內改：gameMode(模式，預設首領挑戰) 與 size(隊伍人數 1~5)
       players:{ [uid]:{ nick, joinedAt:Date.now(), host:true, heroKey, ready:false } } });
     isHost=true; enterRoom(code);
   }
@@ -95,6 +95,8 @@
       renderRoom(data);
       // guest 端：偵測 status 由 waiting → playing，自動進場開始接收 host 廣播
       if(!isHost && data.status==="playing" && lastStatus!=="playing" && !isNetActive){ const sz=(data.config&&data.config.size)||3; runCountdown(()=>beginGuestSync(sz)); }
+      // guest 端：對戰結束後房主把房間轉回 waiting，正在對戰中的 guest 自動被拉回同一個小隊房間
+      if(!isHost && isNetActive && data.status==="waiting" && lastStatus==="playing"){ returnToRoom(); }
       lastStatus=data.status;
     });
   }
@@ -162,7 +164,7 @@
       else { if(num){ num.textContent="開始！"; num.style.animation="none"; void num.offsetWidth; num.style.animation="ccPop .8s ease"; } if(window.__sfx) window.__sfx.play("go");
         setTimeout(()=>{ ov.classList.add("hide"); countingDown=false; done(); }, 750); } })();
   }
-  const MODE_LABEL={normal:"🌳 復育戰",time:"⏱ 限時挑戰",pve:"🎯 外來種防衛戰"};
+  const MODE_LABEL={normal:"🌳 復育戰",time:"⏱ 限時挑戰",pve:"🎯 外來種防衛戰",duel:"⚔ 首領挑戰"};
   function renderHostCfg(cfg){ const box=$("croomHostCfg"); if(box) box.classList.toggle("readonly",!isHost);
     document.querySelectorAll("#cfgModeGroup .cfg-btn").forEach(b=>b.classList.toggle("on",b.dataset.mode===(cfg.gameMode||"normal")));
     document.querySelectorAll("#cfgSizeGroup .cfg-btn").forEach(b=>b.classList.toggle("on",String(cfg.size||3)===b.dataset.size));
@@ -281,6 +283,27 @@
   async function leaveRoom(){ endNetSync(); await cleanupRoom(); }
   // moba.js 對戰結束/回大廳時呼叫（此時已經在 exitToLobby 內部，不可再呼叫 window.MOBA.exit() 避免遞迴）
   window.__netOnExit=()=>{ endNetSync(); cleanupRoom(); };
+
+  // 對戰結束後「回到同一個小隊」：不解散房間，全員回到 #coopRoom 重新決定要繼續再戰或離開。
+  // 房主負責把房間狀態轉回 waiting、清空所有人的 ready 與上一場的快照/輸入；guest 端會透過 enterRoom 監聽到
+  // status 由 playing→waiting 而自動被拉回房間（見 enterRoom listener）。房主/guest 各自本機先收尾同步。
+  async function returnToRoom(){
+    endNetSync();
+    if(window.MOBA && window.MOBA.toRoom) window.MOBA.toRoom();
+    if(!currentRoom){ hide("coopRoom"); show("coop"); return; }   // 房間已不在（被解散）就退回好友大廳
+    show("coopRoom");
+    if(isHost && window.__fb && fbAuth && fbAuth.currentUser){
+      const { ref, update, remove } = window.__fb;
+      try{
+        const patch={ status:"waiting", updatedAt:Date.now() };
+        Object.keys(roomPlayersCache||{}).forEach(uid=>{ patch["players/"+uid+"/ready"]=false; });
+        await update(ref(fbDb,"rooms/"+currentRoom), patch);
+        try{ await remove(ref(fbDb,"rooms/"+currentRoom+"/state")); }catch(e){}
+        try{ await remove(ref(fbDb,"rooms/"+currentRoom+"/inputs")); }catch(e){}
+      }catch(e){}
+    }
+  }
+  window.__netReturnToRoom=returnToRoom;
 
   // 除錯／QA 用：離線環境無法真連 Firebase 測兩人房間畫面時，用假資料直接餵 renderRoom 驗證 UI 邏輯（不影響正式連線流程）
   window.__netDebugRoom=(data,uid,hostFlag)=>{ isHost=!!hostFlag; roomPlayersCache=(data&&data.players)||{};

@@ -144,6 +144,12 @@
   // 單挑首領戰：只有玩家自己 vs 一隻超強首領，不出一般波次，擊敗首領即勝、時限到或神木倒則敗
   let duelEvent=null;   // {timeLeft, active}
   const DUEL_DUR=100, DUEL_BOSSES=["python","iguana","canetoad","ibis"], BOSS_NOVA_R=210;
+  // 首領挑戰難度晉級：每打贏一場自動升一級，首領越來越強；最高「大師」級（全域共用一個進度，離線保存）
+  const DUEL_TIERS=["見習","初階","中階","高階","大師"];
+  function getDuelLevel(){ try{ const v=parseInt(localStorage.getItem("shoutu_duel_level")||"1",10); return Math.min(DUEL_TIERS.length,Math.max(1,isNaN(v)?1:v)); }catch(e){ return 1; } }
+  function setDuelLevel(v){ try{ localStorage.setItem("shoutu_duel_level",String(Math.min(DUEL_TIERS.length,Math.max(1,v|0)))); }catch(e){} }
+  function duelTierName(lv){ return DUEL_TIERS[Math.min(DUEL_TIERS.length,Math.max(1,lv|0))-1]; }
+  function isDuelMaster(){ return getDuelLevel()>=DUEL_TIERS.length; }
   // 入侵種強度倍率（PVE 關卡遞增用；一般/限時模式恆為 1）——mkInvader 讀取套用到 hp/dmg
   let invHpMul=1, invDmgMul=1, invSpawnMul=1;
   // pveNextLevel：非 null 時結算畫面提供「下一關（更難）」按鈕；失敗維持 null（moverAgain 重打同關）
@@ -275,16 +281,17 @@
     cam.x=clamp(player.x-VW/2,0,Math.max(0,MW-VW)); cam.y=clamp(player.y-VH/2,0,Math.max(0,MH-VH));
     // 單挑首領戰：生一隻超強首領（高血高傷大體型），不出一般波次
     duelEvent=null;
-    if(pickMode==="duel"){ const bk=DUEL_BOSSES[Math.floor(Math.random()*DUEL_BOSSES.length)]; const boss=mkInvader(bk,true);
-      // 大首領：血量隨挑戰人數變強（人越多首領越壯），體型更大
-      boss.maxhp=Math.round(boss.maxhp*(2.8+size*1.4)); boss.hp=boss.maxhp; boss.dmg=Math.round(boss.dmg*(1.1+size*0.06)); boss.r=Math.round(boss.r*(1.35+size*0.05)); boss.isBoss=true;
-      boss.bossSpCd=4; boss.bossSpT=0; boss.bossRingT=0; boss.enraged=false;   // 首領專屬：範圍震波冷卻/預警、暴走旗標
+    if(pickMode==="duel"){ const lv=getDuelLevel(); const bk=DUEL_BOSSES[Math.floor(Math.random()*DUEL_BOSSES.length)]; const boss=mkInvader(bk,true);
+      // 大首領：血量隨挑戰人數變強（人越多首領越壯）＋隨難度等級遞增（打完晉級、最高大師級），體型更大
+      const lvHp=1+(lv-1)*0.45, lvDmg=1+(lv-1)*0.14;   // 難度等級越高首領血/傷越強
+      boss.maxhp=Math.round(boss.maxhp*(2.8+size*1.4)*lvHp); boss.hp=boss.maxhp; boss.dmg=Math.round(boss.dmg*(1.1+size*0.06)*lvDmg); boss.r=Math.round(boss.r*(1.35+size*0.05)); boss.isBoss=true;
+      boss.bossSpCd=Math.max(2.6,4-(lv-1)*0.32); boss.bossSpT=0; boss.bossRingT=0; boss.enraged=false;   // 首領專屬：範圍震波冷卻(等級越高越密)/預警、暴走旗標
       boss.x=SHX; boss.y=SHY-320; invaders.push(boss);
-      duelEvent={ timeLeft:DUEL_DUR, active:true, bossKind:bk, size:size };
+      duelEvent={ timeLeft:DUEL_DUR, active:true, bossKind:bk, size:size, level:lv };
       // 首領挑戰玩法/技能跟一般不同：技能冷卻大幅縮短、守護之力更快降臨，逼你用技能與走位打首領、不是站樁清波
       heroes.forEach(h=>{ h.spMax=Math.max(1.5,(h.spMax||8)*0.55); });
       relicSpawnT=3;
-      setTimeout(()=>toast("⚔ 首領挑戰！"+size+" 人挑戰 "+KNAME[bk]+"王　限時 "+DUEL_DUR+" 秒　技能冷卻加快！"),1600); }
+      setTimeout(()=>toast("⚔ 首領挑戰・"+duelTierName(lv)+"級！"+DUEL_SZNAME[size]+"挑戰 "+KNAME[bk]+"王　限時 "+DUEL_DUR+" 秒　技能冷卻加快！"),1600); }
     setTimeout(weatherToast,200);   // 讓進場動畫先跑，再顯示天候 toast
     if(pveEvent) setTimeout(()=>toast("🎯 第 "+pveEvent.level+" 關防衛戰！驅逐 "+pveEvent.need+" 隻 "+KNAME[pvePickTarget]),1600);
   }
@@ -510,9 +517,11 @@
       heroes:heroes.map((h,i)=>({i, kind:h.kind, x:Math.round(h.x), y:Math.round(h.y), face:Math.round(h.face*100)/100,
         hp:Math.round(h.hp), max:h.maxhp, dead:h.dead, lv:h.level||1, name:h.name, isPlayer:!!h.isPlayer, ctrl:h.ctrl||null, moving:h.moving, ult:!!h.ult, ultCd:Math.round(h.ultCd*10)/10})),
       invaders:invaders.slice(0,60).map(v=>({kind:v.kind, x:Math.round(v.x), y:Math.round(v.y), face:Math.round(v.face*100)/100,
-        hp:Math.round(v.hp), max:v.maxhp, elite:!!v.elite, moving:v.moving})),
+        hp:Math.round(v.hp), max:v.maxhp, elite:!!v.elite, boss:!!v.isBoss, moving:v.moving})),
       relics:relics.map(r=>({x:Math.round(r.x), y:Math.round(r.y), phase:Math.round(r.phase*100)/100})),
-      ended, win:ended?(restore>=1):null };
+      // 首領挑戰同步：讓 guest 端也能顯示雙方血條/首領資訊/晉級難度（否則 guest 沒有本地 duelEvent 就看不到首領 HUD）
+      duel: duelEvent?{ tl:Math.round(duelEvent.timeLeft*10)/10, bk:duelEvent.bossKind, sz:duelEvent.size, lv:duelEvent.level||1 }:null,
+      ended, win:ended?(duelEvent?(invaders.filter(v=>v.isBoss&&!v.dead).length===0):(restore>=1)):null };
   }
   // guest 端：用收到的快照直接覆蓋渲染用的陣列/物件，不做本地模擬（reuse render()/drawUnit 等既有繪製函式）
   function applySnapshot(s){
@@ -525,7 +534,9 @@
       base.hp=d.hp; base.maxhp=d.max||base.maxhp; base.dead=!!d.dead; base.level=d.lv||1; base.name=d.name||base.name; base.moving=!!d.moving;
       base.ult=!!d.ult; base.ultCd=d.ultCd||0; base.ctrl=d.ctrl||null;
       if(netMyUid && d.ctrl===netMyUid) myHero=base; return base; });
-    if(Array.isArray(s.invaders)) invaders=s.invaders.map(d=>{ const v=mkInvader(d.kind,d.elite); v.x=d.x; v.y=d.y; v.face=d.face||0; v.hp=d.hp; v.maxhp=d.max||v.maxhp; v.moving=!!d.moving; return v; });
+    if(Array.isArray(s.invaders)) invaders=s.invaders.map(d=>{ const v=mkInvader(d.kind,d.elite); v.x=d.x; v.y=d.y; v.face=d.face||0; v.hp=d.hp; v.maxhp=d.max||v.maxhp; v.moving=!!d.moving; v.isBoss=!!d.boss; return v; });
+    // 首領挑戰：從快照還原 duelEvent，讓 guest 端顯示雙方血條 HUD（首領血量/計時/難度）
+    duelEvent = s.duel ? { timeLeft:s.duel.tl||0, active:true, bossKind:s.duel.bk, size:s.duel.sz||teamSize, level:s.duel.lv||1 } : (s.duel===null? null : duelEvent);
     relics=Array.isArray(s.relics)? s.relics.map(r=>({x:r.x, y:r.y, phase:r.phase||0})) : [];
     // guest 端鏡頭/HUD 一定要跟著「我自己操控的守護者」（快照裡 ctrl===我的 uid 那隻），不能落到 isPlayer（那是房主的角色）——
     // 這是造成朋友端「看起來大家都是同一隻」的根因：舊版一律抓 isPlayer，guest 端因此鏡頭黏在房主身上
@@ -534,7 +545,10 @@
       cam.x=clamp(focus.x-vw/2,0,Math.max(0,MW-vw)); cam.y=clamp(focus.y-vh/2,0,Math.max(0,MH-vh)); }
     updateHUD();
     if(s.ended && !ended){ ended=true; running=false; cancelAnimationFrame(raf);
-      showOver(s.win?"🌳 棲地復原成功！":"神木倒下了…", s.win?"枯黃的土地重新長回翠綠":"棲地失守",
+      if(duelEvent){ const bn=KNAME[duelEvent.bossKind]||"大首領", tn=duelTierName(duelEvent.level||1);
+        showOver(s.win?"🏆 首領挑戰勝利！":"⚔ 首領挑戰失敗", s.win?("「"+tn+"級」"+bn+"王被擊敗了"):("「"+tn+"級」"+bn+"王太強了…"),
+          s.win?("你和隊友一起擊敗了 "+tn+"級 "+bn+"王！回到小隊可挑戰更高難度。"):("這次沒能在時限內擊敗牠，回到小隊再約隊友一起挑戰！")); }
+      else showOver(s.win?"🌳 棲地復原成功！":"神木倒下了…", s.win?"枯黃的土地重新長回翠綠":"棲地失守",
         s.win?"你和朋友一起驅逐了外來入侵種、守住台灣神木與復育苗圃！":"別氣餒，再約朋友一起守一次吧。"); }
   }
   window.__netApplySnapshot=applySnapshot;   // net.js 收到 Firebase 資料後呼叫這個把畫面更新成 host 廣播的內容
@@ -1326,8 +1340,10 @@
   function startNetGuest(size){ _begin(size, "guest", []); netLastRecvT=performance.now(); netStale=false; }
   function stop(){ running=false; cancelAnimationFrame(raf); }
   function exitToLobby(){ stop(); const wasNet=!!netRole; netRole=null; netPendingGuests=[]; netGuestByUid={}; netGuestInputs={}; root.classList.add("mhide"); hide("mover"); hide("mpick"); mv.x=mv.y=0;
-    if(wasNet && window.__netOnExit) window.__netOnExit();   // 好友連線對戰結束/離開：讓 net.js 收尾房間與監聽器
+    if(wasNet && window.__netOnExit) window.__netOnExit();   // 好友連線「離開小隊」：讓 net.js 收尾房間與監聽器
     if(window.__lobbyRefresh) window.__lobbyRefresh(); }
+  // 好友連線對戰結束「回到小隊」：只停止對戰畫面，房間與監聽器保留，交給 net.js 把大家帶回共享房間（可再玩一場或離開）
+  function toRoom(){ stop(); netRole=null; netPendingGuests=[]; netGuestByUid={}; netGuestInputs={}; root.classList.add("mhide"); hide("mover"); hide("mpick"); mv.x=mv.y=0; }
   function endGame(win){ if(ended) return; ended=true; running=false; cancelAnimationFrame(raf);
     pveNextLevel=null;   // 預設清掉「下一關」旗標；只有 PVE 過關時 endGamePve 會重新設定
     const key=(window.__featuredKey&&window.__featuredKey())||"leopard", before=(window.__heroLevel&&window.__heroLevel(key))||1;
@@ -1361,16 +1377,22 @@
       showOver("⏱ 第 "+lv+" 關失敗","防衛戰未達標","限時內只清除了 "+got+"/"+need+" 隻 "+KNAME[tKind]+"，外來種仍在擴散……可以重打這一關！<br>"+(KNAME[key]||"")+" 仍獲得 EXP +"+xp); } }
   // 單挑首領戰結算
   function endGameDuel(win,key,before){ const bk=(duelEvent&&duelEvent.bossKind)||"iguana", sz=(duelEvent&&duelEvent.size)||teamSize||1;
-    if(win){ const eco=60+Math.floor(clock)+sz*10, xp=70+sz*8;
+    const curLv=(duelEvent&&duelEvent.level)||getDuelLevel();
+    if(win){ const eco=60+Math.floor(clock)+sz*10+curLv*8, xp=70+sz*8+curLv*6;   // 難度越高獎勵越多
       window.__awardEco&&window.__awardEco(eco); window.__awardXP&&window.__awardXP(key,xp); window.__bumpWin&&window.__bumpWin();
       const after=(window.__heroLevel&&window.__heroLevel(key))||before;
       // 記錄本次通關時間（每個人數各存一筆最佳，含玩家名字）
       const nm=playerName(), prev=getDuelBest(sz), isNew=saveDuelBest(sz,clock,nm);
       const recLine = isNew ? ("<br>🏅 <b>"+DUEL_SZNAME[sz]+"新紀錄！</b> "+escHtml(nm)+"　用時 "+fmtTime(clock))
                             : ("<br>⏱ 用時 "+fmtTime(clock)+(prev?("　（"+DUEL_SZNAME[sz]+"最佳 "+escHtml(prev.name)+" "+fmtTime(prev.time)+"）"):""));
-      showOver("🏆 首領挑戰勝利！","大首領被擊敗了","你們"+DUEL_SZNAME[sz]+"擊敗了 "+KNAME[bk]+"王！<br>🌿 保育值 +"+eco+"　"+(KNAME[key]||"")+" EXP +"+xp+"　Lv"+before+(after>before?(" → "+after+" ⬆升級！"):"")+recLine); }
+      // 難度晉級：打贏就升一級，最高「大師」級；已是大師則封頂顯示榮耀
+      let tierLine;
+      if(curLv<DUEL_TIERS.length){ setDuelLevel(curLv+1);
+        tierLine="<br>⬆ <b>難度晉級："+duelTierName(curLv)+" → "+duelTierName(curLv+1)+"級！</b>下一場首領更強。"; }
+      else tierLine="<br>👑 <b>你已是大師級守護者！</b>最強的首領也被你征服了。";
+      showOver("🏆 首領挑戰勝利！","「"+duelTierName(curLv)+"級」大首領被擊敗了","你們"+DUEL_SZNAME[sz]+"擊敗了 "+duelTierName(curLv)+"級 "+KNAME[bk]+"王！<br>🌿 保育值 +"+eco+"　"+(KNAME[key]||"")+" EXP +"+xp+"　Lv"+before+(after>before?(" → "+after+" ⬆升級！"):"")+recLine+tierLine); }
     else { const xp=12; window.__awardXP&&window.__awardXP(key,xp);
-      showOver("⚔ 首領挑戰失敗","大首領太強了…","限時內沒能擊敗 "+KNAME[bk]+"王，升級守護者、多找幾個人或換剋制屬性再來挑戰！<br>"+(KNAME[key]||"")+" 仍獲得 EXP +"+xp); } }
+      showOver("⚔ 首領挑戰失敗","「"+duelTierName(curLv)+"級」大首領太強了…","限時內沒能擊敗 "+duelTierName(curLv)+"級 "+KNAME[bk]+"王（難度不變，可再挑戰）——升級守護者、多找幾個人或換剋制屬性再來！<br>"+(KNAME[key]||"")+" 仍獲得 EXP +"+xp); } }
   function showOver(t,s,b){ root.classList.add("mhide"); txt("moverT",t); txt("moverS",s); const el=document.getElementById("moverB"); if(el) el.innerHTML=b;
     if(window.__sfx) window.__sfx.play(/成功|勝利|過關/.test(t)?"victory":"defeat");   // 勝利/失敗結算音效
     const again=document.getElementById("moverAgain"); const next=document.getElementById("moverNext");
@@ -1378,6 +1400,10 @@
     if(pveNextLevel){ if(again) again.classList.add("hide");
       if(next){ next.textContent="➡ 挑戰下一關（第 "+pveNextLevel+" 關・更難）"; next.classList.remove("hide"); } }
     else { if(again){ again.textContent="⚔ 再守一場"; again.classList.remove("hide"); } if(next) next.classList.add("hide"); }
+    // 好友連線：結算按鈕改成「回到小隊」（回共享房間可再玩或離開），家/離開鈕改成「離開小隊」
+    if(netRole){ if(again){ again.textContent="↩ 回到小隊"; again.classList.remove("hide"); } if(next) next.classList.add("hide");
+      const home=document.getElementById("moverHome"); if(home) home.textContent="🚪 離開小隊"; }
+    else { const home=document.getElementById("moverHome"); if(home) home.textContent="🏠 回大廳"; }
     show("mover"); }
   function show(id){ const e=document.getElementById(id); if(e) e.classList.remove("hide"); }
   function hide(id){ const e=document.getElementById(id); if(e) e.classList.add("hide"); }
@@ -1422,7 +1448,7 @@
   cv.addEventListener("wheel",(e)=>{ if(!running)return; e.preventDefault(); setZoom(zoom-Math.sign(e.deltaY)*0.12); },{passive:false});
 
   /* ---------- 接到大廳「對戰」 ---------- */
-  function openPick(){ const e=document.getElementById("mpick"); if(e) e.classList.remove("hide"); setPickMode(pickMode); setBattleRegion(battleRegion);
+  function openPick(){ const e=document.getElementById("mpick"); if(e) e.classList.remove("hide"); setPickMode("duel"); setBattleRegion(battleRegion);   // 對戰統一為「首領挑戰」：只選人數，難度打完自動晉級到大師
     const key=(window.__featuredKey&&window.__featuredKey())||"leopard", tal=(window.__heroTalent&&window.__heroTalent(key))||null;
     const hint=document.getElementById("talentHintInfo");
     if(hint){ if(tal){ hint.textContent="🌟 "+(KNAME[key]||key)+"　目前天賦："+tal.pathName+" Lv."+tal.tier+(tal.active?"（主動："+tal.active.name+"）":"")+"　出戰時自動生效"; hint.classList.remove("hide"); }
@@ -1439,11 +1465,12 @@
   function setPickMode(m){ pickMode=m;
     const nT=document.getElementById("modeNormal"), tT=document.getElementById("modeTime"), pT=document.getElementById("modePve"), dT=document.getElementById("modeDuel");
     if(nT) nT.classList.toggle("on",m==="normal"); if(tT) tT.classList.toggle("on",m==="time"); if(pT) pT.classList.toggle("on",m==="pve"); if(dT) dT.classList.toggle("on",m==="duel");
-    txt("mpickTitle", m==="time" ? "⏱ 限時復育挑戰" : m==="pve" ? "🎯 外來種防衛戰" : m==="duel" ? "⚔ 首領挑戰" : "🌳 棲地復育保衛戰");
+    const dLv=getDuelLevel(), dTier=duelTierName(dLv);
+    txt("mpickTitle", m==="time" ? "⏱ 限時復育挑戰" : m==="pve" ? "🎯 外來種防衛戰" : m==="duel" ? ("⚔ 首領挑戰・"+dTier+"級"+(isDuelMaster()?" 👑":"")) : "🌳 棲地復育保衛戰");
     const descEl=document.getElementById("mpickDesc");
     if(descEl) descEl.innerHTML = m==="time" ? "目標不是守住不倒，而是盡快把棲地復原到 100%！<br>擊退入侵種、守住苗圃，比比看你多快能讓棲地重新翠綠。"
       : m==="pve" ? "選一種外來入侵種當清除目標，限時內驅逐足額數量就成功！<br>善用原生種的生態優勢（生物防治鏈）能大幅提升效率。"
-      : m==="duel" ? "1~5 人一起挑戰一隻超強大首領（人越多首領越強）！限時內擊敗就贏。<br>走位閃避牠的範圍震波與蓄力衝撞、撿守護之力放必殺。每個人數各留通關紀錄。"
+      : m==="duel" ? ("選 <b>單人～五人</b> 一起挑戰一隻超強大首領（人越多首領越強）！限時內擊敗就贏。<br>目前難度：<b style='color:#ffd54f'>"+dTier+"級</b>"+(isDuelMaster()?"（已達最高的大師級 👑）":"　—　每打贏一場自動晉級，最高「大師」級！")+"<br>走位閃避牠的範圍震波與蓄力衝撞、撿守護之力放必殺。")
       : "守護台灣神木與復育苗圃，擊退四面湧入的外來入侵種——讓枯黃的棲地一吋吋復原成翠綠，復原度滿 100% 就守護成功！";
     const info=document.getElementById("bestTimeInfo");
     if(info){ if(m==="time"){ const b3=getBest(3), b5=getBest(5);
@@ -1457,7 +1484,7 @@
     updatePveLevelInfo(); }
   tap("modeNormal",()=>setPickMode("normal")); tap("modeTime",()=>setPickMode("time")); tap("modePve",()=>setPickMode("pve")); tap("modeDuel",()=>setPickMode("duel"));
   document.querySelectorAll("#duelSizeRow .duel-sz").forEach(b=>b.addEventListener("pointerdown",(e)=>{ e.preventDefault(); const n=parseInt(b.dataset.n,10)||1; mCountdown(()=>start(n)); },{passive:false}));
-  window.__mobaSetPickMode=(m)=>{ if(["normal","time","pve","siege"].indexOf(m)>=0) setPickMode(m); };   // 好友房間房主選的模式帶進對戰
+  window.__mobaSetPickMode=(m)=>{ if(["normal","time","pve","siege","duel"].indexOf(m)>=0) setPickMode(m); };   // 好友房間房主選的模式帶進對戰（含首領挑戰）
   function setPveTarget(k){ pvePickTarget=k; document.querySelectorAll("#pveTargets .hregion").forEach(b=>b.classList.toggle("on",b.dataset.pv===k)); updatePveLevelInfo(); }
   // PVE 關卡進度提示：顯示目前選定目標已解鎖到第幾關、該關需求
   function updatePveLevelInfo(){ const el=document.getElementById("pveLevelInfo"); if(!el) return;
@@ -1467,13 +1494,14 @@
     el.classList.remove("hide"); }
   document.querySelectorAll("#pveTargets .hregion").forEach(b=>b.addEventListener("pointerdown",(e)=>{ e.preventDefault(); setPveTarget(b.dataset.pv); },{passive:false}));
   tap("pick3",()=>mCountdown(()=>start(3))); tap("pick5",()=>mCountdown(()=>start(5))); tap("pickBack",()=>hide("mpick"));
-  tap("moverAgain",()=>mCountdown(()=>start(teamSize))); tap("moverHome",exitToLobby);
+  tap("moverAgain",()=>{ if(netRole && window.__netReturnToRoom) window.__netReturnToRoom(); else mCountdown(()=>start(teamSize)); });
+  tap("moverHome",exitToLobby);
   // PVE 過關「下一關」：關卡已在 endGamePve 推進並存進 localStorage，start() 會自動載入更難的那關
   tap("moverNext",()=>mCountdown(()=>start(teamSize)));
   window.addEventListener("keydown",(e)=>{ if(!running) return; if(e.key==="ArrowLeft"||e.key==="a")mv.x=-1; else if(e.key==="ArrowRight"||e.key==="d")mv.x=1; else if(e.key==="ArrowUp"||e.key==="w")mv.y=-1; else if(e.key==="ArrowDown"||e.key==="s")mv.y=1; else if(e.key==="k"||e.key==="Shift")wantSp=true; else if(e.key==="b")wantBack=true; else if(e.key==="j"||e.key===" "){ wantAtk=true; wantAtkT=0.28; } else if(e.key==="l"){ if(player&&player.ult) wantUlt=true; } });
   window.addEventListener("keyup",(e)=>{ if(["ArrowLeft","a","ArrowRight","d"].includes(e.key))mv.x=0; if(["ArrowUp","w","ArrowDown","s"].includes(e.key))mv.y=0; });
 
-  window.MOBA={ start, exit:exitToLobby, startNetHost, startNetGuest,
+  window.MOBA={ start, exit:exitToLobby, toRoom, startNetHost, startNetGuest,
     // 除錯／QA 用內部狀態快照（不影響玩法，方便無頭瀏覽器驗收天候・PVE 數值是否真的生效）
     debug:()=>({ weatherBattle, pveEvent, netRole, netMyUid, heroes:heroes.map(h=>({kind:h.kind,speed:h.speed,dmg:h.dmg,isPlayer:!!h.isPlayer,ctrl:h.ctrl||null})), playerKind:player&&player.kind, guestCount:Object.keys(netGuestByUid).length, weatherFxLen:weatherFx.length, invadersLen:invaders.length,
       relics:relics.length, playerUlt:!!(player&&player.ult), playerUltCd:player?Math.round((player.ultCd||0)*10)/10:0 }),

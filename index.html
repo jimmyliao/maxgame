@@ -609,11 +609,12 @@
 <div id="mpick" class="scr hide">
   <h1 id="mpickTitle">🌳 棲地復育保衛戰</h1>
   <h2 id="mpickDesc">守護台灣神木與復育苗圃，擊退四面湧入的外來入侵種——<br>讓枯黃的棲地一吋吋復原成翠綠，復原度滿 100% 就守護成功！</h2>
+  <!-- 對戰模式選擇：一般復育／限時／外來種防衛戰／首領挑戰(難度打完自動晉級到大師級) -->
   <div class="row" id="modeTabs">
-    <button class="btn sec mode-tab on" id="modeNormal">🌳 一般模式</button>
+    <button class="btn sec mode-tab" id="modeNormal">🌳 一般模式</button>
     <button class="btn sec mode-tab" id="modeTime">⏱ 限時復育挑戰</button>
     <button class="btn sec mode-tab" id="modePve">🎯 外來種防衛戰</button>
-    <button class="btn sec mode-tab" id="modeDuel">⚔ 首領挑戰</button>
+    <button class="btn sec mode-tab on" id="modeDuel">⚔ 首領挑戰</button>
   </div>
   <p id="bestTimeInfo" class="hide" style="color:#ffd54f;font-weight:800;"></p>
   <div class="row hide" id="pveTargets">
@@ -738,10 +739,12 @@
   <h2 id="roomStatus">等待朋友加入…</h2>
   <!-- 房主專屬：選遊戲模式與隊伍人數（非房主唯讀顯示） -->
   <div id="croomHostCfg" style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin:2px 0 6px;">
+    <!-- 房主可選對戰模式（含首領挑戰：多位真人一起打大首領，難度打完晉級到大師級） -->
     <div class="cfg-group" id="cfgModeGroup">
       <button class="cfg-btn" data-mode="normal">🌳 復育戰</button>
       <button class="cfg-btn" data-mode="time">⏱ 限時</button>
       <button class="cfg-btn" data-mode="pve">🎯 防衛戰</button>
+      <button class="cfg-btn on" data-mode="duel">⚔ 首領挑戰</button>
     </div>
     <div class="cfg-group" id="cfgSizeGroup">
       <button class="cfg-btn" data-size="2">2人</button>

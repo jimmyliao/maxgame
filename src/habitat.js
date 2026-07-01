@@ -30,7 +30,7 @@
                sky:["#a9d6ec","#e3f1e6"], nightSky:["#131f2c","#1c2c30"], ground:["#5d7e3a","#3a5626"] },
     wetland: { label:"濕地",  plant:"水筆仔", shape:"mangrove",
                fact:"台灣原生紅樹林植物，胎生苗會直接在母株上發芽，是淡水河口濕地重要的護岸與棲地植物。",
-               seed:{ name:"水筆仔胎生苗", icon:"🌿", grow:1.05, trickle:28, cap:30, worth:1, tip:"積少成多：屯貨上限高，很適合離線放置慢慢累積" },
+               seed:{ name:"水筆仔胎生苗", icon:"🌿", grow:1.05, trickle:28, cap:30, worth:2, tip:"積少成多：屯貨上限高、單價 2 倍（紅樹林碳匯價值高），很適合離線放置慢慢累積" },
                sky:["#f4b483","#9fb1c8"], nightSky:["#211a2c","#2d2436"], ground:["#6f7e88","#3a525c"] },
     alpine:  { label:"高山寒原", icon:"🏔", plant:"玉山圓柏", shape:"juniper", unlockLv:5,
                fact:"台灣特有種，生長於海拔3000公尺以上的高山稜線，常年強風吹成匍匐狀的「風衝矮林」，是台灣特有種高山山椒魚重要的棲息環境。",
