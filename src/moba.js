@@ -987,7 +987,7 @@
   document.querySelectorAll("#pveTargets .hregion").forEach(b=>b.addEventListener("pointerdown",(e)=>{ e.preventDefault(); setPveTarget(b.dataset.pv); },{passive:false}));
   tap("pick3",()=>start(3)); tap("pick5",()=>start(5)); tap("pickBack",()=>hide("mpick"));
   tap("moverAgain",()=>start(teamSize)); tap("moverHome",exitToLobby);
-  window.addEventListener("keydown",(e)=>{ if(!running) return; if(e.key==="ArrowLeft"||e.key==="a")mv.x=-1; else if(e.key==="ArrowRight"||e.key==="d")mv.x=1; else if(e.key==="ArrowUp"||e.key==="w")mv.y=-1; else if(e.key==="ArrowDown"||e.key==="s")mv.y=1; else if(e.key==="k"||e.key==="Shift")wantSp=true; else if(e.key==="b")wantBack=true; });
+  window.addEventListener("keydown",(e)=>{ if(!running) return; if(e.key==="ArrowLeft"||e.key==="a")mv.x=-1; else if(e.key==="ArrowRight"||e.key==="d")mv.x=1; else if(e.key==="ArrowUp"||e.key==="w")mv.y=-1; else if(e.key==="ArrowDown"||e.key==="s")mv.y=1; else if(e.key==="k"||e.key==="Shift")wantSp=true; else if(e.key==="b")wantBack=true; else if(e.key==="j"||e.key===" "){ wantAtk=true; wantAtkT=0.28; } });
   window.addEventListener("keyup",(e)=>{ if(["ArrowLeft","a","ArrowRight","d"].includes(e.key))mv.x=0; if(["ArrowUp","w","ArrowDown","s"].includes(e.key))mv.y=0; });
 
   window.MOBA={ start, exit:exitToLobby, startNetHost, startNetGuest,
