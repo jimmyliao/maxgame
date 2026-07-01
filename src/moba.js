@@ -107,7 +107,7 @@
   function getBest(size){ try{ const v=parseFloat(localStorage.getItem("shoutu_besttime_"+size)); return isNaN(v)?null:v; }catch(e){ return null; } }
   function setBest(size,t){ try{ localStorage.setItem("shoutu_besttime_"+size,String(t)); }catch(e){} }
   const cam={x:0,y:0}, mv={x:0,y:0};
-  let wantSp=false, wantBack=false;
+  let wantSp=false, wantBack=false, wantAtk=false, wantAtkT=0;
   let zoom=1, ZMIN=0.62; const ZMAX=1.8;
   // 快捷訊息：指揮 AI 隊友（集合/攻擊/撤退/小心/讚），有實際行為、不只是裝飾文字
   const QMSG={ rally:{icon:"📣",txt:"集合！",dur:5}, focus:{icon:"⚔",txt:"攻擊！",dur:5}, retreat:{icon:"🛡",txt:"撤退！",dur:5}, careful:{icon:"⚠",txt:"小心！",dur:3},
@@ -225,6 +225,7 @@
     if(ended) return; clock+=dt; if(mshake>0) mshake=Math.max(0,mshake-dt*38); if(eliteFlash>0) eliteFlash=Math.max(0,eliteFlash-dt*1.6);
     if(comboPop>0) comboPop=Math.max(0,comboPop-dt*1.8);
     if(comboT>0){ comboT-=dt; if(comboT<=0) combo=0; }
+    if(wantAtkT>0){ wantAtkT-=dt; if(wantAtkT<=0) wantAtk=false; }
     // 入侵浪潮：更兇、隨時間加速、精英「入侵種王」
     // PVE 防衛戰模式：入侵種池只出目標種（沙氏變色蜥另建入侵池，一般模式不會自然出現）
     const pveInvPool=pveEvent?[pveEvent.target]:INVADERS;
@@ -353,8 +354,8 @@
   }
   window.__netApplySnapshot=applySnapshot;   // net.js 收到 Firebase 資料後呼叫這個把畫面更新成 host 廣播的內容
   // guest 端：把本機搖桿/技能輸入送給 net.js 節流上傳到 rooms/<code>/inputs/<uid>；host 端收到後寫進 netGuestInput 套用
-  window.__netSetGuestInput=(inp)=>{ if(!inp) return; netGuestInput.mvx=inp.mvx||0; netGuestInput.mvy=inp.mvy||0; if(inp.sp) netGuestInput.sp=true; if(inp.back) netGuestInput.back=true; };
-  window.__netLocalInput=()=>{ const inp={ mvx:mv.x, mvy:mv.y, sp:wantSp, back:wantBack }; wantSp=false; wantBack=false; return inp; };
+  window.__netSetGuestInput=(inp)=>{ if(!inp) return; netGuestInput.mvx=inp.mvx||0; netGuestInput.mvy=inp.mvy||0; if(inp.sp) netGuestInput.sp=true; if(inp.back) netGuestInput.back=true; if(inp.atk) netGuestInput.atk=true; };
+  window.__netLocalInput=()=>{ const inp={ mvx:mv.x, mvy:mv.y, sp:wantSp, back:wantBack, atk:wantAtk }; wantSp=false; wantBack=false; wantAtk=false; wantAtkT=0; return inp; };
   window.__netCheckStale=()=>{ if(netRole!=="guest"||!netLastRecvT) return false; netStale=(performance.now()-netLastRecvT)>NET_TIMEOUT_MS; return netStale; };
 
   function updatePlayer(h,dt){
@@ -365,10 +366,12 @@
     if(wantSp){ wantSp=false; if(h.spCd<=0) castSp(h); }
     const tg=nearestInvader(h,h.range+60);
     h.aim=(tg && tg.d<=h.range+tg.e.r+40 && !tg.e.dead)? tg.e : null;
-    if(tg && tg.d<=h.range+tg.e.r && h.t<=0) meleeHit(h,tg.e,h.dmg);
+    // 普通攻擊改成按鍵觸發（不再貼近就自動打），角色動作跟玩家操作直接掛勾，戰鬥手感更主動、不生硬。
+    // wantAtk 按下後有 0.28 秒輸入緩衝：稍微搶拍按也不會白按，進入射程/冷卻轉好內會自動補發一次。
+    if(wantAtk && tg && tg.d<=h.range+tg.e.r && h.t<=0){ wantAtk=false; wantAtkT=0; meleeHit(h,tg.e,h.dmg); }
   }
   // 好友連線：host 端套用遠端朋友的搖桿/技能輸入到朋友操控的那隻守護者身上（結構同 updatePlayer，資料來源是 netGuestInput 而非本機 mv/wantSp）
-  let netGuestInput={mvx:0,mvy:0,sp:false,back:false};
+  let netGuestInput={mvx:0,mvy:0,sp:false,back:false,atk:false};
   function updateNetGuestHero(h,dt){
     const ix=netGuestInput.mvx||0, iy=netGuestInput.mvy||0, mag=Math.hypot(ix,iy);
     if(mag>0.12){ const ang=Math.atan2(iy,ix); h.face=ang; const s=h.speed*Math.min(1,mag); h.x+=Math.cos(ang)*s*dt; h.y+=Math.sin(ang)*s*dt; h.moving=true; h.anim+=dt; }
@@ -377,7 +380,7 @@
     if(netGuestInput.sp){ netGuestInput.sp=false; if(h.spCd<=0) castSp(h); }
     const tg=nearestInvader(h,h.range+60);
     h.aim=(tg && tg.d<=h.range+tg.e.r+40 && !tg.e.dead)? tg.e : null;
-    if(tg && tg.d<=h.range+tg.e.r && h.t<=0) meleeHit(h,tg.e,h.dmg);
+    if(netGuestInput.atk && tg && tg.d<=h.range+tg.e.r && h.t<=0){ netGuestInput.atk=false; meleeHit(h,tg.e,h.dmg); }
   }
   // 點到線段距離（突進命中判定）
   function segDist(px,py,ax,ay,bx,by){ const dx=bx-ax,dy=by-ay,l2=dx*dx+dy*dy||1; let t=((px-ax)*dx+(py-ay)*dy)/l2; t=clamp(t,0,1); return Math.hypot(px-(ax+t*dx),py-(ay+t*dy)); }
@@ -868,7 +871,7 @@
   function stickEnd(e){ if(stickId!==e.pointerId) return; e.preventDefault(); stickId=null; mv.x=mv.y=0; knob.style.transform="translate(0,0)"; }
   if(stick){ stick.addEventListener("pointerdown",stickStart,{passive:false}); stick.addEventListener("pointermove",stickMove,{passive:false}); stick.addEventListener("pointerup",stickEnd,{passive:false}); stick.addEventListener("pointercancel",stickEnd,{passive:false}); stick.addEventListener("pointerleave",stickEnd,{passive:false}); }
   const tap=(id,fn)=>{ const e=document.getElementById(id); if(e) e.addEventListener("pointerdown",(ev)=>{ ev.preventDefault(); fn(); },{passive:false}); };
-  tap("mSp",()=>{ wantSp=true; }); tap("mBack",()=>{ wantBack=true; });
+  tap("mSp",()=>{ wantSp=true; }); tap("mBack",()=>{ wantBack=true; }); tap("mAtk",()=>{ wantAtk=true; wantAtkT=0.28; });
   // 縮放：＋/－ 鈕、雙指縮放、滾輪
   tap("mZoomIn",()=>setZoom(zoom+0.2)); tap("mZoomOut",()=>setZoom(zoom-0.2));
   // 快捷訊息：開合輪盤 + 送出指令（真的會指揮 AI 隊友，不只是裝飾）
