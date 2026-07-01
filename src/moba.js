@@ -289,8 +289,9 @@
     duelEvent=null;
     if(pickMode==="duel"){ const lv=getDuelLevel(); const bk=DUEL_BOSSES[Math.floor(Math.random()*DUEL_BOSSES.length)]; const boss=mkInvader(bk,true);
       // 大首領：血量隨挑戰人數變強（人越多首領越壯）＋隨難度等級遞增（打完晉級、最高大師級），體型更大
-      const lvHp=1+(lv-1)*0.45, lvDmg=1+(lv-1)*0.14;   // 難度等級越高首領血/傷越強
-      boss.maxhp=Math.round(boss.maxhp*(2.8+size*1.4)*lvHp); boss.hp=boss.maxhp; boss.dmg=Math.round(boss.dmg*(1.1+size*0.06)*lvDmg); boss.r=Math.round(boss.r*(1.35+size*0.05)); boss.isBoss=true;
+      const lvHp=1+(lv-1)*0.45, lvDmg=1+(lv-1)*0.11;   // 難度等級越高首領血/傷越強（傷害成長放緩）
+      // 首領傷害整體調低：因為首領挑戰不能回神木/復活，傷害太高會太硬，讓玩家靠走位存活久一點
+      boss.maxhp=Math.round(boss.maxhp*(2.8+size*1.4)*lvHp); boss.hp=boss.maxhp; boss.dmg=Math.round(boss.dmg*(0.82+size*0.045)*lvDmg); boss.r=Math.round(boss.r*(1.35+size*0.05)); boss.isBoss=true;
       boss.bossSpCd=Math.max(2.6,4-(lv-1)*0.32); boss.bossSpT=0; boss.bossRingT=0; boss.enraged=false;   // 首領專屬：範圍震波冷卻(等級越高越密)/預警、暴走旗標
       boss.x=SHX; boss.y=SHY-320; invaders.push(boss);
       duelEvent={ timeLeft:DUEL_DUR, active:true, bossKind:bk, size:size, level:lv };
@@ -425,7 +426,7 @@
         if(v.bossSpT>0){ v.moving=false; v.atkA=0.2; v.bossSpT-=dt;
           v.bossRingT-=dt; if(v.bossRingT<=0){ v.bossRingT=0.28; ring(v.x,v.y,BOSS_NOVA_R,"#ff5252"); }   // 擴散紅環預警危險範圍
           if(v.bossSpT<=0){ ring(v.x,v.y,BOSS_NOVA_R,"#ff5252"); ring(v.x,v.y,BOSS_NOVA_R*0.6,"#ff8a80"); sparks(v.x,v.y,26,"#ff8a80"); mshake=Math.max(mshake,11); freeze(0.06);
-            for(const cand of [player,...heroes]){ if(!cand||cand.dead) continue; if(dist(v,cand)<BOSS_NOVA_R){ hurt(cand,Math.round(v.dmg*1.6),v); knock(cand,v.x,v.y,42); } }
+            for(const cand of [player,...heroes]){ if(!cand||cand.dead) continue; if(dist(v,cand)<BOSS_NOVA_R){ hurt(cand,Math.round(v.dmg*1.3),v); knock(cand,v.x,v.y,42); } }
             v.bossSpCd=(v.enraged?3:4.5)+Math.random()*2; }
           continue; }
         if(v.bossSpCd>0) v.bossSpCd-=dt;
