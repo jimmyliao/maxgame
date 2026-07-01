@@ -787,28 +787,33 @@
       g.restore(); }
     // 共用座標（腳、頭、耳）
     const hx=bLen*(bird?0.62:fish?0.82:0.72), hr=r*(bird?0.32:fish?0.34:0.46);
-    const sw=walk*r*0.38, lr=r*(u.kind==="bear"?0.19:0.15);
+    const sw=walk*r*0.38, lr=r*(u.kind==="bear"?0.19:(u.kind==="deer"||u.kind==="muntjac")?0.1:0.15);
     // 四肢：每條腿有 [附著x, 附著y, 腳掌x, 腳掌y, 步態相位]，前肢朝前外、後肢朝後外，
     // 爬蟲/青蛙外張更誇張；鳥為雙腿。有明確前後之分＋站姿，不再是身體下塞四顆蛋。
-    const reptile=(u.kind==="iguana"||u.kind==="anole"), lizardSplay=reptile?1.5:(u.kind==="frog"?1.7:1.0);
-    const lyA=bW*0.72, lyF=bW*(reptile?1.5:u.kind==="frog"?1.55:1.02), lxf=bLen*0.5, lxb=bLen*0.52;
-    const footFx=reptile?bLen*0.28:bLen*0.66, footBx=reptile?-bLen*0.72:-bLen*0.7;
+    const reptile=(u.kind==="iguana"||u.kind==="anole"), ungulate=(u.kind==="deer"||u.kind==="muntjac"), frogK=(u.kind==="frog");
+    const lizardSplay=reptile?1.5:ungulate?1.3:1.0;
+    const lyA=bW*0.72, lyF=bW*(reptile?1.5:ungulate?1.55:1.02), lxf=bLen*0.5, lxb=bLen*0.52;
+    const footFx=reptile?bLen*0.28:ungulate?bLen*0.6:bLen*0.66, footBx=reptile?-bLen*0.72:ungulate?-bLen*0.64:-bLen*0.7;
+    // 青蛙：前腿短小朝前、後腿肥大屈膝朝後外（蹲姿），另用專屬座標
     const limbs=bird?
-      [[-bLen*0.08,-lyA*0.5, -bLen*0.05,bW*1.35, 1],[-bLen*0.08,lyA*0.5, -bLen*0.05,bW*1.35, -1]]
-      :[[lxf,-lyA, footFx,-lyF*lizardSplay, 1],[lxf,lyA, footFx,lyF*lizardSplay, -1],
-        [-lxb,-lyA, footBx,-lyF*lizardSplay, -1],[-lxb,lyA, footBx,lyF*lizardSplay, 1]];
+      [[-bLen*0.08,-lyA*0.5, -bLen*0.05,bW*1.35, 1,1],[-bLen*0.08,lyA*0.5, -bLen*0.05,bW*1.35, -1,1]]
+      :frogK?
+      [[bLen*0.5,-bW*0.55, bLen*0.85,-bW*0.85, 1,0.8],[bLen*0.5,bW*0.55, bLen*0.85,bW*0.85, -1,0.8],
+       [-bLen*0.2,-bW*0.7, -bLen*0.95,-bW*1.15, -1,1.6],[-bLen*0.2,bW*0.7, -bLen*0.95,bW*1.15, 1,1.6]]
+      :[[lxf,-lyA, footFx,-lyF*lizardSplay, 1,1],[lxf,lyA, footFx,lyF*lizardSplay, -1,1],
+        [-lxb,-lyA, footBx,-lyF*lizardSplay, -1,1],[-lxb,lyA, footBx,lyF*lizardSplay, 1,1]];
     const earR=hr*(u.kind==="bear"?0.5:u.kind==="macaque"?0.4:0.44);
     const noLegs=flyer||fish||u.kind==="snail";
     const limbW=r*(u.kind==="bear"?0.2:u.kind==="deer"||u.kind==="muntjac"?0.13:reptile?0.09:0.15);
     // 一條腿：大腿骨（描邊）+ 腳掌（橢圓），可帶步態擺動
-    function drawLimb(L,wOut,limbCol,footCol2){ const ph=L[4]*sw;
+    function drawLimb(L,wOut,limbCol,footCol2){ const ph=L[4]*sw, sc=L[5]||1, flr=lr*sc;
       const ax=L[0], ay=L[1], fx=L[2]+ph, fy=L[3];
-      g.strokeStyle=wOut>0?INK:limbCol; g.lineWidth=limbW+wOut; g.lineCap="round";
+      g.strokeStyle=wOut>0?INK:limbCol; g.lineWidth=limbW*sc+wOut; g.lineCap="round";
       g.beginPath(); g.moveTo(ax,ay); g.lineTo(fx,fy); g.stroke();
-      if(wOut>0){ g.fillStyle=INK; g.beginPath(); g.ellipse(fx,fy,lr+wOut*0.7,lr*0.9+wOut*0.7,L[4]*0.3,0,7); g.fill(); }
-      else { g.fillStyle=footCol2; g.beginPath(); g.ellipse(fx,fy,lr,lr*0.9,L[4]*0.3,0,7); g.fill();
+      if(wOut>0){ g.fillStyle=INK; g.beginPath(); g.ellipse(fx,fy,flr+wOut*0.7,flr*0.9+wOut*0.7,L[4]*0.3,0,7); g.fill(); }
+      else { g.fillStyle=footCol2; g.beginPath(); g.ellipse(fx,fy,flr,flr*0.9,L[4]*0.3,0,7); g.fill();
         g.strokeStyle="rgba(0,0,0,0.25)"; g.lineWidth=Math.max(1,r*0.03);
-        for(const tn of [-0.4,0,0.4]){ g.beginPath(); g.moveTo(fx+tn*lr,fy+fy*0.02); g.lineTo(fx+tn*lr*1.5,fy+(fy>0?lr:-lr)*0.9); g.stroke(); } } }
+        for(const tn of [-0.4,0,0.4]){ g.beginPath(); g.moveTo(fx+tn*flr,fy+fy*0.02); g.lineTo(fx+tn*flr*1.5,fy+(fy>0?flr:-flr)*0.9); g.stroke(); } } }
     g.lineCap="butt";
 
     // 頸子（鹿/山羌/獼猴有明顯頸部，接在頭與身體之間，讓側影一眼不同）
