@@ -116,6 +116,31 @@
   .mode-tab{ font-size:12.5px; padding:6px 12px; opacity:.55; }
   .mode-tab.on{ opacity:1; background:#2e7d32; box-shadow:0 4px 0 #1b5e20; }
   #coopJoinRow.hide{ display:none; }
+  /* 好友大廳（#coopRoom）：仿大廳視覺——兩人並肩站在同一片棲地場景，而非抽象房間代碼列表 */
+  #coopRoom{ background:radial-gradient(circle at 50% 30%, rgba(56,120,72,.5), rgba(7,20,12,.94) 72%); padding:14px 16px; }
+  #coopRoom h1{ font-size:19px; } #coopRoom .room-code{ color:#ffd54f; letter-spacing:3px; }
+  #croomSlots{ display:flex; gap:10px; justify-content:center; width:100%; max-width:520px; margin:6px 0 4px; flex-wrap:wrap; }
+  .croom-slot{ flex:1; min-width:210px; max-width:250px; background:rgba(10,26,16,.72); border:2px solid rgba(255,255,255,.16);
+    border-radius:18px; padding:10px 10px 12px; box-shadow:0 4px 14px rgba(0,0,0,.35); }
+  .croom-slot.me{ border-color:#ffd54f; box-shadow:0 0 4px rgba(255,213,79,.7), 0 4px 14px rgba(0,0,0,.35); }
+  .croom-slot .cs-hdr{ display:flex; align-items:center; justify-content:space-between; gap:6px; margin-bottom:6px; }
+  .croom-slot .cs-nick{ font-size:14px; font-weight:900; color:#fff; text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .croom-slot .cs-ready{ font-size:11px; font-weight:800; padding:2px 9px; border-radius:12px; background:rgba(255,255,255,.12); color:#c8e6c9; white-space:nowrap; }
+  .croom-slot .cs-ready.on{ background:#2e7d32; color:#fff; }
+  .croom-slot .cs-empty{ font-size:12.5px; color:#90a4ae; padding:16px 0; }
+  .croom-slot canvas.cs-portrait{ width:100%; height:84px; display:block; margin:2px 0 6px; }
+  .croom-slot .cs-heroname{ font-size:13px; font-weight:800; color:#ffe082; min-height:1.4em; }
+  #croomPick{ display:flex; gap:7px; justify-content:center; flex-wrap:wrap; padding:8px 0; max-width:520px; }
+  #croomPick .rb{ width:48px; height:48px; border-radius:14px; border:2px solid rgba(255,255,255,.22);
+    background:radial-gradient(circle at 50% 30%, rgba(255,255,255,.12), rgba(0,0,0,.4) 70%); cursor:pointer; padding:0; overflow:hidden;
+    box-shadow:0 2px 6px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.1); }
+  #croomPick .rb.sel{ border-color:#ffd54f; box-shadow:0 0 4px rgba(255,213,79,.9), 0 0 16px rgba(255,213,79,.5); }
+  #croomPick .rb.taken{ opacity:.32; filter:grayscale(.6); cursor:not-allowed; }
+  #croomPick .rb canvas{ width:100%; height:100%; display:block; }
+  #coopSameHeroWarn{ font-size:12.5px; font-weight:800; color:#ff8a65; min-height:1.4em; }
+  #coopRoom .btn.ready{ background:#00897b; box-shadow:0 4px 0 #00695c; }
+  #coopRoom .btn.ready.on{ background:#2e7d32; box-shadow:0 4px 0 #1b5e20; }
+  #coopRoom .btn[disabled]{ opacity:.4; cursor:not-allowed; box-shadow:0 4px 0 #37474f; background:#546e7a; }
   /* 棲地基地：全螢幕場景（跟 MOBA 同一套滿版做法），UI 浮在畫面上而不佔版位 */
   #habitat{ position:fixed; inset:0; z-index:40; background:#10261a; display:block; padding:0; touch-action:none; }
   #habitat.hide{ display:none; }
@@ -321,7 +346,7 @@
         <div class="lobby-nav secondary">
           <button class="navb sm" id="navDex">📖 圖鑑</button>
           <button class="navb sm" id="navStats">🏆 戰績</button>
-          <button class="navb sm" id="coopBtn">🌐 好友</button>
+          <button class="navb sm" id="coopBtn">📨 邀請隊友</button>
           <button class="navb sm" id="navSet">⚙️ 設定</button>
         </div>
       </div>
@@ -541,29 +566,51 @@
 
 <!-- ===== 好友連線（需要網路；單機部分完全不受影響） ===== -->
 <div id="coop" class="scr hide">
-  <h1>🌐 好友連線</h1>
-  <h2>跟朋友即時連線，一起守護同一片棲地</h2>
+  <h1>📨 邀請隊友</h1>
+  <h2>按「邀請隊友」產生一組代碼，傳給朋友；或輸入朋友傳給你的代碼加入他的房間</h2>
   <p id="coopNet" style="color:#ffab91;"></p>
   <div id="coopName" class="row" style="flex-direction:column;align-items:center;gap:10px;">
     <input id="nickInput" maxlength="10" placeholder="幫自己取個暱稱" style="padding:10px 14px;border-radius:20px;border:none;font-size:15px;width:220px;text-align:center;">
     <div class="row">
-      <button class="btn" id="coopCreate">🏠 建立房間</button>
-      <button class="btn" id="coopJoinBtn">🔑 加入房間</button>
+      <button class="btn" id="coopCreate">📨 邀請隊友</button>
+      <button class="btn" id="coopJoinBtn">🔑 輸入隊友的代碼</button>
     </div>
   </div>
   <div id="coopJoinRow" class="row hide" style="margin-top:10px;">
-    <input id="roomCodeInput" maxlength="5" placeholder="房間代碼" style="padding:10px 14px;border-radius:20px;border:none;font-size:16px;width:120px;text-align:center;letter-spacing:3px;text-transform:uppercase;">
-    <button class="btn" id="coopJoinGo">加入</button>
+    <input id="roomCodeInput" maxlength="5" placeholder="輸入隊友給你的代碼" style="padding:10px 14px;border-radius:20px;border:none;font-size:16px;width:170px;text-align:center;letter-spacing:2px;text-transform:uppercase;">
+    <button class="btn" id="coopJoinGo">加入隊友房間</button>
   </div>
   <button class="btn sec" id="coopBack">返回大廳</button>
 </div>
 <div id="coopRoom" class="scr hide">
-  <h1>房間 <span id="roomCode"></span></h1>
-  <h2 id="roomStatus">等待玩家加入…</h2>
-  <div id="roomPlayers" class="row" style="flex-direction:column;gap:8px;width:100%;max-width:320px;"></div>
+  <h1>🌳 好友大廳</h1>
+  <div class="row" id="croomCodeRow" style="align-items:center;gap:8px;margin:2px 0 6px;">
+    <span style="font-size:13px;color:#a5d6a7;">邀請碼</span>
+    <span class="room-code" id="roomCode" style="font-size:20px;font-weight:900;letter-spacing:4px;"></span>
+    <button class="btn sec" id="coopCopyCode" style="margin:0;padding:6px 14px;font-size:12.5px;">📋 複製代碼傳給隊友</button>
+  </div>
+  <h2 id="roomStatus">等待朋友加入…</h2>
+  <div id="croomSlots">
+    <div class="croom-slot me" id="croomSlotMe">
+      <div class="cs-hdr"><span class="cs-nick" id="csNickMe">我</span><span class="cs-ready" id="csReadyMe">未準備</span></div>
+      <canvas class="cs-portrait" id="csPortraitMe" width="220" height="84"></canvas>
+      <div class="cs-heroname" id="csHeroMe">請選擇守護者</div>
+    </div>
+    <div class="croom-slot" id="croomSlotOther">
+      <div class="cs-hdr"><span class="cs-nick" id="csNickOther">朋友</span><span class="cs-ready" id="csReadyOther">未準備</span></div>
+      <canvas class="cs-portrait" id="csPortraitOther" width="220" height="84"></canvas>
+      <div class="cs-heroname" id="csHeroOther">尚未加入</div>
+    </div>
+  </div>
+  <p style="font-size:12px;color:#a5d6a7;margin:2px 0;">選一隻守護者（雙方必須選不同的）</p>
+  <div id="croomPick"></div>
+  <p id="coopSameHeroWarn"></p>
   <p id="coopRoomNet" style="color:#ffab91;min-height:1.2em;"></p>
-  <button class="btn" id="coopStart">⚔ 開始遊戲</button>
-  <button class="btn sec" id="coopLeave">離開房間</button>
+  <div class="row">
+    <button class="btn ready" id="coopReady">✅ 準備完成</button>
+    <button class="btn" id="coopStart" disabled>⚔ 開始對戰</button>
+  </div>
+  <button class="btn sec" id="coopLeave">離開小隊</button>
 </div>
 
 <script type="module" src="./src/legacy.js"></script>
