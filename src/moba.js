@@ -138,7 +138,7 @@
     // 入侵浪潮：更兇、隨時間加速、精英「入侵種王」
     const RK=()=>INVADERS[Math.floor(Math.random()*INVADERS.length)];
     const pushInv=(el)=>{ if(invaders.length<80){ const v=mkInvader(RK(),el); invaders.push(v);
-      if(el){ eliteFlash=0.5; mshake=Math.max(mshake,7); toast("👑 "+KNAME[v.kind]+"王　降臨！"); } } };
+      if(el){ eliteFlash=0.5; mshake=Math.max(mshake,3); toast("👑 "+KNAME[v.kind]+"王　降臨！"); } } };
     spawnT-=dt;
     if(spawnT<=0){ const ramp=Math.min(1,clock/110); spawnT=Math.max(0.8, 3.0-ramp*2.0);
       const n=2+(Math.random()<ramp?1:0); for(let i=0;i<n;i++) pushInv(false);
@@ -294,12 +294,10 @@
     // 神木瀕危：紅色警示閃動
     if(shrine.hp/shrine.maxhp<0.3){ const pl=0.5+0.5*Math.sin(clock*6); const rv=ctx.createRadialGradient(VW/2,VH/2,VH*0.3,VW/2,VH/2,VH*0.78);
       rv.addColorStop(0,"rgba(255,0,0,0)"); rv.addColorStop(1,"rgba(255,0,0,"+(0.26*pl).toFixed(3)+")"); ctx.fillStyle=rv; ctx.fillRect(0,0,VW,VH); }
-    // 入侵種王登場：動漫式衝擊閃光 + 邊角速度線
+    // 入侵種王登場：輕微邊框提示（角色本身的光環已有動漫感，畫面不再全螢幕閃光）
     if(eliteFlash>0){ const a=eliteFlash/0.5;
-      ctx.fillStyle="rgba(120,0,20,"+(0.5*a).toFixed(3)+")"; ctx.fillRect(0,0,VW,VH);
-      ctx.strokeStyle="rgba(255,60,60,"+(0.8*a).toFixed(3)+")"; ctx.lineWidth=3;
-      for(let i=0;i<10;i++){ const ang=i/10*6.283, cx2=VW/2, cy2=VH/2, r0=Math.min(VW,VH)*0.15, r1=Math.max(VW,VH)*0.75*a+r0;
-        ctx.beginPath(); ctx.moveTo(cx2+Math.cos(ang)*r0,cy2+Math.sin(ang)*r0); ctx.lineTo(cx2+Math.cos(ang)*r1,cy2+Math.sin(ang)*r1); ctx.stroke(); } }
+      ctx.strokeStyle="rgba(255,60,60,"+(0.35*a).toFixed(3)+")"; ctx.lineWidth=10;
+      ctx.strokeRect(5,5,VW-10,VH-10); }
     if(toastT>0){ toastT-=0.016; if(toastT<=0){ const el=document.getElementById("mtoast"); if(el) el.classList.remove("show"); } }
   }
 
