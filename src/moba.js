@@ -143,7 +143,7 @@
   let pvePickTarget="iguana";
   // 單挑首領戰：只有玩家自己 vs 一隻超強首領，不出一般波次，擊敗首領即勝、時限到或神木倒則敗
   let duelEvent=null;   // {timeLeft, active}
-  const DUEL_DUR=100, DUEL_BOSSES=["python","iguana","canetoad","ibis"];
+  const DUEL_DUR=100, DUEL_BOSSES=["python","iguana","canetoad","ibis"], BOSS_NOVA_R=210;
   // 入侵種強度倍率（PVE 關卡遞增用；一般/限時模式恆為 1）——mkInvader 讀取套用到 hp/dmg
   let invHpMul=1, invDmgMul=1, invSpawnMul=1;
   // pveNextLevel：非 null 時結算畫面提供「下一關（更難）」按鈕；失敗維持 null（moverAgain 重打同關）
@@ -262,9 +262,13 @@
     duelEvent=null;
     if(pickMode==="duel"){ const bk=DUEL_BOSSES[Math.floor(Math.random()*DUEL_BOSSES.length)]; const boss=mkInvader(bk,true);
       boss.maxhp=Math.round(boss.maxhp*3.6); boss.hp=boss.maxhp; boss.dmg=Math.round(boss.dmg*1.15); boss.r=Math.round(boss.r*1.3); boss.isBoss=true;
+      boss.bossSpCd=4; boss.bossSpT=0; boss.bossRingT=0; boss.enraged=false;   // 首領專屬：範圍震波冷卻/預警、暴走旗標
       boss.x=SHX; boss.y=SHY-320; invaders.push(boss);
       duelEvent={ timeLeft:DUEL_DUR, active:true, bossKind:bk };
-      setTimeout(()=>toast("⚔ 單挑首領戰！擊敗 "+KNAME[bk]+"王　限時 "+DUEL_DUR+" 秒"),1600); }
+      // 單挑玩法/技能跟一般不同：技能冷卻大幅縮短、守護之力更快降臨，逼你用技能與走位打首領、不是站樁清波
+      if(player){ player.spMax=Math.max(1.5,(player.spMax||8)*0.55); }
+      relicSpawnT=3;
+      setTimeout(()=>toast("⚔ 單挑首領戰！擊敗 "+KNAME[bk]+"王　限時 "+DUEL_DUR+" 秒　技能冷卻加快！"),1600); }
     setTimeout(weatherToast,200);   // 讓進場動畫先跑，再顯示天候 toast
     if(pveEvent) setTimeout(()=>toast("🎯 第 "+pveEvent.level+" 關防衛戰！驅逐 "+pveEvent.need+" 隻 "+KNAME[pvePickTarget]),1600);
   }
@@ -342,7 +346,7 @@
     if(wantAtkT>0){ wantAtkT-=dt; if(wantAtkT<=0) wantAtk=false; }
     if(window.__shopTick) window.__shopTick(dt);
     // 守護之力能量球：定時在地圖四周（避開中央神木）補充，場上最多 RELIC_MAX 顆
-    if(relics.length<RELIC_MAX){ relicSpawnT-=dt; if(relicSpawnT<=0){ relicSpawnT=RELIC_SPAWN; relics.push(spawnRelic()); toast("⭐ 守護之力降臨地圖！撿起可施放必殺"); } }
+    if(relics.length<RELIC_MAX){ relicSpawnT-=dt; if(relicSpawnT<=0){ relicSpawnT=duelEvent?RELIC_SPAWN*0.6:RELIC_SPAWN; relics.push(spawnRelic()); toast("⭐ 守護之力降臨地圖！撿起可施放必殺"); } }
     // 入侵浪潮：更兇、隨時間加速、精英「入侵種王」
     // PVE 防衛戰模式：入侵種池只出目標種（沙氏變色蜥另建入侵池，一般模式不會自然出現）
     const pveInvPool=pveEvent?[pveEvent.target]:INVADERS;
@@ -373,6 +377,18 @@
     for(const v of invaders){ if(v.dead) continue; if(v.hitT>0) v.hitT-=dt; if(v.moodT>0) v.moodT-=dt;
       if(v.stun>0){ v.stun-=dt; v.moving=false; continue; }   // 被震暈：不動不攻
       if(v.chargeCd>0) v.chargeCd-=dt;
+      // 單挑首領專屬招式（讓單挑玩起來跟一般清波次完全不同）：暴走 + 蓄力範圍震波
+      if(v.isBoss && duelEvent){
+        if(!v.enraged && v.hp < v.maxhp*0.3){ v.enraged=true; v.dmg=Math.round(v.dmg*1.4); v.speed=Math.round(v.speed*1.3); eliteFlash=0.6; mshake=Math.max(mshake,8); toast("😤 "+KNAME[v.kind]+"王 暴走！攻擊與速度大幅提升"); }
+        if(v.bossSpT>0){ v.moving=false; v.atkA=0.2; v.bossSpT-=dt;
+          v.bossRingT-=dt; if(v.bossRingT<=0){ v.bossRingT=0.28; ring(v.x,v.y,BOSS_NOVA_R,"#ff5252"); }   // 擴散紅環預警危險範圍
+          if(v.bossSpT<=0){ ring(v.x,v.y,BOSS_NOVA_R,"#ff5252"); ring(v.x,v.y,BOSS_NOVA_R*0.6,"#ff8a80"); sparks(v.x,v.y,26,"#ff8a80"); mshake=Math.max(mshake,11);
+            for(const cand of [player,...heroes]){ if(!cand||cand.dead) continue; if(dist(v,cand)<BOSS_NOVA_R){ hurt(cand,Math.round(v.dmg*1.6),v); knock(cand,v.x,v.y,42); } }
+            v.bossSpCd=(v.enraged?3:4.5)+Math.random()*2; }
+          continue; }
+        if(v.bossSpCd>0) v.bossSpCd-=dt;
+        else if(v.chargeT<=0 && v.chargeDashT<=0){ v.bossSpT=0.7; v.bossRingT=0; toast("⚠ "+KNAME[v.kind]+"王 蓄力震波！快跑出紅圈"); continue; }
+      }
       // 蓄力衝撞：先原地預警蓄力，再朝當時鎖定的方向高速衝出，撞到目標會造成大傷害+擊退，逼玩家主動走位閃避
       if(v.chargeDashT>0){ v.moving=true; v.anim+=dt; v.chargeDashT-=dt;
         const px=v.x,py=v.y;
@@ -1253,13 +1269,22 @@
   function starG(g2,x,y,r){ g2.beginPath(); for(let i=0;i<4;i++){ const a=i*1.5708; g2.moveTo(x,y); g2.lineTo(x+Math.cos(a-0.32)*r,y+Math.sin(a-0.32)*r); g2.lineTo(x+Math.cos(a)*r*1.8,y+Math.sin(a)*r*1.8); g2.lineTo(x+Math.cos(a+0.32)*r,y+Math.sin(a+0.32)*r); } g2.closePath(); g2.fill(); }
 
   /* ---------- HUD ---------- */
-  function updateHUD(){ setW("mhpAlly",shrine.hp/shrine.maxhp); txt("mhpAllyTxt",Math.ceil(shrine.hp));
-    setW("mRestore",restore); txt("mRestoreTxt",Math.floor(restore*100)+"%");
-    const mm=Math.floor(clock/60),ss=Math.floor(clock%60); txt("mclock",mm+":"+(ss<10?"0":"")+ss);
-    if(duelEvent){ const boss=invaders.find(v=>v.isBoss&&!v.dead); const bhp=boss?Math.ceil(100*boss.hp/boss.maxhp):0;
-      txt("mBest","⚔ "+KNAME[duelEvent.bossKind]+"王 HP "+bhp+"%　⏱ "+fmtTime(duelEvent.timeLeft)); }
-    else if(pveEvent){ txt("mBest","🎯 第"+(pveEvent.level||1)+"關 "+KNAME[pveEvent.target]+" "+pveEvent.got+"/"+pveEvent.need+"　⏱ "+fmtTime(pveEvent.timeLeft)); }
-    else if(timeAttack){ const b=getBest(teamSize); txt("mBest", b?("🏆 最佳 "+fmtTime(b)):"⏱ 挑戰紀錄中"); } else txt("mBest","");
+  function updateHUD(){
+    // 單挑首領戰：上方改成雙方血條（你 vs 首領），隱藏神木/復原度那組 HUD
+    const dh=document.getElementById("mDuelHud"), mh=document.getElementById("mhud");
+    if(duelEvent){ if(mh) mh.style.display="none"; if(dh) dh.classList.remove("hide");
+      const boss=invaders.find(v=>v.isBoss&&!v.dead);
+      setW("dhYou", player? player.hp/player.maxhp : 0);
+      setW("dhBoss", boss? boss.hp/boss.maxhp : 0);
+      txt("dhYouName", (player?KNAME[player.kind]||"你":"你"));
+      txt("dhBossName", KNAME[duelEvent.bossKind]+"王");
+      txt("dhTimer", "⚔ "+fmtTime(duelEvent.timeLeft)); }
+    else { if(mh) mh.style.display=""; if(dh && !dh.classList.contains("hide")) dh.classList.add("hide");
+      setW("mhpAlly",shrine.hp/shrine.maxhp); txt("mhpAllyTxt",Math.ceil(shrine.hp));
+      setW("mRestore",restore); txt("mRestoreTxt",Math.floor(restore*100)+"%");
+      const mm=Math.floor(clock/60),ss=Math.floor(clock%60); txt("mclock",mm+":"+(ss<10?"0":"")+ss);
+      if(pveEvent){ txt("mBest","🎯 第"+(pveEvent.level||1)+"關 "+KNAME[pveEvent.target]+" "+pveEvent.got+"/"+pveEvent.need+"　⏱ "+fmtTime(pveEvent.timeLeft)); }
+      else if(timeAttack){ const b=getBest(teamSize); txt("mBest", b?("🏆 最佳 "+fmtTime(b)):"⏱ 挑戰紀錄中"); } else txt("mBest",""); }
     const sp=document.getElementById("mSp"); if(sp){ const mx=(player&&player.spMax)||8, cd=player&&player.spCd>0?player.spCd:0; sp.querySelector(".fill").style.height=(cd/mx*100)+"%"; sp.classList.toggle("ready",cd<=0); }
     // 必殺鈕：握有守護之力＝金色可施放（ready）；冷卻中＝倒數遮罩由下往上退；空手＝上鎖(locked)提示去撿
     const ub=document.getElementById("mUlt");

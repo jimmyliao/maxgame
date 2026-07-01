@@ -64,6 +64,17 @@
   .mbar i{ display:block; height:100%; width:100%; }
   .mbar i.ally{ background:linear-gradient(90deg,#66bb6a,#a5d6a7); }
   .mbar i.foe{ background:linear-gradient(90deg,#ab47bc,#ef5350); margin-left:auto; }
+  /* 單挑雙方血條 */
+  #mDuelHud{ position:absolute; top:max(8px,env(safe-area-inset-top)); left:0; right:0; display:flex; align-items:center; justify-content:center;
+    gap:10px; padding:0 12px; pointer-events:none; }
+  #mDuelHud.hide{ display:none; }
+  #mDuelHud .dh-side{ flex:1; max-width:44%; }
+  #mDuelHud .dh-name{ display:block; font-size:12px; font-weight:900; color:#fff; text-shadow:0 1px 3px #000; margin-bottom:3px; }
+  #mDuelHud .dh-side.right{ text-align:right; }
+  #mDuelHud .dh-bar{ height:14px; border-radius:7px; background:rgba(0,0,0,.55); overflow:hidden; border:1px solid rgba(255,255,255,.35); }
+  #mDuelHud .dh-bar i{ display:block; height:100%; width:100%; background:linear-gradient(90deg,#43a047,#a5d6a7); transition:width .18s ease; }
+  #mDuelHud .dh-bar.boss i{ background:linear-gradient(90deg,#ef5350,#ff8a80); margin-left:auto; transition:width .18s ease; }
+  #mDuelHud .dh-vs{ font-size:14px; font-weight:900; color:#ffd54f; text-shadow:0 1px 3px #000; white-space:nowrap; padding-top:14px; }
   #mclock{ font-size:13px; font-weight:800; color:#ffd54f; text-shadow:0 1px 2px #000; padding-top:2px; }
   #mBest{ font-size:11px; font-weight:800; color:#80deea; text-shadow:0 1px 2px #000; text-align:center; }
   #mGoldHud{ font-size:13px; font-weight:900; color:#ffd54f; text-shadow:0 1px 3px #000; text-align:center; margin-top:2px;
@@ -547,6 +558,12 @@
       <div class="mt-row"><b id="mRestoreTxt">0%</b><span>🌿 棲地復原</span></div>
       <div class="mbar"><i id="mRestore" class="ally"></i></div>
     </div>
+  </div>
+  <!-- 單挑首領戰專用：上方雙方血條（你 vs 首領），取代神木/復原度 -->
+  <div id="mDuelHud" class="hide">
+    <div class="dh-side"><span class="dh-name" id="dhYouName">你</span><div class="dh-bar"><i id="dhYou"></i></div></div>
+    <div class="dh-vs" id="dhTimer">⚔</div>
+    <div class="dh-side right"><span class="dh-name" id="dhBossName">首領</span><div class="dh-bar boss"><i id="dhBoss"></i></div></div>
   </div>
   <div id="mstick"><div id="mknob"></div></div>
   <div id="mbtns">
