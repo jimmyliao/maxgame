@@ -491,6 +491,8 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   function dailyClaimable(){ const o=getDaily(); return DAILY_DEFS.filter(d=>(o.prog[d.id]||0)>=d.goal && !o.claimed[d.id]).length; }
 
   let W=0,H=0,GY=0,dpr=1,rot=false;
+  // 只有手機/平板才強制橫向；電腦瀏覽器不管視窗形狀都維持原生直式，不套用旋轉戲法
+  const isMobileDevice=()=>/Android|iPhone|iPad|iPod|Mobile|Tablet/i.test(navigator.userAgent||"");
   const appRoot=document.getElementById("app");
   // 這幾個畫面是獨立於 #app 之外的覆蓋層（MOBA 選人/結算、好友連線），沒有內部畫布要重繪，
   // 直接把整個 .scr 盒子原地旋轉即可，跟 #app 用同一個 rot 判斷、同一時間切換，畫面才不會忽正忽橫。
@@ -500,7 +502,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   // 內部畫布一律以「橫向」尺寸繪製，交給 CSS transform 負責把畫面轉正貼滿直立螢幕。
   // 同時蓋一層「請橫向持機」引導頁——CSS 旋轉戲法只有物理橫拿手機才會正確顯示，
   // 不提示的話玩家會看到整個畫面歪一邊、以為壞掉，這裡把要求講清楚，橫拿後自動消失。
-  function applyRot(){ const iw=window.innerWidth, ih=window.innerHeight; rot=ih>iw;
+  function applyRot(){ const iw=window.innerWidth, ih=window.innerHeight; rot=isMobileDevice()&&ih>iw;
     if(appRoot) appRoot.classList.toggle("rot",rot);
     for(const el of ROT_OVERLAYS) el.classList.toggle("rot",rot);
     if(rotateGate) rotateGate.classList.toggle("hide",!rot); }

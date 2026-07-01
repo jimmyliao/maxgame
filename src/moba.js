@@ -40,8 +40,10 @@
   /* ---------- 視窗 / 世界 ---------- */
   let VW=0, VH=0, dpr=1, rot=false;
   const MW=2000, MH=1500;
+  // 只有手機/平板才強制橫向；電腦瀏覽器不管視窗形狀都維持原生直式，不套用旋轉戲法
+  const isMobileDevice=()=>/Android|iPhone|iPad|iPod|Mobile|Tablet/i.test(navigator.userAgent||"");
   function resize(){ const iw=window.innerWidth, ih=window.innerHeight;
-    rot = ih>iw;                              // 直握 → 旋轉成橫向
+    rot = isMobileDevice() && ih>iw;          // 直握手機 → 旋轉成橫向
     root.classList.toggle("rot", rot);
     VW = rot? ih : iw; VH = rot? iw : ih;     // 邏輯畫面一律為橫向（寬>高）
     ZMIN=Math.max(0.62, VW/(MW-40), VH/(MH-40)); if(zoom<ZMIN) zoom=ZMIN;   // 視角不得超出世界邊界

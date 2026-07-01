@@ -174,8 +174,10 @@
   const cv=$("habCanvas");
   const ctx=cv && cv.getContext("2d");
   let VW=0, VH=0, dpr=1, running=false, raf=0, rot=false;
+  // 只有手機/平板才強制橫向；電腦瀏覽器不管視窗形狀都維持原生直式，不套用旋轉戲法
+  const isMobileDevice=()=>/Android|iPhone|iPad|iPod|Mobile|Tablet/i.test(navigator.userAgent||"");
   function resize(){ if(!cv) return; const iw=window.innerWidth, ih=window.innerHeight;
-    rot = ih>iw;                               // 直握手機 → 旋轉成橫向填滿螢幕（跟 MOBA 同一套做法）
+    rot = isMobileDevice() && ih>iw;           // 直握手機 → 旋轉成橫向填滿螢幕（跟 MOBA 同一套做法）
     const root=$("habitat"); if(root) root.classList.toggle("rot", rot);
     VW = rot? ih : iw; VH = rot? iw : ih;
     dpr=Math.min(window.devicePixelRatio||1,2); cv.width=Math.round(VW*dpr); cv.height=Math.round(VH*dpr); ctx.setTransform(dpr,0,0,dpr,0,0); }
