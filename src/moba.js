@@ -57,6 +57,7 @@
   let running=false, raf=0, lastT=0, clock=0, teamSize=3, ended=false;
   let shrine=null, nurseries=[], heroes=[], invaders=[], fx=[], floats=[], hprojs=[];
   let player=null, spawnT=0, restore=0, killCount=0, surgeT=45, finalAssault=false, mshake=0, eliteFlash=0;
+  let combo=0, comboT=0, comboBest=0, comboPop=0;   // 連擊系統：短時間內連續驅逐入侵種會疊加，逾時歸零
   let pickMode="normal", timeAttack=false;
   let battleRegion="paddy", healthBonus=0;   // 復育↔對戰核心循環：戰場棲地健康度影響數值加成
   // 好友連線（選用）：netRole=null 純單機（預設，行為完全不變）；"host" 本機模擬+定期廣播；"guest" 不跑模擬，只接收快照渲染+送出操控
@@ -131,6 +132,7 @@
     if(s===0) return {x:u*MW,y:20}; if(s===1) return {x:u*MW,y:MH-20}; if(s===2) return {x:20,y:u*MH}; return {x:MW-20,y:u*MH}; }
 
   function setup(size){ teamSize=size; clock=0; ended=false; restore=0; killCount=0; spawnT=2; surgeT=42; finalAssault=false; directive=null; directiveCd=0; bubble=null; eliteFlash=0; timeAttack=(pickMode==="time");
+    combo=0; comboT=0; comboBest=0; comboPop=0;
     fx=[]; floats=[]; invaders=[]; hprojs=[]; weatherFx=[];
     weatherBattle=pickWeather();
     pveEvent=(pickMode==="pve")? { target:pvePickTarget, need:PVE_NEED[pvePickTarget]||12, got:0, timeLeft:PVE_DUR, active:true } : null;
@@ -191,8 +193,14 @@
     // 入侵種
     o.dead=true; killCount++; ring(o.x,o.y,o.elite?60:26,"#cddc39"); sparks(o.x,o.y,o.elite?26:12,o.elite?"#ffca28":"#cddc39");
     if(o.elite){ mshake=Math.max(mshake,10); ring(o.x,o.y,90,"#ffca28"); }
-    restore=clamp(restore+(o.elite?0.05:0.012),0,1);
-    floats.push({x:o.x,y:o.y-30,txt:(o.elite?"入侵種王 ":"")+KNAME[o.kind]+" 被驅逐  🌿復原+"+(o.elite?5:1)+"%",col:"#c5e1a5",life:1.1});
+    // 連擊：3.2 秒內連續驅逐會疊加，每 5 連擊多一次爆發回饋（震動/粒子/復原度都加碼），逾時歸零重來
+    combo++; comboT=3.2; comboPop=0.5; comboBest=Math.max(comboBest,combo);
+    const comboTier=Math.floor(combo/5), comboBonus=1+comboTier*0.35;
+    if(combo>=3 && combo%5===0){ mshake=Math.max(mshake,6+comboTier*2); sparks(o.x,o.y,20+comboTier*6,"#ffd54f"); ring(o.x,o.y,70+comboTier*14,"#ffd54f");
+      toast("🔥 "+combo+" 連擊！驅逐效率大爆發！"); }
+    restore=clamp(restore+(o.elite?0.05:0.012)*comboBonus,0,1);
+    floats.push({x:o.x,y:o.y-30,txt:(o.elite?"入侵種王 ":"")+KNAME[o.kind]+" 被驅逐  🌿復原+"+Math.round((o.elite?5:1)*comboBonus)+"%",col:"#c5e1a5",life:1.1});
+    if(combo>=2) floats.push({x:o.x,y:o.y-50,txt:combo+" 連擊",col:combo%5===0?"#ffd54f":"#fff59d",life:0.9,big:combo%5===0});
     if(by && by.isPlayer!==undefined){ by.mood="proud"; by.moodT=1.6;
       const fact=ECO_FACT[by.kind+"_"+o.kind]; if(fact && Math.random()<0.5) toast("🔗 "+fact); } // 守護者擊退入侵種：得意 + 生物防治鏈科普
     if(pveEvent && pveEvent.active && o.kind===pveEvent.target){ pveEvent.got++;
@@ -215,6 +223,8 @@
   /* ---------- 更新 ---------- */
   function step(dt){
     if(ended) return; clock+=dt; if(mshake>0) mshake=Math.max(0,mshake-dt*38); if(eliteFlash>0) eliteFlash=Math.max(0,eliteFlash-dt*1.6);
+    if(comboPop>0) comboPop=Math.max(0,comboPop-dt*1.8);
+    if(comboT>0){ comboT-=dt; if(comboT<=0) combo=0; }
     // 入侵浪潮：更兇、隨時間加速、精英「入侵種王」
     // PVE 防衛戰模式：入侵種池只出目標種（沙氏變色蜥另建入侵池，一般模式不會自然出現）
     const pveInvPool=pveEvent?[pveEvent.target]:INVADERS;
@@ -494,6 +504,17 @@
     if(eliteFlash>0){ const a=eliteFlash/0.5;
       ctx.strokeStyle="rgba(255,60,60,"+(0.35*a).toFixed(3)+")"; ctx.lineWidth=10;
       ctx.strokeRect(5,5,VW-10,VH-10); }
+    // 連擊計數：右上角浮動數字，每次擊殺都彈一下，5 的倍數時放大變金色，給玩家清楚的節奏爽感
+    if(combo>=2){ const pop=1+comboPop*0.5, tier=Math.floor(combo/5), gold=combo%5===0&&comboPop>0.25;
+      const cx=VW-70, cy=54;
+      ctx.save(); ctx.translate(cx,cy); ctx.scale(pop,pop);
+      ctx.font="bold 15px sans-serif"; ctx.textAlign="center"; ctx.fillStyle=gold?"#ffd54f":"rgba(255,255,255,0.85)";
+      ctx.strokeStyle="rgba(0,0,0,0.6)"; ctx.lineWidth=3; ctx.strokeText("連擊",0,-13); ctx.fillText("連擊",0,-13);
+      ctx.font="bold "+(26+tier*3)+"px sans-serif"; ctx.fillStyle=gold?"#ffd54f":"#fff59d";
+      ctx.strokeText(String(combo),0,14); ctx.fillText(String(combo),0,14);
+      ctx.restore();
+      if(comboT<1){ ctx.save(); ctx.strokeStyle="rgba(255,213,79,"+(comboT*0.7).toFixed(3)+")"; ctx.lineWidth=3;
+        ctx.beginPath(); ctx.arc(cx,cy,26,-1.5708,-1.5708+comboT*6.283); ctx.stroke(); ctx.restore(); } }
     if(toastT>0){ toastT-=0.016; if(toastT<=0){ const el=document.getElementById("mtoast"); if(el) el.classList.remove("show"); } }
   }
 
@@ -817,7 +838,8 @@
       let timeLine="";
       if(timeAttack){ const prev=getBest(teamSize), newRecord=!prev||clock<prev; if(newRecord) setBest(teamSize,clock);
         timeLine="<br><br>⏱ 用時 <b>"+fmtTime(clock)+"</b>"+(newRecord?"　🏆 新紀錄！":("　（歷史最佳 "+fmtTime(prev)+"）")); }
-      showOver("🌳 棲地復原成功！","枯黃的土地重新長回翠綠","你和守護者小隊驅逐了外來入侵種、守住台灣神木與復育苗圃。<br>🌿 保育值 +"+eco+"　驅逐 "+killCount+" 隻　"+(KNAME[key]||"")+" EXP +"+xp+"　Lv"+before+(after>before?(" → "+after+" ⬆升級！"):"")+
+      const comboLine=comboBest>=3?("　🔥 最高連擊 "+comboBest):"";
+      showOver("🌳 棲地復原成功！","枯黃的土地重新長回翠綠","你和守護者小隊驅逐了外來入侵種、守住台灣神木與復育苗圃。<br>🌿 保育值 +"+eco+"　驅逐 "+killCount+" 隻"+comboLine+"　"+(KNAME[key]||"")+" EXP +"+xp+"　Lv"+before+(after>before?(" → "+after+" ⬆升級！"):"")+
         "<br>🌱 "+(REGION_LABEL[battleRegion]||battleRegion)+"棲地獲得復育核心資產，成長加速！"+timeLine); }
     else { const xp=8+killCount; window.__awardXP&&window.__awardXP(key,xp);  // 輸了也給少量經驗——等級只升不降
       showOver("神木倒下了…","棲地失守","別氣餒！多回防受威脅的苗圃、善用『守護爆發』與『回神木』補血，再守一次。<br>"+(KNAME[key]||"")+" 仍獲得 EXP +"+xp+"（等級永不下降・目前 Lv"+before+"）"); } }
