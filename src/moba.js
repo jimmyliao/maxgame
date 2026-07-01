@@ -13,10 +13,12 @@
 
   /* ---------- 物種資料 ---------- */
   const KCOL = { leopard:"#e8a13a", bear:"#3b332e", cicada:"#5f9a3c", dragonfly:"#1fa3a3", deer:"#cf9a5e", magpie:"#2f6fd0",
-                 snail:"#b6884a", iguana:"#54b24a", frog:"#82b24c", ibis:"#e3e9ec", anole:"#8a6a3c" };
+                 snail:"#b6884a", iguana:"#54b24a", frog:"#82b24c", ibis:"#e3e9ec", anole:"#8a6a3c",
+                 muntjac:"#b8703f", macaque:"#b08f56", salmon:"#3a8a9e", pheasant:"#2a3a7a" };
   const KNAME = { leopard:"石虎", bear:"黑熊", cicada:"爺蟬", dragonfly:"勾蜓", deer:"梅花鹿", magpie:"藍鵲",
-                  snail:"福壽螺", iguana:"綠鬣蜥", frog:"斑腿蛙", ibis:"聖䴉", anole:"沙氏變色蜥" };
-  const GUARDIANS = ["leopard","bear","dragonfly","magpie","deer","cicada"];
+                  snail:"福壽螺", iguana:"綠鬣蜥", frog:"斑腿蛙", ibis:"聖䴉", anole:"沙氏變色蜥",
+                  muntjac:"山羌", macaque:"台灣獼猴", salmon:"櫻花鉤吻鮭", pheasant:"藍腹鷴" };
+  const GUARDIANS = ["leopard","bear","dragonfly","magpie","deer","cicada","muntjac","macaque","salmon","pheasant"];
   const INVADERS  = ["iguana","snail","frog","ibis"];
   // 各物種體型/身形（讓每隻一眼就不同：大小、身體長寬比）
   const KCFG = {
@@ -25,12 +27,14 @@
     cicada:{sz:0.90, long:0.88, wide:0.52},   magpie:{sz:0.96, long:1.00, wide:0.60},
     iguana:{sz:1.14, long:1.30, wide:0.52},   snail:{sz:1.04, long:0.92, wide:0.74},
     frog:{sz:1.08, long:0.82, wide:0.98},     ibis:{sz:1.10, long:1.04, wide:0.58},
-    anole:{sz:0.68, long:1.15, wide:0.42}
+    anole:{sz:0.68, long:1.15, wide:0.42},
+    muntjac:{sz:0.86, long:0.92, wide:0.5},   macaque:{sz:0.92, long:0.96, wide:0.56},
+    salmon:{sz:0.98, long:1.4, wide:0.4},     pheasant:{sz:1.0, long:1.02, wide:0.56}
   };
   const kcfg=(k)=>KCFG[k]||{sz:1,long:1,wide:0.74};
   // 圖檔優先：放 assets/top/<kind>.png(俯視角、面向右、去背)就自動改用寫實圖，沒有就用程式圖
   const SPRITES_TOP={};
-  ["leopard","bear","cicada","dragonfly","deer","magpie","snail","iguana","frog","ibis","anole"].forEach(k=>{
+  ["leopard","bear","cicada","dragonfly","deer","magpie","snail","iguana","frog","ibis","anole","muntjac","macaque","salmon","pheasant"].forEach(k=>{
     try{ const im=new Image(); im.onload=()=>{ if(im.naturalWidth>0) SPRITES_TOP[k]=im; }; im.onerror=()=>{}; im.src="assets/top/"+k+".png"; }catch(e){} });
 
   /* ---------- 視窗 / 世界 ---------- */
@@ -117,7 +121,7 @@
   function mkHero(kind,isPlayer){ return { kind, isPlayer:!!isPlayer, x:0,y:0, r:24, hp:340, maxhp:340,
     dmg:28, range:70, cd:0.6, t:0, spCd:0, speed:isPlayer?172:150, face:0, dead:false, respawn:0, name:KNAME[kind]||kind,
     hitT:0, anim:0, moving:false, phase:Math.random()*6.28, atkA:0, mood:"n", moodT:0,
-    dr:0, invulnT:0, stealthT:0, shieldT:0, talent:null }; }   // dr=天賦減傷 0~1；talent=第3級主動技能旗標
+    dr:0, invulnT:0, stealthT:0, shieldT:0, talent:null, blessT:0 }; }   // dr=天賦減傷 0~1；talent=第3級主動技能旗標；blessT=山羌祝福加速剩餘時間
   function mkInvader(kind,elite){ const p=edgePoint(), scale=1+Math.min(1.3,clock/120)*0.6; // 隨時間越來越強
     const isAnole=kind==="anole"&&!elite; // 沙氏變色蜥：體型小、繁殖力強 → 個體弱小但速度快（呼應真實生態習性）
     const hp=Math.round((elite?300:isAnole?40:64)*scale);
@@ -147,6 +151,7 @@
         if(m.spCd) h.spMax=Math.max(1.5,h.spMax*(1+m.spCd));
         if(m.dr) h.dr=clamp(m.dr,0,0.6); }
       h.talent=(tal&&tal.active)?tal.active.effect:null;
+      h.baseSpeed=h.speed;   // 山羌靈奔祝福等暫時加速效果的基準值，避免逐幀疊乘暴走
       return h; });
     player=heroes[0];
     cam.x=clamp(player.x-VW/2,0,Math.max(0,MW-VW)); cam.y=clamp(player.y-VH/2,0,Math.max(0,MH-VH));
@@ -254,6 +259,7 @@
       if(h.dead){ h.respawn-=dt; if(h.respawn<=0){ h.dead=false; h.hp=h.maxhp; h.x=SHX+(Math.random()*120-60); h.y=SHY+110; ring(h.x,h.y,40,"#66bb6a"); } continue; }
       if(h.t>0) h.t-=dt; if(h.spCd>0) h.spCd-=dt; if(h.hitT>0) h.hitT-=dt; if(h.atkA>0) h.atkA-=dt; if(h.moodT>0) h.moodT-=dt; h.moving=false;
       if(h.invulnT>0) h.invulnT-=dt; if(h.stealthT>0) h.stealthT-=dt;
+      if(h.blessT>0){ h.blessT-=dt; h.speed=Math.round((h.baseSpeed||h.speed)*1.22); } else if(h.baseSpeed) h.speed=h.baseSpeed;   // 山羌靈奔祝福：暫時加速，逐幀還原避免疊乘
       if(h.isPlayer){ updatePlayer(h,dt); continue; }
       if(h===netGuestHero){ updateNetGuestHero(h,dt); continue; }   // 好友連線：這隻由遠端玩家操控，host 端套用其搖桿輸入，不跑 AI
       // AI 守護者：聽從快捷指令（集合/攻擊/撤退），否則優先打靠近苗圃/神木的入侵種
@@ -397,8 +403,37 @@
     ring(h.x,h.y,210,"#a5d6a7"); sparks(h.x,h.y,22,"#a5d6a7");
     for(const a of heroes){ if(!a.dead && dist(h,a)<210){ a.hp=Math.min(a.maxhp,a.hp+amt); floats.push({x:a.x,y:a.y-a.r-12,txt:"+"+amt,col:"#a5d6a7",life:0.9}); } }
     for(const v of invaders){ if(!v.dead && dist(h,v)<155) knock(v,h.x,h.y,52); } }
+  // 山羌・靈奔祝福：範圍比復育號角小、治療量較低，但額外賦予短暫加速（森林底層敏捷小鹿的自然療癒特性，差異化於梅花鹿）
+  function skMuntjacBless(h){ const R=140, amt=70, spdT=2.6;
+    ring(h.x,h.y,R,"#c5e1a5"); ring(h.x,h.y,R*0.6,"#e6f4d9"); sparks(h.x,h.y,18,"#c5e1a5");
+    for(const a of heroes){ if(!a.dead && dist(h,a)<R){ a.hp=Math.min(a.maxhp,a.hp+amt); a.blessT=spdT;
+      floats.push({x:a.x,y:a.y-a.r-12,txt:"+"+amt+" 疾行",col:"#c5e1a5",life:0.9}); } } }
+  // 台灣獼猴・猿躍連擊：連續三段短距離跳躍突進，靈長類敏捷刺客的高機動連段
+  function skMacaqueFlurry(h){ let cx=h.x, cy=h.y;
+    for(let i=0;i<3;i++){ const tg=nearestInvader({x:cx,y:cy},260);
+      const ang=tg?Math.atan2(tg.e.y-cy,tg.e.x-cx):h.face+((Math.random()-0.5)*0.6);
+      const ex=clamp(cx+Math.cos(ang)*130,40,MW-40), ey=clamp(cy+Math.sin(ang)*130,40,MH-40);
+      fx.push({type:"streak",x:cx,y:cy,x2:ex,y2:ey,life:0.16,max:0.16,col:"#e8d9b8"});
+      for(const v of invaders){ if(!v.dead && segDist(v.x,v.y,cx,cy,ex,ey)<40){ hurt(v,h.dmg*1.3,h); knock(v,cx,cy,22); } }
+      sparks(ex,ey,10,"#e8d9b8"); cx=ex; cy=ey; }
+    h.x=cx; h.y=cy; h.invulnT=Math.max(h.invulnT,0.3); ring(cx,cy,55,"#e8d9b8"); }
+  // 台灣櫻花鉤吻鮭・逆流衝刺：呼應洄游意象的衝刺+水花範圍傷害，衝刺瞬間無敵（逆流而上、不畏險阻）
+  function skSalmonSurge(h){ const ang=(h.aim&&!h.aim.dead)?Math.atan2(h.aim.y-h.y,h.aim.x-h.x):h.face;
+    const ex=clamp(h.x+Math.cos(ang)*240,40,MW-40), ey=clamp(h.y+Math.sin(ang)*240,40,MH-40);
+    h.invulnT=Math.max(h.invulnT,0.6);
+    fx.push({type:"streak",x:h.x,y:h.y,x2:ex,y2:ey,life:0.28,max:0.28,col:"#7fc4d4"});
+    for(const v of invaders){ if(!v.dead && segDist(v.x,v.y,h.x,h.y,ex,ey)<50){ hurt(v,h.dmg*2.0,h); knock(v,h.x,h.y,30); } }
+    h.x=ex; h.y=ey;
+    ring(ex,ey,90,"#7fc4d4"); ring(ex,ey,60,"#cdeef4"); sparks(ex,ey,22,"#bfe8f0");
+    for(const v of invaders){ if(!v.dead && dist(v,{x:ex,y:ey})<95){ hurt(v,h.dmg*1.2,h); knock(v,ex,ey,36); } } }
+  // 藍腹鷴・金羽連射：五連發扇形箭羽，遠程專精，射程與投射物數量都優於疾風刃
+  function skPheasantVolley(h){ for(let i=-2;i<=2;i++){ const a=h.face+i*0.16;
+      hprojs.push({x:h.x+Math.cos(a)*h.r,y:h.y+Math.sin(a)*h.r,vx:Math.cos(a)*580,vy:Math.sin(a)*580,dmg:h.dmg*1.35,life:1.3,hits:[],pierce:2,col:"#c0392b"}); }
+    ring(h.x,h.y,50,"#2a3a7a"); sparks(h.x,h.y,14,"#c0392b"); }
   const SKILL={ leopard:{name:"閃電突進",cd:6,fn:skDash}, bear:{name:"震地",cd:9,fn:skSlam}, cicada:{name:"音爆",cd:9,fn:skSonic},
-    dragonfly:{name:"疾風刃",cd:6,fn:skShoot}, magpie:{name:"俯衝啄擊",cd:6,fn:skDive}, deer:{name:"復育號角",cd:8,fn:skHeal} };
+    dragonfly:{name:"疾風刃",cd:6,fn:skShoot}, magpie:{name:"俯衝啄擊",cd:6,fn:skDive}, deer:{name:"復育號角",cd:8,fn:skHeal},
+    muntjac:{name:"靈奔祝福",cd:7,fn:skMuntjacBless}, macaque:{name:"猿躍連擊",cd:6,fn:skMacaqueFlurry},
+    salmon:{name:"逆流衝刺",cd:6.5,fn:skSalmonSurge}, pheasant:{name:"金羽連射",cd:6,fn:skPheasantVolley} };
   function castSp(h){ const s=SKILL[h.kind]; h.spCd=h.spMax||(s&&s.cd)||7; h.atkA=0.3;
     if(h.isPlayer){ mshake=Math.max(mshake,6); toast((s?s.name:"技能")+(h.talent?"！🌟":"！")); }
     (s?s.fn:skSlam)(h); }
@@ -550,8 +585,9 @@
   function drawCreatureTop(u,r0,faction){
     const col=KCOL[u.kind]||"#888", dark=shade(col,-44), lite=shade(col,52), INK="#20140c";
     const cfg=kcfg(u.kind), r=r0*cfg.sz, gt=clock, f=u.face;
-    const flyer=(u.kind==="dragonfly"||u.kind==="cicada"), bird=(u.kind==="magpie"||u.kind==="ibis");
-    const mammal=(u.kind==="leopard"||u.kind==="bear"||u.kind==="deer"), angry=u.atkA>0;
+    const flyer=(u.kind==="dragonfly"||u.kind==="cicada"), bird=(u.kind==="magpie"||u.kind==="ibis"||u.kind==="pheasant");
+    const mammal=(u.kind==="leopard"||u.kind==="bear"||u.kind==="deer"||u.kind==="muntjac"||u.kind==="macaque"), angry=u.atkA>0;
+    const fish=(u.kind==="salmon");
     const walk=u.moving?Math.sin(u.anim*12):0;
     const bob=u.moving?Math.abs(Math.sin(u.anim*12))*r*0.14:Math.sin(gt*2.2+u.phase)*r*0.05;
     const breath=1+(u.moving?0:Math.sin(gt*2.2+u.phase)*0.03);
@@ -567,7 +603,7 @@
     const bLen=r*cfg.long, bW=r*cfg.wide;
     const proud=(u.mood==="proud" && u.moodT>0 && !angry);
     const OUT=Math.max(2.2,r*0.11);
-    const earKind=(u.kind==="leopard"||u.kind==="bear"||u.kind==="deer");
+    const earKind=(u.kind==="leopard"||u.kind==="bear"||u.kind==="deer"||u.kind==="muntjac"||u.kind==="macaque");
     // 影子（方向性、柔和；光源在左上，影子落右下）
     ctx.fillStyle="rgba(0,0,0,0.13)"; ctx.beginPath(); ctx.ellipse(u.x+r*0.28,u.y+r*0.66,bLen*1.08,r*0.42,0,0,7); ctx.fill();
     ctx.fillStyle="rgba(0,0,0,0.24)"; ctx.beginPath(); ctx.ellipse(u.x+r*0.18,u.y+r*0.62,bLen*0.82,r*0.32,0,0,7); ctx.fill();
@@ -582,22 +618,32 @@
     g.setTransform(1,0,0,1,R2,R2); g.clearRect(-R2,-R2,R2*2,R2*2);
     g.save(); g.scale(1,breath);
     // 尾巴（貓/鹿/鬣蜥各異，畫在最底層）
-    if(u.kind==="leopard"||u.kind==="deer"||u.kind==="iguana"||u.kind==="anole"){ const tw=Math.sin(gt*3+u.phase)*r*0.4, tl=(u.kind==="iguana"||u.kind==="anole")?1.7:1.35;
-      g.strokeStyle=INK; g.lineWidth=r*(u.kind==="deer"?0.12:0.2)+OUT*0.8; g.lineCap="round";
+    if(u.kind==="leopard"||u.kind==="deer"||u.kind==="iguana"||u.kind==="anole"||u.kind==="muntjac"||u.kind==="macaque"){
+      const tw=Math.sin(gt*3+u.phase)*r*0.4, tl=(u.kind==="iguana"||u.kind==="anole")?1.7:(u.kind==="macaque"?1.5:u.kind==="muntjac"?1.05:1.35);
+      const tlw=(u.kind==="deer"||u.kind==="muntjac")?0.12:(u.kind==="macaque"?0.1:0.2);
+      g.strokeStyle=INK; g.lineWidth=r*tlw+OUT*0.8; g.lineCap="round";
       g.beginPath(); g.moveTo(-bLen*0.8,0); g.quadraticCurveTo(-r*(tl*0.85),tw,-r*tl,tw*1.5); g.stroke();
-      g.strokeStyle=col; g.lineWidth=r*(u.kind==="deer"?0.12:0.2);
+      g.strokeStyle=col; g.lineWidth=r*tlw;
       g.beginPath(); g.moveTo(-bLen*0.8,0); g.quadraticCurveTo(-r*(tl*0.85),tw,-r*tl,tw*1.5); g.stroke(); g.lineCap="butt"; }
+    // 尾鰭（鮭魚洄游擺尾，取代四足動物尾巴）
+    if(fish){ const sw2=Math.sin(gt*7+u.phase)*0.35;
+      g.save(); g.translate(-bLen*0.92,0); g.rotate(sw2); g.fillStyle=INK;
+      g.beginPath(); g.moveTo(0,0); g.lineTo(-r*0.62,-r*0.5); g.lineTo(-r*0.2,0); g.lineTo(-r*0.62,r*0.5); g.closePath(); g.fill();
+      g.fillStyle=shade(col,-10);
+      g.beginPath(); g.moveTo(r*0.06,0); g.lineTo(-r*0.5,-r*0.4); g.lineTo(-r*0.16,0); g.lineTo(-r*0.5,r*0.4); g.closePath(); g.fill();
+      g.restore(); }
     // 共用座標（腳、頭、耳）
-    const hx=bLen*(bird?0.62:0.72), hr=r*(bird?0.32:0.46);
+    const hx=bLen*(bird?0.62:fish?0.82:0.72), hr=r*(bird?0.32:fish?0.34:0.46);
     const sw=walk*r*0.38, lr=r*(u.kind==="bear"?0.22:0.18);
     const ly=bW*0.98, lxf=bLen*0.42, lxb=bLen*0.5;
     const legs=bird?[[-r*0.05,-ly*0.6,1],[-r*0.05,ly*0.6,-1]]
       :[[lxf,-ly,1],[lxf,ly,-1],[-lxb,-ly,-1],[-lxb,ly,1]];
-    const earR=hr*(u.kind==="bear"?0.5:0.44);
+    const earR=hr*(u.kind==="bear"?0.5:u.kind==="macaque"?0.4:0.44);
+    const noLegs=flyer||fish;
 
     // ===== 第一遍：黑色輪廓底（整隻放大一圈，畫出唯一乾淨外框，不再有接縫）=====
     g.fillStyle=INK;
-    if(!flyer) for(const L of legs){ g.beginPath(); g.ellipse(L[0]+L[2]*sw,L[1],lr+OUT*0.7,lr*1.2+OUT*0.7,0,0,7); g.fill(); }
+    if(!noLegs) for(const L of legs){ g.beginPath(); g.ellipse(L[0]+L[2]*sw,L[1],lr+OUT*0.7,lr*1.2+OUT*0.7,0,0,7); g.fill(); }
     g.beginPath(); g.ellipse(0,0,bLen+OUT,bW+OUT,0,0,7); g.fill();
     if(earKind) for(const s of [-1,1]){ g.beginPath(); g.arc(hx-hr*0.15,s*hr*0.9,earR+OUT*0.7,0,7); g.fill(); }
     g.beginPath(); g.arc(hx,0,hr+OUT,0,7); g.fill();
@@ -605,7 +651,7 @@
     if(u.kind==="frog"){ g.beginPath(); g.arc(hx,-hr*0.8,hr*0.5+OUT*0.6,0,7); g.arc(hx,hr*0.8,hr*0.5+OUT*0.6,0,7); g.fill(); }
 
     // ===== 第二遍：平塗正色（不再逐一描邊，靠底圖露邊當外框；立體感留給最後的整體頂光/底暗）=====
-    if(!flyer){ const cc=hex(col), lum=cc[0]*0.299+cc[1]*0.587+cc[2]*0.114; const footCol=lum<95?shade(col,58):shade(col,-38);
+    if(!noLegs){ const cc=hex(col), lum=cc[0]*0.299+cc[1]*0.587+cc[2]*0.114; const footCol=lum<95?shade(col,58):shade(col,-38);
       g.fillStyle=footCol; for(const L of legs){ g.beginPath(); g.ellipse(L[0]+L[2]*sw,L[1],lr,lr*1.2,0,0,7); g.fill();
         g.strokeStyle="rgba(0,0,0,0.22)"; g.lineWidth=Math.max(1,r*0.035); for(const tn of [-0.4,0,0.4]){ g.beginPath(); g.moveTo(L[0]+L[2]*sw+tn*lr,L[1]+lr*0.7); g.lineTo(L[0]+L[2]*sw+tn*lr,L[1]+lr*1.15); g.stroke(); } } } // 腳趾切痕
     g.beginPath(); g.ellipse(0,0,bLen,bW,0,0,7); g.fillStyle=u.hitT>0?"#fff":col; g.fill();
@@ -621,6 +667,10 @@
       if(angry||u.atkA>0){ g.fillStyle="#e05a3a"; g.beginPath(); g.moveTo(hx+hr*0.3,0); g.lineTo(hx+hr*1.0,hr*1.6); g.lineTo(hx-hr*0.3,hr*0.3); g.closePath(); g.fill();
         g.strokeStyle="rgba(0,0,0,0.3)"; g.lineWidth=Math.max(1,r*0.03); g.stroke(); } }
     else if(u.kind==="frog"){ g.fillStyle="rgba(40,70,20,0.5)"; for(const o of [[-.2,-.3],[.1,.35],[.25,-.2]]){ g.beginPath(); g.arc(o[0]*bLen*1.1,o[1]*bW*1.1,r*0.13,0,7); g.fill(); } }
+    else if(u.kind==="muntjac"){ g.strokeStyle="rgba(90,50,20,0.6)"; g.lineWidth=r*0.05; g.beginPath(); g.moveTo(bLen*0.2,0); g.lineTo(-bLen*0.5,0); g.stroke(); }
+    else if(u.kind==="macaque"){ g.fillStyle="rgba(255,255,255,0.35)"; g.beginPath(); g.ellipse(-bLen*0.1,bW*0.4,bLen*0.28,bW*0.4,0,0,7); g.fill(); }
+    else if(fish){ g.fillStyle="rgba(50,35,25,0.42)"; for(const o of [[-.5,-.15],[-.2,.2],[.1,-.2],[.35,.15]]){ g.beginPath(); g.ellipse(o[0]*bLen,o[1]*bW*1.3,r*0.14,r*0.09,0,0,7); g.fill(); }
+      g.fillStyle="rgba(233,138,120,0.5)"; for(const o of [[-.35,.05],[-.05,-.1],[.25,.05]]){ g.beginPath(); g.arc(o[0]*bLen,o[1]*bW*1.3,r*0.06,0,7); g.fill(); } }
     // 耳：正色 + 粉內耳（外框已由底圖給了，這裡不再描邊）
     if(earKind) for(const s of [-1,1]){ g.fillStyle=shade(col,10); g.beginPath(); g.arc(hx-hr*0.15,s*hr*0.9,earR,0,7); g.fill();
       if(u.kind!=="bear"){ g.fillStyle="#e79ab0"; g.beginPath(); g.arc(hx-hr*0.1,s*hr*0.9,earR*0.5,0,7); g.fill(); } }
@@ -635,12 +685,21 @@
       for(const s of [-1,1]){ g.beginPath(); g.moveTo(hx,s*hr*0.6); g.lineTo(hx+r*0.4,s*hr*1.3); g.moveTo(hx+r*0.22,s*hr*1.0); g.lineTo(hx+r*0.45,s*hr*0.6); g.stroke(); }
       g.strokeStyle="#8d6e63"; g.lineWidth=r*0.08;
       for(const s of [-1,1]){ g.beginPath(); g.moveTo(hx,s*hr*0.6); g.lineTo(hx+r*0.4,s*hr*1.3); g.moveTo(hx+r*0.22,s*hr*1.0); g.lineTo(hx+r*0.45,s*hr*0.6); g.stroke(); } g.lineCap="butt"; }
-    // 鳥喙 + 藍鵲長尾
+    // 山羌短角（僅雄性微凸，簡化呈現）
+    if(u.kind==="muntjac"){ g.strokeStyle="#7a5230"; g.lineWidth=r*0.06+1.4; g.lineCap="round";
+      for(const s of [-1,1]){ g.beginPath(); g.moveTo(hx,s*hr*0.55); g.lineTo(hx+r*0.18,s*hr*0.9); g.stroke(); } g.lineCap="butt"; }
+    // 鮭魚背鰭（洄游意象，畫在身體中段）
+    if(fish){ g.fillStyle=shade(col,-18); g.beginPath(); g.moveTo(-r*0.05,-bW*0.9); g.lineTo(r*0.15,-bW*1.7); g.lineTo(r*0.35,-bW*0.85); g.closePath(); g.fill();
+      g.strokeStyle="rgba(0,0,0,0.2)"; g.lineWidth=Math.max(1,r*0.03); g.stroke(); }
+    // 鳥喙 + 藍鵲/藍腹鷴長尾
     if(bird){ g.fillStyle=INK; g.beginPath(); g.moveTo(hx+hr*0.55,-hr*0.2); g.lineTo(hx+hr*(u.kind==="ibis"?2.65:1.55),u.kind==="ibis"?hr*0.55:0); g.lineTo(hx+hr*0.55,hr*0.2); g.closePath(); g.fill();
       g.fillStyle=u.kind==="ibis"?"#333":"#e8a13a"; g.beginPath(); g.moveTo(hx+hr*0.6,-hr*0.15); g.lineTo(hx+hr*(u.kind==="ibis"?2.6:1.5),u.kind==="ibis"?hr*0.5:0); g.lineTo(hx+hr*0.6,hr*0.15); g.closePath(); g.fill();
       if(u.kind==="ibis"){ g.fillStyle="#222"; g.beginPath(); g.arc(hx,0,hr*0.9,0,7); g.fill(); }
       if(u.kind==="magpie"){ g.strokeStyle=INK; g.lineWidth=r*0.26+3; g.lineCap="round"; g.beginPath(); g.moveTo(-bLen*0.8,0); g.lineTo(-r*1.7,Math.sin(gt*3+u.phase)*r*0.25); g.stroke();
-        g.strokeStyle="#1565c0"; g.lineWidth=r*0.26; g.beginPath(); g.moveTo(-bLen*0.8,0); g.lineTo(-r*1.7,Math.sin(gt*3+u.phase)*r*0.25); g.stroke(); g.lineCap="butt"; } }
+        g.strokeStyle="#1565c0"; g.lineWidth=r*0.26; g.beginPath(); g.moveTo(-bLen*0.8,0); g.lineTo(-r*1.7,Math.sin(gt*3+u.phase)*r*0.25); g.stroke(); g.lineCap="butt"; }
+      if(u.kind==="pheasant"){ g.strokeStyle=INK; g.lineWidth=r*0.22+3; g.lineCap="round"; g.beginPath(); g.moveTo(-bLen*0.8,0); g.lineTo(-r*2.0,Math.sin(gt*2.5+u.phase)*r*0.2); g.stroke();
+        g.strokeStyle="#1a2f5c"; g.lineWidth=r*0.22; g.beginPath(); g.moveTo(-bLen*0.8,0); g.lineTo(-r*2.0,Math.sin(gt*2.5+u.phase)*r*0.2); g.stroke(); g.lineCap="butt";
+        g.fillStyle="#c0392b"; g.beginPath(); g.ellipse(hx-hr*0.1,0,hr*0.32,hr*0.24,0,0,7); g.fill(); } } // 紅色肉垂
     // 蝸牛觸角
     if(u.kind==="snail"){ g.strokeStyle=col; g.lineWidth=r*0.06; for(const s of [-1,1]){ g.beginPath(); g.moveTo(hx,s*hr*0.4); g.lineTo(hx+r*0.25,s*hr*0.9); g.stroke(); } }
     // 翅（拍動）
