@@ -94,7 +94,7 @@
   let combo=0, comboT=0, comboBest=0, comboPop=0;   // 連擊系統：短時間內連續驅逐入侵種會疊加，逾時歸零
   // 撿拾式必殺技：地圖四周散落「守護之力」能量球，玩家走過去撿起後才能施放超強範圍必殺，用完冷卻很久（要再撿一顆）
   let relics=[], relicSpawnT=0;
-  const RELIC_MAX=3, RELIC_SPAWN=16, RELIC_R=22, ULT_CD=28;   // 場上最多 3 顆、每 16 秒補一顆；施放後 28 秒內撿不了新的（冷卻很久）
+  const RELIC_MAX=3, RELIC_SPAWN=13, RELIC_R=22, ULT_CD=24;   // 節奏調快：每 13 秒補一顆守護之力、施放後 24 秒冷卻，讓必殺高光時刻更頻繁
   // 戰場商店（金幣/購買強化）已抽成獨立模組 src/battleshop.js，這裡只透過 window.__shopXxx 呼叫生命週期鉤子
   let pickMode="normal", timeAttack=false;
   let battleRegion="paddy", healthBonus=0;   // 復育↔對戰核心循環：戰場棲地健康度影響數值加成
@@ -242,7 +242,7 @@
   function edgePoint(){ const s=Math.floor(Math.random()*4), u=Math.random();
     if(s===0) return {x:u*MW,y:20}; if(s===1) return {x:u*MW,y:MH-20}; if(s===2) return {x:20,y:u*MH}; return {x:MW-20,y:u*MH}; }
 
-  function setup(size){ teamSize=size; clock=0; ended=false; restore=0; killCount=0; spawnT=2; surgeT=42; finalAssault=false; directive=null; directiveCd=0; bubble=null; eliteFlash=0; timeAttack=(pickMode==="time");
+  function setup(size){ teamSize=size; clock=0; ended=false; restore=0; killCount=0; spawnT=2; surgeT=36; finalAssault=false; directive=null; directiveCd=0; bubble=null; eliteFlash=0; timeAttack=(pickMode==="time");
     combo=0; comboT=0; comboBest=0; comboPop=0; hitStop=0; bossIntro=null; specHero=null;
     relics=[]; relicSpawnT=5;   // 開場 5 秒後第一顆守護之力才降臨，避免一開場就有必殺
     if(window.__shopReset) window.__shopReset();
@@ -266,7 +266,7 @@
     healthBonus=(window.__habitatHealth&&window.__habitatHealth(battleRegion))||0;   // 該地區棲地健康度 0~1
     heroes=kinds.map((k,i)=>{ const h=mkHero(k,i===0); const ang=-1.57+(i-(size-1)/2)*0.6; h.x=SHX+Math.cos(ang)*150; h.y=SHY+Math.sin(ang)*150;
       const lv=(window.__heroLevel&&window.__heroLevel(k))||1; h.level=lv; h.maxhp=Math.round(h.maxhp*(1+(lv-1)*0.03)); h.hp=h.maxhp; h.dmg=Math.round(h.dmg*(1+(lv-1)*0.02));
-      h.speed=Math.round(h.speed*(1+healthBonus*0.12)*weatherSpeedMul(k)); h.spMax=((SKILL[k]&&SKILL[k].cd)||7)*(1-healthBonus*0.15);
+      h.speed=Math.round(h.speed*(1+healthBonus*0.12)*weatherSpeedMul(k)); h.spMax=((SKILL[k]&&SKILL[k].cd)||7)*0.9*(1-healthBonus*0.15);   // 節奏調快：技能冷卻整體 -10%，出招更頻繁
       // 天賦加成（復育中心培養出來的分歧路線）：疊加在既有數值合約上，不覆蓋棲地健康度/天候加成
       const tal=(window.__heroTalent&&window.__heroTalent(k))||null;
       if(tal && tal.mods){ const m=tal.mods;
@@ -352,7 +352,7 @@
     const comboTier=Math.floor(combo/5), comboBonus=1+comboTier*0.35;
     if(combo>=3 && combo%5===0){ mshake=Math.max(mshake,6+comboTier*2); sparks(o.x,o.y,20+comboTier*6,"#ffd54f"); ring(o.x,o.y,70+comboTier*14,"#ffd54f");
       toast("🔥 "+combo+" 連擊！驅逐效率大爆發！"); if(window.__sfx) window.__sfx.play("combo"); }
-    restore=clamp(restore+(o.elite?0.05:0.012)*comboBonus,0,1);
+    restore=clamp(restore+(o.elite?0.06:0.017)*comboBonus,0,1);   // 節奏調快：每次驅逐推進更多復原度，正常場不再拖太久
     floats.push({x:o.x,y:o.y-30,txt:(o.elite?"入侵種王 ":"")+KNAME[o.kind]+" 被驅逐  🌿復原+"+Math.round((o.elite?5:1)*comboBonus)+"%",col:"#c5e1a5",life:1.1});
     if(combo>=2) floats.push({x:o.x,y:o.y-50,txt:combo+" 連擊",col:combo%5===0?"#ffd54f":"#fff59d",life:0.9,big:combo%5===0});
     if(by && by.isPlayer!==undefined){ by.mood="proud"; by.moodT=1.6;
@@ -399,10 +399,10 @@
       if(el){ eliteFlash=0.5; mshake=Math.max(mshake,3); toast("👑 "+KNAME[v.kind]+"王　降臨！"); } } };
     if(!duelEvent){   // 單挑模式不出一般波次，只有開場那隻首領
       spawnT-=dt;
-      if(spawnT<=0){ const ramp=Math.min(1,clock/110); spawnT=Math.max(0.55, (3.0-ramp*2.0)/(invSpawnMul||1));   // PVE 高關卡：生成更快
+      if(spawnT<=0){ const ramp=Math.min(1,clock/110); spawnT=Math.max(0.5, (2.6-ramp*1.8)/(invSpawnMul||1));   // 節奏調快：入侵種來得更密，減少空檔（PVE 高關卡更快）
         const n=2+(Math.random()<ramp?1:0)+(invSpawnMul>1.3?1:0); for(let i=0;i<n;i++) pushInv(false);
         if(!pveEvent && clock>15 && Math.random()<0.2+ramp*0.28) pushInv(true); }   // PVE 防衛戰不出入侵種王，聚焦清剿目標種
-      surgeT-=dt; if(surgeT<=0){ surgeT=42; toast("⚠ 入侵潮來襲！"); const c=3+Math.floor(clock/45); for(let i=0;i<c;i++) pushInv(false); if(!pveEvent) pushInv(true); }
+      surgeT-=dt; if(surgeT<=0){ surgeT=36; toast("⚠ 入侵潮來襲！"); const c=3+Math.floor(clock/45); for(let i=0;i<c;i++) pushInv(false); if(!pveEvent) pushInv(true); }   // 節奏調快：入侵潮更頻繁
       if(!pveEvent && restore>=0.75 && !finalAssault){ finalAssault=true; toast("⚠ 最終反撲・守住神木！"); for(let i=0;i<6;i++) pushInv(false); pushInv(true); pushInv(true); }
     }
 
