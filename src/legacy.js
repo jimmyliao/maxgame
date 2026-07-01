@@ -306,6 +306,77 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
       c.fillStyle="#e8a13a"; c.beginPath(); c.moveTo(s*0.22,-s*0.28); c.lineTo(s*0.42,-s*0.22); c.lineTo(s*0.22,-s*0.17); c.closePath(); c.fill();
       eye(-s*0.03,-s*0.3,s*0.07);
       if(mood==="angry"){ brow(-s*0.03,-s*0.42,s*0.09); }
+    } else if(kind==="pangolin"){
+      // 尾巴（後方，粗厚帶鱗，坦克象徵）
+      c.fillStyle=rg(s*0.6,s*0.2,s*0.4,"#c79a5e","#7a5326"); c.beginPath(); c.moveTo(s*0.3,s*0.5); c.quadraticCurveTo(s*0.95,s*0.5,s*0.9,-s*0.02); c.quadraticCurveTo(s*0.7,s*0.1,s*0.34,s*0.32); c.closePath(); c.fill();
+      // 身體（拱背蹲姿，土黃棕）
+      c.fillStyle=rg(-s*0.12,s*0.08,s*0.6,"#c99a5a","#7d5528"); c.beginPath(); c.ellipse(0,s*0.3,s*0.46,s*0.46,0,0,7); c.fill(); edge();
+      // 前後腳（粗短、挖掘型）
+      c.fillStyle=rg(0,s*0.62,s*0.2,"#b98a48","#6e4a22"); for(const dx of [-0.2,0.22]){ c.beginPath(); c.ellipse(dx*s,s*0.6,s*0.12,s*0.18,0,0,7); c.fill(); }
+      // 前爪（挖掘大爪）
+      c.strokeStyle="#4a3216"; c.lineWidth=s*0.03; c.lineCap="round"; for(const dx of [-0.24,-0.18,0.18,0.24]){ c.beginPath(); c.moveTo(dx*s,s*0.74); c.lineTo(dx*s,s*0.82); c.stroke(); }
+      // 鱗甲（覆瓦狀，招牌特徵；成排三角鱗片由背至臀）
+      c.lineWidth=s*0.018; c.strokeStyle="#5a3d1c";
+      for(let row=0;row<4;row++){ for(let col=-2;col<=2;col++){ const px=col*s*0.19+ (row%2? s*0.095: 0), py=-s*0.02+row*s*0.16;
+        if(Math.hypot(px, py-s*0.3)>s*0.5) continue;
+        c.fillStyle=rg(px-s*0.05,py-s*0.05,s*0.13,"#e0b878","#9a6f36"); c.beginPath();
+        c.moveTo(px,py-s*0.07); c.lineTo(px+s*0.1,py+s*0.06); c.lineTo(px-s*0.1,py+s*0.06); c.closePath(); c.fill(); c.stroke(); } }
+      // 頭（小、圓錐、無鱗較淺）
+      c.fillStyle=rg(-s*0.34,-s*0.28,s*0.32,"#d0a868","#9a6f36"); c.beginPath(); c.ellipse(-s*0.42,-s*0.08,s*0.26,s*0.22,-0.2,0,7); c.fill(); edge();
+      // 長吻（食蟻）
+      c.fillStyle=rg(-s*0.62,-s*0.02,s*0.2,"#dcb87c","#a4783e"); c.beginPath(); c.ellipse(-s*0.6,s*0.02,s*0.16,s*0.1,-0.1,0,7); c.fill();
+      // 小圓耳
+      c.fillStyle="#9a6f36"; c.beginPath(); c.arc(-s*0.34,-s*0.26,s*0.06,0,7); c.fill();
+      eye(-s*0.46,-s*0.1,s*0.06); brow(-s*0.46,-s*0.22,s*0.08);
+      if(mood==="angry"){ c.strokeStyle="#5a3d1c"; c.lineWidth=s*0.04; c.beginPath(); c.moveTo(-s*0.6,-s*0.16); c.lineTo(-s*0.46,-s*0.12); c.stroke(); }
+    } else if(kind==="yellowmarten"){
+      const tailSwing=Math.sin(t*4.5+(o.ph||0))*0.1;
+      // 長尾（後方，蓬鬆深褐，敏捷擺動）
+      c.save(); c.rotate(tailSwing); c.strokeStyle=rg(s*0.7,s*0.2,s*0.4,"#5a3c22","#3a2412"); c.lineWidth=s*0.13; c.lineCap="round";
+      c.beginPath(); c.moveTo(s*0.32,s*0.42); c.quadraticCurveTo(s*0.9,s*0.42,s*0.98,-s*0.16); c.stroke(); c.restore();
+      // 身體（細長流線，前深後淺——貂科修長體型）
+      c.fillStyle=rg(-s*0.14,s*0.06,s*0.58,"#6b4a2a","#3e2814"); c.beginPath(); c.ellipse(0,s*0.3,s*0.5,s*0.34,0,0,7); c.fill(); edge();
+      // 鮮黃喉胸（招牌特徵）
+      c.fillStyle=rg(-s*0.1,s*0.2,s*0.32,"#ffe066","#e0a81f"); c.beginPath(); c.ellipse(-s*0.12,s*0.34,s*0.24,s*0.22,-0.2,0,7); c.fill();
+      // 四肢（細短、敏捷姿態）
+      c.fillStyle=rg(0,s*0.6,s*0.16,"#5a3c22","#33200f"); for(const dx of [-0.22,0.24]){ c.beginPath(); c.ellipse(dx*s,s*0.58,s*0.09,s*0.18,0,0,7); c.fill(); }
+      // 頭（尖臉、貂科）
+      c.fillStyle=rg(-s*0.36,-s*0.28,s*0.34,"#75512f","#452c16"); c.beginPath(); c.ellipse(-s*0.4,-s*0.1,s*0.28,s*0.24,-0.15,0,7); c.fill(); edge();
+      // 尖吻
+      c.fillStyle=rg(-s*0.62,-s*0.04,s*0.18,"#7d5834","#4a2f18"); c.beginPath(); c.ellipse(-s*0.62,s*0.0,s*0.13,s*0.09,-0.1,0,7); c.fill();
+      // 圓耳
+      c.fillStyle="#5a3c22"; c.beginPath(); c.arc(-s*0.34,-s*0.32,s*0.09,0,7); c.fill(); c.fillStyle="#8a6a48"; c.beginPath(); c.arc(-s*0.34,-s*0.31,s*0.045,0,7); c.fill();
+      // 鼻頭 + 銳利眼
+      c.fillStyle="#2a1a10"; c.beginPath(); c.arc(-s*0.72,s*0.0,s*0.045,0,7); c.fill();
+      eye(-s*0.44,-s*0.12,s*0.07);
+      if(mood==="angry"){ brow(-s*0.44,-s*0.24,s*0.09); c.fillStyle="#fff"; c.beginPath(); c.moveTo(-s*0.6,s*0.02); c.lineTo(-s*0.52,-s*0.02); c.lineTo(-s*0.56,s*0.08); c.closePath(); c.fill(); }
+      else { c.strokeStyle="#2a1a10"; c.lineWidth=s*0.02; c.beginPath(); c.moveTo(-s*0.62,s*0.04); c.quadraticCurveTo(-s*0.55,s*0.08,-s*0.5,s*0.05); c.stroke(); }
+    } else if(kind==="mikado"){
+      const tailWag=Math.sin(t*2.4+(o.ph||0))*0.03;
+      // 極長尾羽（藍黑帶白橫帶，帝雉招牌）
+      c.save(); c.rotate(tailWag);
+      c.strokeStyle="#12203f"; c.lineWidth=s*0.15; c.lineCap="round"; c.beginPath(); c.moveTo(s*0.12,s*0.42); c.quadraticCurveTo(s*0.7,s*0.7,s*1.02,s*0.16); c.stroke();
+      c.strokeStyle="#26386a"; c.lineWidth=s*0.09; c.beginPath(); c.moveTo(s*0.12,s*0.42); c.quadraticCurveTo(s*0.7,s*0.68,s*1.0,s*0.18); c.stroke();
+      // 白色橫帶（帝雉尾羽特徵）
+      c.strokeStyle="#f2f5fb"; c.lineWidth=s*0.05; for(const tt of [0.4,0.6,0.8]){ const bx=s*0.12+tt*(s*0.9), by=s*0.42+Math.sin(tt*1.4)*s*0.1-tt*tt*s*0.34; c.beginPath(); c.moveTo(bx-s*0.05,by+s*0.03); c.lineTo(bx+s*0.05,by-s*0.03); c.stroke(); }
+      c.restore();
+      // 身體（深藍黑、金屬光澤）
+      c.fillStyle=rg(-s*0.18,s*0.02,s*0.48,"#2c4272","#141f38"); c.beginPath(); c.ellipse(-s*0.02,s*0.24,s*0.4,s*0.42,0,0,7); c.fill(); edge("rgba(0,0,0,0.28)");
+      // 金屬反光帶
+      c.strokeStyle="rgba(120,160,230,0.4)"; c.lineWidth=s*0.03; c.beginPath(); c.moveTo(-s*0.24,-s*0.02); c.quadraticCurveTo(-s*0.1,s*0.2,-s*0.2,s*0.5); c.stroke();
+      // 白色細橫紋（帝雉體羽細白條）
+      c.strokeStyle="rgba(230,238,250,0.5)"; c.lineWidth=s*0.012; for(const yy of [0.1,0.24,0.38]){ c.beginPath(); c.moveTo(-s*0.32,s*yy); c.lineTo(s*0.24,s*yy); c.stroke(); }
+      // 紅腳
+      c.strokeStyle="#c0392b"; c.lineWidth=s*0.045; c.lineCap="round"; for(const dx of [-0.1,0.06]){ c.beginPath(); c.moveTo(dx*s,s*0.58); c.lineTo(dx*s,s*0.72); c.stroke(); } c.lineCap="butt";
+      // 頭（藍黑）
+      c.fillStyle=rg(-s*0.08,-s*0.34,s*0.3,"#2a3a58","#0e1626"); c.beginPath(); c.arc(0,-s*0.26,s*0.27,0,7); c.fill(); edge("rgba(0,0,0,0.3)");
+      // 鮮紅臉部肉垂（帝雉眼周紅色）
+      c.fillStyle="#e5342a"; c.beginPath(); c.ellipse(-s*0.02,-s*0.2,s*0.15,s*0.11,0,0,7); c.fill();
+      c.strokeStyle="#a8221a"; c.lineWidth=s*0.012; c.stroke();
+      // 喙
+      c.fillStyle="#3a3a3a"; c.beginPath(); c.moveTo(s*0.2,-s*0.28); c.lineTo(s*0.4,-s*0.22); c.lineTo(s*0.2,-s*0.17); c.closePath(); c.fill();
+      eye(-s*0.05,-s*0.3,s*0.07);
+      if(mood==="angry"){ brow(-s*0.05,-s*0.42,s*0.09); }
     }
     // 立體上色：頂光 + 底暗，只作用在角色剪影上（source-atop，離屏內不污染背景）
     c.globalCompositeOperation="source-atop";
@@ -344,6 +415,12 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
       status:"瀕危・國寶魚", fact:"冰河時期孑遺生物，僅存於雪霸大甲溪上游冷水溪流，對水溫與水質要求極高，是台灣溪流保育的旗艦物種。" },
     { key:"pheasant", name:"藍腹鷴", type:"sky", speed:215, atkDmg:7, atkCd:0.42, reach:120, spName:"金羽連射", spCd:5.0, sp:"sonic", locked:true, cost:400,
       status:"台灣特有・保育類", fact:"雄鳥羽色深藍帶金屬光澤、臉部鮮紅肉垂，是世界知名的華麗雉科鳥類，棲息於中低海拔原始闊葉林。" },
+    { key:"pangolin", name:"穿山甲", type:"forest", speed:150, atkDmg:10, atkCd:0.55, reach:66, spName:"捲甲防禦", spCd:6.5, sp:"slam", locked:true, cost:520,
+      status:"珍貴稀有・保育類", fact:"台灣穿山甲全身覆滿角質鱗甲，遇敵會捲成球自保，專吃螞蟻與白蟻。曾因盜獵鱗片瀕危，是淺山森林的鬆土工程師。" },
+    { key:"yellowmarten", name:"黃喉貂", type:"forest", speed:300, atkDmg:6, atkCd:0.2, reach:52, spName:"疾襲連咬", spCd:4.0, sp:"dash", locked:true, cost:460,
+      status:"珍貴稀有・保育類", fact:"黃喉貂喉部有醒目的鮮黃色斑，是台灣森林裡動作最敏捷的中型食肉獸，常成小群合作獵捕，行動如閃電。" },
+    { key:"mikado", name:"帝雉", type:"sky", speed:210, atkDmg:7, atkCd:0.44, reach:126, spName:"帝羽箭雨", spCd:5.2, sp:"sonic", locked:true, cost:560,
+      status:"台灣特有・瀕危保育類", fact:"帝雉是台灣特有的高山雉類，雄鳥通體藍黑帶金屬光澤、尾羽極長並有白色橫帶，常在雲霧繚繞的森林現身，有『迷霧中的王者』美名。" },
   ];
   /* ===== 章節與魔王（外來入侵種）===== */
   const CH = [
@@ -385,10 +462,12 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   const lobbyScr=document.getElementById("lobby");
   const heroShow=document.getElementById("heroShow"), hctx=heroShow.getContext("2d");
   const LOBBY_TAG={ leopard:"台灣唯一原生貓科 · 夜行獵手", bear:"台灣唯一原生熊 · 森林守護者", cicada:"台灣最大的蟬 · 鳴聲震場", dragonfly:"台灣最快的蜻蜓 · 空中獵手", deer:"復育成功的象徵 · 重返山林", magpie:"長尾山娘 · 護巢勇者",
-    muntjac:"森林吠鹿 · 復育治癒者", macaque:"台灣原生猴 · 敏捷刺客", salmon:"冰河孑遺 · 國寶溪流傳奇", pheasant:"華麗雉科 · 遠程金羽射手" };
+    muntjac:"森林吠鹿 · 復育治癒者", macaque:"台灣原生猴 · 敏捷刺客", salmon:"冰河孑遺 · 國寶溪流傳奇", pheasant:"華麗雉科 · 遠程金羽射手",
+    pangolin:"鱗甲防禦專家 · 捲球無敵", yellowmarten:"森林最速刺客 · 黃喉連咬", mikado:"迷霧中的王者 · 高山遠程" };
   // 保育行動知識（玩中學）
   const CONS_END={ leopard:"開車經過淺山請減速，避免路殺石虎。", bear:"登山不留廚餘、不餵食野生動物。", cicada:"保留老樹與森林，就是保留昆蟲的家。", dragonfly:"別污染溪流濕地，牠們是水質好壞的指標。", deer:"支持棲地保育，讓復育的族群能長久生存。", magpie:"友善賞鳥不干擾巢區，讓藍鵲安心育雛。",
-    muntjac:"登山賞鹿保持距離，不要因為好奇而驚擾牠們棲息的森林底層。", macaque:"看到台灣獼猴請勿餵食，這會讓牠們失去覓食本能、增加人猴衝突。", salmon:"守護溪流上游的水質與水溫，就是守護國寶魚僅存的家。", pheasant:"淺山賞鳥不放音誘、不接近巢區，讓藍腹鷴安心繁殖。" };
+    muntjac:"登山賞鹿保持距離，不要因為好奇而驚擾牠們棲息的森林底層。", macaque:"看到台灣獼猴請勿餵食，這會讓牠們失去覓食本能、增加人猴衝突。", salmon:"守護溪流上游的水質與水溫，就是守護國寶魚僅存的家。", pheasant:"淺山賞鳥不放音誘、不接近巢區，讓藍腹鷴安心繁殖。",
+    pangolin:"拒買穿山甲鱗片與製品，盜獵才會停止；夜間淺山開車減速避免路殺。", yellowmarten:"保留完整的森林廊道，讓黃喉貂有足夠獵場與活動空間。", mikado:"高山賞鳥保持安靜與距離，不餵食、不追逐，讓帝雉安心於霧林覓食。" };
   const CONS_INV={ snail:"看到福壽螺的粉紅色卵塊，撥落水中可阻止孵化。", iguana:"養寵物請養到底——綠鬣蜥是因棄養才氾濫的。", frog:"不要隨意放生，外來蛙會排擠台灣原生種。", ibis:"發現外來入侵種，可通報林業保育署協助移除。" };
   let featured=0, hsW=0, hsH=0;
   function getEco(){ try{ return parseInt(localStorage.getItem("shoutu_eco")||"0",10)||0; }catch(e){ return 0; } }
