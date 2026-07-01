@@ -640,14 +640,19 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   function resizeHeroShow(){ applyRot(); const iw=window.innerWidth, ih=window.innerHeight;
     hsW = rot? ih : iw; hsH = rot? iw : ih;
     const d=Math.min(window.devicePixelRatio||1,2); heroShow.width=Math.round(hsW*d); heroShow.height=Math.round(hsH*d); hctx.setTransform(d,0,0,d,0,0); }
-  function buildRoster(){ const wrap=document.getElementById("roster"); wrap.innerHTML="";
+  // 選角彈窗：一次瀏覽全部守護者的網格；點卡片→選定→關閉彈窗回大廳（取代原本大廳一整排 roster）
+  function buildRoster(){ const wrap=document.getElementById("heroPickerGrid"); if(!wrap) return; wrap.innerHTML="";
     HEROES.forEach((h,i)=>{ const unlocked=isHeroUnlocked(h.key);
-      const b=document.createElement("button"); b.className="rb"+(i===featured&&unlocked?" sel":"");
-      const cv=document.createElement("canvas"); cv.width=116; cv.height=116; b.appendChild(cv);
-      const cc=cv.getContext("2d"); drawCreature(cc, h.key, 58, 64, 40, {t:0});
-      if(!unlocked){ cc.fillStyle="rgba(0,0,0,.5)"; cc.fillRect(0,0,116,116); cc.font="34px serif"; cc.textAlign="center"; cc.textBaseline="middle"; cc.fillText("🔒",58,60); }
-      b.onclick=()=>{ if(unlocked){ featured=i; updateLobby(); } else { transition(goUpgrade); } };
+      const b=document.createElement("button"); b.className="hp-card"+(i===featured&&unlocked?" sel":"");
+      const cv=document.createElement("canvas"); cv.width=144; cv.height=144; b.appendChild(cv);
+      const cc=cv.getContext("2d"); drawCreature(cc, h.key, 72, 80, 50, {t:0});
+      if(!unlocked){ cc.fillStyle="rgba(0,0,0,.5)"; cc.fillRect(0,0,144,144); cc.font="40px serif"; cc.textAlign="center"; cc.textBaseline="middle"; cc.fillText("🔒",72,74); }
+      const nm=document.createElement("div"); nm.className="hp-name"; nm.textContent=h.name; b.appendChild(nm);
+      if(!unlocked){ const lk=document.createElement("div"); lk.className="hp-lock"; lk.textContent="🔒 去復育解鎖"; b.appendChild(lk); }
+      b.onclick=()=>{ if(unlocked){ featured=i; updateLobby(); closeHeroPicker(); } else { closeHeroPicker(); transition(goUpgrade); } };
       wrap.appendChild(b); }); }
+  function openHeroPicker(){ const p=document.getElementById("heroPicker"); if(!p) return; buildRoster(); p.classList.remove("hide"); }
+  function closeHeroPicker(){ const p=document.getElementById("heroPicker"); if(p) p.classList.add("hide"); }
   function updateLobby(){ const h=HEROES[featured];
     document.getElementById("hsName").textContent=h.name;
     document.getElementById("hsType").textContent=TYPE[h.type];
@@ -655,7 +660,8 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     document.getElementById("ecoVal").textContent=getEco();
     document.getElementById("trophyVal").textContent=Math.floor(getEcoEarned()/100)+1;
     const cl=dailyClaimable(), nd=document.getElementById("navDaily"); if(nd) nd.textContent=cl>0?("📋 任務 ("+cl+")"):"📋 任務";
-    [...document.querySelectorAll("#roster .rb")].forEach((b,i)=>b.classList.toggle("sel",i===featured)); }
+    const sw=document.getElementById("heroSwitchBtn"); if(sw) sw.textContent="🔄 更換守護者（目前："+h.name+"）";
+    const p=document.getElementById("heroPicker"); if(p && !p.classList.contains("hide")) [...document.querySelectorAll("#heroPickerGrid .hp-card")].forEach((b,i)=>b.classList.toggle("sel",i===featured)); }
   function goLobby(){ state="lobby"; setBattleUI(false); show(lobbyScr); buildRoster(); updateLobby(); resizeHeroShow(); }
   const TICKERS=["🌿 石虎全台僅存數百隻，路殺是最大威脅之一","🐻 台灣黑熊胸前的白色 V 是月亮的印記","💧 福壽螺來自南美，是稻田的大害","🦎 綠鬣蜥棄養野化，正衝擊南部生態","🕊 埃及聖䴉搶佔黑面琵鷺的濕地","🪲 爺蟬幼蟲在地下蟄伏多年才羽化"];
   function drawLobby(ts){ if(!hsW) resizeHeroShow(); if(!hsW) return;
@@ -1010,6 +1016,9 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   document.getElementById("mapHome").onclick=()=>transition(goLobby);
   document.getElementById("playBtn").onclick=quickMatch;
   document.getElementById("navDex").onclick=()=>transition(goDex);
+  { const sw=document.getElementById("heroSwitchBtn"); if(sw) sw.onclick=openHeroPicker;
+    const hc=document.getElementById("heroPickerClose"); if(hc) hc.onclick=closeHeroPicker;
+    const hp=document.getElementById("heroPicker"); if(hp) hp.addEventListener("pointerdown",(e)=>{ if(e.target===hp) closeHeroPicker(); }); }   // 點彈窗外圍空白處也可關閉
   document.getElementById("navUpg").onclick=()=>transition(goUpgrade);
   document.getElementById("upgBack").onclick=()=>transition(goLobby);
   document.getElementById("navDaily").onclick=()=>transition(goDaily);

@@ -15,7 +15,9 @@ test("載入無錯誤、鐵則齊全、能走完一場戰鬥", async ({ page }) 
   // 大廳（遊戲介面）— 開始守護鈕 + 角色展示
   await expect(page.locator("#playBtn")).toBeVisible();
   await expect(page.locator("#heroShow")).toBeVisible();
-  await expect(page.locator("#roster .rb")).toHaveCount(10);
+  // 選角改成「更換守護者」按鈕 → 彈窗網格（10 隻守護者卡片，開場即建好於隱藏的 #heroPickerGrid）
+  await expect(page.locator("#heroSwitchBtn")).toBeVisible();
+  await expect(page.locator("#heroPickerGrid .hp-card")).toHaveCount(10);
 
   // 鐵則：6 個 dock 控制鈕都在
   for (const id of ["bLeft", "bRight", "bSwap", "bJump", "bSp", "bAtk"]) {

@@ -288,6 +288,31 @@
   #app.rot #lobby .play-btn{ padding:9px; font-size:16px; }
   #app.rot #lobby .lobby-nav.primary{ margin-top:5px; } #app.rot #lobby .lobby-nav.secondary{ margin-top:4px; }
   #app.rot #lobby .navb{ padding:7px 6px; font-size:11.5px; } #app.rot #lobby .navb.sm{ padding:5px 4px; font-size:10px; }
+  /* 大廳「更換守護者」按鈕（取代原本一整排 roster） */
+  #lobby .hero-switch{ margin:9px auto 11px; display:block; border:2px solid rgba(255,213,79,.5); border-radius:22px;
+    background:linear-gradient(160deg, rgba(255,213,79,.22), rgba(0,0,0,.35)); color:#ffe082; font-size:14px; font-weight:800;
+    padding:9px 22px; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.12); }
+  #lobby .hero-switch:active{ transform:scale(.96); }
+  #app.rot #lobby .hero-switch{ margin:5px auto 6px; padding:6px 16px; font-size:12.5px; }
+  /* 選角彈窗 */
+  #heroPicker{ position:absolute; inset:0; z-index:20; display:flex; align-items:center; justify-content:center;
+    background:rgba(6,14,10,.78); backdrop-filter:blur(4px); }
+  #heroPicker.hide{ display:none; }
+  #heroPicker .hp-panel{ width:min(92%,560px); max-height:82%; display:flex; flex-direction:column;
+    background:linear-gradient(160deg,#1b3326,#0d1c14); border:2px solid rgba(255,213,79,.35); border-radius:20px;
+    box-shadow:0 12px 40px rgba(0,0,0,.6); overflow:hidden; }
+  #heroPicker .hp-head{ display:flex; align-items:center; justify-content:space-between; padding:13px 16px;
+    font-size:16px; font-weight:900; color:#fff; border-bottom:1px solid rgba(255,255,255,.12); }
+  #heroPicker .hp-close{ width:34px; height:34px; border:none; border-radius:50%; background:rgba(255,255,255,.14); color:#fff; font-size:16px; cursor:pointer; }
+  #heroPicker .hp-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(88px,1fr)); gap:10px; padding:14px; overflow-y:auto; }
+  #heroPicker .hp-card{ border:2px solid rgba(255,255,255,.18); border-radius:14px; padding:6px 4px 8px; cursor:pointer;
+    background:radial-gradient(circle at 50% 28%, rgba(255,255,255,.1), rgba(0,0,0,.4) 72%); color:#e8f5e0; text-align:center;
+    display:flex; flex-direction:column; align-items:center; gap:2px; transition:transform .12s ease, box-shadow .12s ease; }
+  #heroPicker .hp-card.sel{ border-color:#ffd54f; box-shadow:0 0 18px rgba(255,213,79,.5); }
+  #heroPicker .hp-card:active{ transform:scale(.95); }
+  #heroPicker .hp-card canvas{ width:72px; height:72px; }
+  #heroPicker .hp-card .hp-name{ font-size:12px; font-weight:800; }
+  #heroPicker .hp-card .hp-lock{ font-size:10px; color:#ffab91; }
   #lobby .roster{ display:flex; gap:9px; justify-content:center; padding:11px 0 12px; flex-wrap:wrap; }
   #lobby .rb{ width:56px; height:56px; border-radius:16px; border:2px solid rgba(255,255,255,.22);
     background:radial-gradient(circle at 50% 30%, rgba(255,255,255,.12), rgba(0,0,0,.4) 70%); cursor:pointer; padding:0; overflow:hidden;
@@ -344,7 +369,7 @@
       <div class="lb-bottom">
         <div class="hero-name"><span id="hsName">石虎</span><span class="ht" id="hsType">🌲山林</span></div>
         <div class="hero-tag" id="hsTag"></div>
-        <div class="roster" id="roster"></div>
+        <button class="hero-switch" id="heroSwitchBtn">🔄 更換守護者</button>
         <button class="play-btn" id="playBtn">⚔ 對 戰</button>
         <div class="lobby-nav primary">
           <button class="navb" id="navDaily">📋 任務</button>
@@ -356,6 +381,13 @@
           <button class="navb sm" id="navStats">🏆 戰績</button>
           <button class="navb sm" id="coopBtn">📨 邀請隊友</button>
           <button class="navb sm" id="navSet">⚙️ 設定</button>
+        </div>
+      </div>
+      <!-- 選角彈窗：大廳「更換守護者」按鈕點開，一次瀏覽全部守護者、點選即選定變身。放在 #lobby 內以跟隨旋轉。 -->
+      <div id="heroPicker" class="hide">
+        <div class="hp-panel">
+          <div class="hp-head"><span>選擇你的守護者</span><button id="heroPickerClose" class="hp-close">✕</button></div>
+          <div id="heroPickerGrid" class="hp-grid"></div>
         </div>
       </div>
     </div>
