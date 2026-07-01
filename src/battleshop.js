@@ -18,7 +18,7 @@
     { key:"dr", icon:"🛡️", name:"堅甲", desc:"受到傷害 -8%", cost:55, apply:h=>{ h.dr=Math.min(0.6,(h.dr||0)+0.08); } },
     { key:"knock", icon:"🌀", name:"重擊", desc:"擊退幅度提升", cost:30, apply:h=>{ h.knockMul=(h.knockMul||1)+0.5; } },
   ];
-  let gold=0, shopOpen=false, upgradeLevels={}, shopRefreshT=0;
+  let gold=0, shopOpen=false, upgradeLevels={}, shopRefreshT=0, goldShown=0;
 
   function upgradeCost(u){ const lv=upgradeLevels[u.key]||0; return Math.round(u.cost*Math.pow(1.55,lv)); }
   function toggleShop(force){ const panel=document.getElementById("mShop"); if(!panel) return;
@@ -43,10 +43,15 @@
   tap("mShopBtn",()=>toggleShop());
   tap("mShopClose",()=>toggleShop(false));
 
-  window.__shopReset=()=>{ gold=0; shopOpen=false; upgradeLevels={}; shopRefreshT=0;
+  window.__shopReset=()=>{ gold=0; shopOpen=false; upgradeLevels={}; shopRefreshT=0; goldShown=0;
     const panel=document.getElementById("mShop"); if(panel) panel.classList.add("hide"); };
   window.__shopTick=(dt)=>{ gold+=GOLD_RATE*dt;
-    const g=document.getElementById("mGoldTxt"); if(g) g.textContent="💰"+Math.floor(gold);
+    const txt="💰"+Math.floor(gold);
+    const g=document.getElementById("mGoldTxt"); if(g) g.textContent=txt;
+    const hud=document.getElementById("mGoldHud");
+    if(hud){ hud.textContent=txt;
+      if(Math.floor(gold)>goldShown){ hud.classList.remove("bump"); void hud.offsetWidth; hud.classList.add("bump"); } }   // 每加一枚金幣跳一下，累積感更明顯
+    goldShown=Math.floor(gold);
     if(shopOpen){ shopRefreshT-=dt; if(shopRefreshT<=0){ shopRefreshT=0.3; renderShop(); } } };
   window.__shopAddGold=(n)=>{ gold+=n||0; };
 })();

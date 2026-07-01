@@ -66,6 +66,10 @@
   .mbar i.foe{ background:linear-gradient(90deg,#ab47bc,#ef5350); margin-left:auto; }
   #mclock{ font-size:13px; font-weight:800; color:#ffd54f; text-shadow:0 1px 2px #000; padding-top:2px; }
   #mBest{ font-size:11px; font-weight:800; color:#80deea; text-shadow:0 1px 2px #000; text-align:center; }
+  #mGoldHud{ font-size:13px; font-weight:900; color:#ffd54f; text-shadow:0 1px 3px #000; text-align:center; margin-top:2px;
+    background:rgba(0,0,0,.32); border-radius:12px; padding:1px 8px; display:inline-block; }
+  #mGoldHud.bump{ animation:goldBump .35s ease-out; }
+  @keyframes goldBump{ 0%{ transform:scale(1.35); color:#fff59d;} 100%{ transform:scale(1); color:#ffd54f;} }
   #mstick{ position:absolute; left:max(20px,env(safe-area-inset-left)); bottom:max(24px,env(safe-area-inset-bottom));
     width:130px; height:130px; border-radius:50%; background:rgba(255,255,255,.08); border:2px solid rgba(255,255,255,.18);
     touch-action:none; }
@@ -425,7 +429,7 @@
       <div class="mt-row"><span>🌳 台灣神木</span><b id="mhpAllyTxt"></b></div>
       <div class="mbar"><i id="mhpAlly" class="ally"></i></div>
     </div>
-    <div><div id="mclock">0:00</div><div id="mBest"></div></div>
+    <div><div id="mclock">0:00</div><div id="mBest"></div><div id="mGoldHud">💰0</div></div>
     <div class="mteam">
       <div class="mt-row"><b id="mRestoreTxt">0%</b><span>🌿 棲地復原</span></div>
       <div class="mbar"><i id="mRestore" class="ally"></i></div>
