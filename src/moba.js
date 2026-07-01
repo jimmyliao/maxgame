@@ -52,6 +52,10 @@
   let running=false, raf=0, lastT=0, clock=0, teamSize=3, ended=false;
   let shrine=null, nurseries=[], heroes=[], invaders=[], fx=[], floats=[], hprojs=[];
   let player=null, spawnT=0, restore=0, killCount=0, surgeT=45, finalAssault=false, mshake=0;
+  let pickMode="normal", timeAttack=false;
+  function fmtTime(s){ s=Math.max(0,Math.floor(s)); const m=Math.floor(s/60), ss=s%60; return m+":"+(ss<10?"0":"")+ss; }
+  function getBest(size){ try{ const v=parseFloat(localStorage.getItem("shoutu_besttime_"+size)); return isNaN(v)?null:v; }catch(e){ return null; } }
+  function setBest(size,t){ try{ localStorage.setItem("shoutu_besttime_"+size,String(t)); }catch(e){} }
   const cam={x:0,y:0}, mv={x:0,y:0};
   let wantSp=false, wantBack=false;
   let zoom=1, ZMIN=0.62; const ZMAX=1.8;
@@ -75,7 +79,7 @@
   function edgePoint(){ const s=Math.floor(Math.random()*4), u=Math.random();
     if(s===0) return {x:u*MW,y:20}; if(s===1) return {x:u*MW,y:MH-20}; if(s===2) return {x:20,y:u*MH}; return {x:MW-20,y:u*MH}; }
 
-  function setup(size){ teamSize=size; clock=0; ended=false; restore=0; killCount=0; spawnT=2; surgeT=42; finalAssault=false; directive=null; directiveCd=0; bubble=null;
+  function setup(size){ teamSize=size; clock=0; ended=false; restore=0; killCount=0; spawnT=2; surgeT=42; finalAssault=false; directive=null; directiveCd=0; bubble=null; timeAttack=(pickMode==="time");
     fx=[]; floats=[]; invaders=[]; hprojs=[];
     shrine={ x:SHX, y:SHY, r:76, hp:1400, maxhp:1400, kind:"shrine", hitT:0 };
     nurseries=NPOS.map(p=>({ x:p.x, y:p.y, r:34, hp:340, maxhp:340, growth:0.15, contested:false, kind:"nursery" }));
@@ -525,6 +529,7 @@
   function updateHUD(){ setW("mhpAlly",shrine.hp/shrine.maxhp); txt("mhpAllyTxt",Math.ceil(shrine.hp));
     setW("mRestore",restore); txt("mRestoreTxt",Math.floor(restore*100)+"%");
     const mm=Math.floor(clock/60),ss=Math.floor(clock%60); txt("mclock",mm+":"+(ss<10?"0":"")+ss);
+    if(timeAttack){ const b=getBest(teamSize); txt("mBest", b?("🏆 最佳 "+fmtTime(b)):"⏱ 挑戰紀錄中"); } else txt("mBest","");
     const sp=document.getElementById("mSp"); if(sp){ const mx=(player&&player.spMax)||8, cd=player&&player.spCd>0?player.spCd:0; sp.querySelector(".fill").style.height=(cd/mx*100)+"%"; sp.classList.toggle("ready",cd<=0); } }
   function setW(id,f){ const el=document.getElementById(id); if(el) el.style.width=(clamp(f,0,1)*100)+"%"; }
   function txt(id,v){ const el=document.getElementById(id); if(el) el.textContent=v; }
@@ -539,7 +544,10 @@
     if(win){ const eco=teamSize*20+killCount, xp=60+teamSize*10+killCount;
       window.__awardEco&&window.__awardEco(eco); window.__awardXP&&window.__awardXP(key,xp); window.__bumpWin&&window.__bumpWin();
       const after=(window.__heroLevel&&window.__heroLevel(key))||before;
-      showOver("🌳 棲地復原成功！","枯黃的土地重新長回翠綠","你和守護者小隊驅逐了外來入侵種、守住台灣神木與復育苗圃。<br>🌿 保育值 +"+eco+"　驅逐 "+killCount+" 隻　"+(KNAME[key]||"")+" EXP +"+xp+"　Lv"+before+(after>before?(" → "+after+" ⬆升級！"):"")); }
+      let timeLine="";
+      if(timeAttack){ const prev=getBest(teamSize), newRecord=!prev||clock<prev; if(newRecord) setBest(teamSize,clock);
+        timeLine="<br><br>⏱ 用時 <b>"+fmtTime(clock)+"</b>"+(newRecord?"　🏆 新紀錄！":("　（歷史最佳 "+fmtTime(prev)+"）")); }
+      showOver("🌳 棲地復原成功！","枯黃的土地重新長回翠綠","你和守護者小隊驅逐了外來入侵種、守住台灣神木與復育苗圃。<br>🌿 保育值 +"+eco+"　驅逐 "+killCount+" 隻　"+(KNAME[key]||"")+" EXP +"+xp+"　Lv"+before+(after>before?(" → "+after+" ⬆升級！"):"")+timeLine); }
     else { const xp=8+killCount; window.__awardXP&&window.__awardXP(key,xp);  // 輸了也給少量經驗——等級只升不降
       showOver("神木倒下了…","棲地失守","別氣餒！多回防受威脅的苗圃、善用『守護爆發』與『回神木』補血，再守一次。<br>"+(KNAME[key]||"")+" 仍獲得 EXP +"+xp+"（等級永不下降・目前 Lv"+before+"）"); } }
   function showOver(t,s,b){ root.classList.add("mhide"); txt("moverT",t); txt("moverS",s); const el=document.getElementById("moverB"); if(el) el.innerHTML=b;
@@ -580,8 +588,19 @@
   cv.addEventListener("wheel",(e)=>{ if(!running)return; e.preventDefault(); setZoom(zoom-Math.sign(e.deltaY)*0.12); },{passive:false});
 
   /* ---------- 接到大廳「對戰」 ---------- */
-  function openPick(){ const e=document.getElementById("mpick"); if(e) e.classList.remove("hide"); }
+  function openPick(){ const e=document.getElementById("mpick"); if(e) e.classList.remove("hide"); setPickMode(pickMode); }
   const pb=document.getElementById("playBtn"); if(pb) pb.onclick=openPick;
+  function setPickMode(m){ pickMode=m;
+    const nT=document.getElementById("modeNormal"), tT=document.getElementById("modeTime");
+    if(nT) nT.classList.toggle("on",m==="normal"); if(tT) tT.classList.toggle("on",m==="time");
+    txt("mpickTitle", m==="time" ? "⏱ 限時復育挑戰" : "🌳 棲地復育保衛戰");
+    const descEl=document.getElementById("mpickDesc");
+    if(descEl) descEl.innerHTML = m==="time" ? "目標不是守住不倒，而是盡快把棲地復原到 100%！<br>擊退入侵種、守住苗圃，比比看你多快能讓棲地重新翠綠。" : "守護台灣神木與復育苗圃，擊退四面湧入的外來入侵種——讓枯黃的棲地一吋吋復原成翠綠，復原度滿 100% 就守護成功！";
+    const info=document.getElementById("bestTimeInfo");
+    if(info){ if(m==="time"){ const b3=getBest(3), b5=getBest(5);
+        info.innerHTML="🏆 最佳紀錄　3守護者："+(b3?fmtTime(b3):"—")+"　5守護者："+(b5?fmtTime(b5):"—"); info.classList.remove("hide"); }
+      else info.classList.add("hide"); } }
+  tap("modeNormal",()=>setPickMode("normal")); tap("modeTime",()=>setPickMode("time"));
   tap("pick3",()=>start(3)); tap("pick5",()=>start(5)); tap("pickBack",()=>hide("mpick"));
   tap("moverAgain",()=>start(teamSize)); tap("moverHome",exitToLobby);
   window.addEventListener("keydown",(e)=>{ if(!running) return; if(e.key==="ArrowLeft"||e.key==="a")mv.x=-1; else if(e.key==="ArrowRight"||e.key==="d")mv.x=1; else if(e.key==="ArrowUp"||e.key==="w")mv.y=-1; else if(e.key==="ArrowDown"||e.key==="s")mv.y=1; else if(e.key==="k"||e.key==="Shift")wantSp=true; else if(e.key==="b")wantBack=true; });

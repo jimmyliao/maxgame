@@ -54,6 +54,7 @@
   .mbar i.ally{ background:linear-gradient(90deg,#66bb6a,#a5d6a7); }
   .mbar i.foe{ background:linear-gradient(90deg,#ab47bc,#ef5350); margin-left:auto; }
   #mclock{ font-size:13px; font-weight:800; color:#ffd54f; text-shadow:0 1px 2px #000; padding-top:2px; }
+  #mBest{ font-size:11px; font-weight:800; color:#80deea; text-shadow:0 1px 2px #000; text-align:center; }
   #mstick{ position:absolute; left:max(20px,env(safe-area-inset-left)); bottom:max(24px,env(safe-area-inset-bottom));
     width:130px; height:130px; border-radius:50%; background:rgba(255,255,255,.08); border:2px solid rgba(255,255,255,.18);
     touch-action:none; }
@@ -84,6 +85,8 @@
     text-shadow:0 2px 6px #000; pointer-events:none; opacity:0; transition:opacity .3s; text-align:center; white-space:nowrap; }
   #mtoast.show{ opacity:1; }
   #mpick .row{ margin:6px 0; } #mpick .btn{ min-width:120px; font-size:20px; }
+  .mode-tab{ font-size:15px; padding:9px 16px; opacity:.55; }
+  .mode-tab.on{ opacity:1; background:#2e7d32; box-shadow:0 4px 0 #1b5e20; }
   #coopJoinRow.hide{ display:none; }
   #moba, #mpick, #mover{ z-index:40; } #mpick, #mover{ z-index:41; }
   .scr{ position:absolute; inset:0; z-index:10; display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -300,7 +303,7 @@
       <div class="mt-row"><span>🌳 台灣神木</span><b id="mhpAllyTxt"></b></div>
       <div class="mbar"><i id="mhpAlly" class="ally"></i></div>
     </div>
-    <div id="mclock">0:00</div>
+    <div><div id="mclock">0:00</div><div id="mBest"></div></div>
     <div class="mteam">
       <div class="mt-row"><b id="mRestoreTxt">0%</b><span>🌿 棲地復原</span></div>
       <div class="mbar"><i id="mRestore" class="ally"></i></div>
@@ -331,8 +334,13 @@
   <div id="mtoast"></div>
 </div></div>
 <div id="mpick" class="scr hide">
-  <h1>🌳 棲地復育保衛戰</h1>
-  <h2>守護台灣神木與復育苗圃，擊退四面湧入的外來入侵種——<br>讓枯黃的棲地一吋吋復原成翠綠，復原度滿 100% 就守護成功！</h2>
+  <h1 id="mpickTitle">🌳 棲地復育保衛戰</h1>
+  <h2 id="mpickDesc">守護台灣神木與復育苗圃，擊退四面湧入的外來入侵種——<br>讓枯黃的棲地一吋吋復原成翠綠，復原度滿 100% 就守護成功！</h2>
+  <div class="row" id="modeTabs">
+    <button class="btn sec mode-tab on" id="modeNormal">🌳 一般模式</button>
+    <button class="btn sec mode-tab" id="modeTime">⏱ 限時復育挑戰</button>
+  </div>
+  <p id="bestTimeInfo" class="hide" style="color:#ffd54f;font-weight:800;"></p>
   <div class="row">
     <button class="btn" id="pick3">3 守護者小隊</button>
     <button class="btn" id="pick5">5 守護者大隊</button>
