@@ -1,5 +1,5 @@
 // 守土 Service Worker — 線上優先、離線可玩
-const CACHE = "shoutu-v44";
+const CACHE = "shoutu-v45";
 const ASSETS = ["./", "./index.html", "./src/legacy.js", "./src/moba.js", "./src/net.js", "./src/habitat.js", "./src/data/types-chart.js", "./manifest.json", "./icon.svg", "./dino.html"];
 
 self.addEventListener("install", (e) => {

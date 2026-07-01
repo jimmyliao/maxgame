@@ -186,15 +186,17 @@
     background:linear-gradient(100deg, transparent, rgba(255,255,255,.75), transparent); transform:skewX(-20deg);
     animation:playShine 2.6s ease-in-out infinite; pointer-events:none; }
   #lobby .play-btn:active{ transform:translateY(3px); }
-  #lobby .play-btn.sec{ margin-top:8px; padding:10px; font-size:15px; letter-spacing:1px; background:linear-gradient(#4fd1c5,#00897b); color:#fff;
-    animation:none; box-shadow:0 4px 0 #00695c; }
-  #lobby .play-btn.sec::after{ display:none; }
   @keyframes playPulse{ 0%,100%{ box-shadow:0 6px 0 #e09400, 0 10px 24px rgba(0,0,0,.5), 0 0 0 rgba(255,213,79,0);} 50%{ box-shadow:0 6px 0 #e09400, 0 10px 30px rgba(0,0,0,.5), 0 0 26px rgba(255,213,79,.85);} }
   @keyframes playShine{ 0%{ left:-70%;} 55%,100%{ left:150%;} }
-  #lobby .lobby-nav{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:10px; width:100%; max-width:420px; }
-  #lobby .navb{ flex:1 1 44%; background:rgba(255,255,255,.13); border:1px solid rgba(255,255,255,.22);
-    color:#e8f5e9; font-size:14px; font-weight:800; border-radius:20px; padding:11px; cursor:pointer; }
+  /* 主次分明：任務/復育/棲地 是高頻核心循環，較大較亮；圖鑑/戰績/好友/設定 是低頻功能，縮小淡化 */
+  #lobby .lobby-nav{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; width:100%; max-width:420px; }
+  #lobby .lobby-nav.primary{ margin-top:10px; }
+  #lobby .lobby-nav.secondary{ margin-top:6px; }
+  #lobby .navb{ flex:1 1 30%; background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.24);
+    color:#e8f5e9; font-size:14px; font-weight:800; border-radius:18px; padding:11px 6px; cursor:pointer; }
   #lobby .navb:active{ filter:brightness(1.25); }
+  #lobby .navb.sm{ flex:1 1 21%; background:rgba(255,255,255,.07); border-color:rgba(255,255,255,.12);
+    color:#b9d4c2; font-size:11.5px; font-weight:700; padding:7px 4px; border-radius:14px; }
   /* ===== 場景轉場 ===== */
   #xfade{ position:fixed; inset:0; z-index:50; opacity:0; pointer-events:none;
     background:radial-gradient(circle at 50% 45%, #14422a, #06170d);
@@ -225,14 +227,16 @@
         <div class="hero-tag" id="hsTag"></div>
         <div class="roster" id="roster"></div>
         <button class="play-btn" id="playBtn">⚔ 對 戰</button>
-        <button class="play-btn sec" id="coopBtn">🌐 好友連線</button>
-        <div class="lobby-nav">
+        <div class="lobby-nav primary">
           <button class="navb" id="navDaily">📋 任務</button>
           <button class="navb" id="navUpg">🌱 復育</button>
-          <button class="navb" id="navHabitat">🏡 棲地基地</button>
-          <button class="navb" id="navDex">📖 圖鑑</button>
-          <button class="navb" id="navStats">🏆 戰績</button>
-          <button class="navb" id="navSet">⚙️ 設定</button>
+          <button class="navb" id="navHabitat">🏡 棲地</button>
+        </div>
+        <div class="lobby-nav secondary">
+          <button class="navb sm" id="navDex">📖 圖鑑</button>
+          <button class="navb sm" id="navStats">🏆 戰績</button>
+          <button class="navb sm" id="coopBtn">🌐 好友</button>
+          <button class="navb sm" id="navSet">⚙️ 設定</button>
         </div>
       </div>
     </div>
