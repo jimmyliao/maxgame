@@ -146,6 +146,18 @@
     border-radius:18px; padding:14px 26px; font-size:18px; font-weight:900; color:#ffd54f; z-index:50; opacity:0; pointer-events:none; transition:opacity .3s, transform .3s; text-align:center; white-space:nowrap; }
   #habBanner.show{ opacity:1; transform:translate(-50%,0); }
   .htile .hpip{ position:absolute; top:2px; right:4px; font-size:9px; color:#ffd54f; font-weight:800; }
+  /* 訪客紀錄 HUD 角標：右上角顯示已見過幾種訪客動物 */
+  #habVisitorDex{ position:absolute; top:max(8px,env(safe-area-inset-top)); right:10px; font-size:10.5px; font-weight:800; color:#ffe082;
+    background:rgba(10,20,14,.55); border-radius:12px; padding:4px 10px; pointer-events:none; backdrop-filter:blur(2px); text-shadow:0 1px 3px #000; }
+  /* 訪客知識小面板：點擊訪客後彈出的生態小知識卡 */
+  #habVisitorPanel{ position:fixed; left:50%; bottom:max(96px,calc(env(safe-area-inset-bottom) + 84px)); transform:translateX(-50%) translateY(12px); width:min(88vw,380px);
+    background:rgba(12,28,18,.96); border:2px solid #ffd54f; border-radius:18px; padding:12px 16px; z-index:52; opacity:0; pointer-events:none;
+    transition:opacity .3s, transform .3s; box-shadow:0 10px 30px rgba(0,0,0,.5); }
+  #habVisitorPanel.hide{ display:none; }
+  #habVisitorPanel:not(.hide){ opacity:1; transform:translateX(-50%) translateY(0); }
+  #habVisitorTitle{ font-size:15px; font-weight:900; color:#ffd54f; margin-bottom:4px; }
+  #habVisitorFact{ font-size:11.5px; color:#e8f5e9; line-height:1.6; }
+  #habVisitorReward{ font-size:12px; font-weight:800; color:#a5d6a7; margin-top:6px; }
   /* 生態走廊面板 */
   #habCorridorPanel{ position:absolute; inset:0; z-index:5; background:rgba(6,16,10,.82); display:flex; align-items:center; justify-content:center; padding:16px; }
   #habCorridorPanel.hide{ display:none; }
@@ -499,11 +511,17 @@
     </div>
     <div class="hbar"><i id="habRestoreBar"></i></div>
   </div>
-  <p id="habHint">🥀 入侵種：點掉它　🟫 空地：點下去種植　🌱🌿🌳 依時間長大，點成熟的收成</p>
+  <div id="habVisitorDex">📖 訪客紀錄 0/0</div>
+  <p id="habHint">🥀 入侵種：點掉它　🟫 空地：點下去種植　🌱🌿🌳 依時間長大，點成熟的收成　✨ 棲地夠健康會有野生動物來訪，點牠認識牠！</p>
   <div id="habBtns">
     <button class="btn sec" id="habBack">返回大廳</button>
     <button class="btn" id="habCollectAll">🧺 全部收成</button>
   </div>
+</div>
+<div id="habVisitorPanel" class="hide">
+  <div id="habVisitorTitle"></div>
+  <div id="habVisitorFact"></div>
+  <div id="habVisitorReward"></div>
 </div>
 <div id="habCorridorPanel" class="hide">
   <div id="habCorridorCard">
