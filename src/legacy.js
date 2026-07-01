@@ -722,6 +722,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   window.__unlockedKeys=()=> HEROES.filter(h=>isHeroUnlocked(h.key)).map(h=>h.key);
   window.__heroLevel=(key)=> heroLevel(key);   // 守護者等級（最高 50、永不退級）
   window.__awardEco=(n)=>{ gainEco(n); };
+  window.__getEco=()=> getEco();
   window.__awardXP=(key,n)=>{ gainXP(key,n|0); };
   window.__bumpWin=()=>{ try{ localStorage.setItem("shoutu_wins",String(getWins()+1)); }catch(e){} };
   window.__lobbyRefresh=()=>{ if(state==="lobby"){ updateLobby(); buildRoster(); resizeHeroShow(); } };

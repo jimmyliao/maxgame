@@ -88,6 +88,20 @@
   .mode-tab{ font-size:15px; padding:9px 16px; opacity:.55; }
   .mode-tab.on{ opacity:1; background:#2e7d32; box-shadow:0 4px 0 #1b5e20; }
   #coopJoinRow.hide{ display:none; }
+  #habHeader{ display:flex; justify-content:space-between; width:100%; max-width:340px; font-size:13px; font-weight:800; color:#ffd54f; margin-top:6px; }
+  .hbar{ width:100%; max-width:340px; height:12px; border-radius:6px; background:rgba(0,0,0,.4); overflow:hidden; border:1px solid rgba(255,255,255,.25); margin-top:4px; }
+  .hbar i{ display:block; height:100%; width:0%; background:linear-gradient(90deg,#66bb6a,#a5d6a7); transition:width .4s; }
+  #habGrid{ display:grid; grid-template-columns:repeat(4,1fr); gap:6px; width:100%; max-width:340px; margin-top:14px; }
+  .htile{ aspect-ratio:1; border-radius:12px; border:2px solid rgba(255,255,255,.15); font-size:22px;
+    display:flex; align-items:center; justify-content:center; cursor:pointer; position:relative; background:#2b4a2a; }
+  .htile.invasive{ background:#4a2a24; border-color:rgba(239,83,80,.5); }
+  .htile.empty{ background:#3a3226; border-color:rgba(255,255,255,.12); }
+  .htile.sprout{ background:#2e4a2a; }
+  .htile.sapling{ background:#2a5a2e; }
+  .htile.mature{ background:#1f6b2c; border-color:rgba(255,213,79,.6); }
+  .htile.mature.ripe{ animation:glow 1s infinite; }
+  .htile:active{ transform:scale(0.94); }
+  .htile .hpip{ position:absolute; top:2px; right:4px; font-size:9px; color:#ffd54f; font-weight:800; }
   #moba, #mpick, #mover{ z-index:40; } #mpick, #mover{ z-index:41; }
   .scr{ position:absolute; inset:0; z-index:10; display:flex; flex-direction:column; align-items:center; justify-content:center;
     text-align:center; padding:20px; background:rgba(7,20,12,.92); overflow:auto; }
@@ -199,6 +213,7 @@
         <div class="lobby-nav">
           <button class="navb" id="navDaily">📋 任務</button>
           <button class="navb" id="navUpg">🌱 復育</button>
+          <button class="navb" id="navHabitat">🏡 棲地基地</button>
           <button class="navb" id="navDex">📖 圖鑑</button>
           <button class="navb" id="navStats">🏆 戰績</button>
           <button class="navb" id="navSet">⚙️ 設定</button>
@@ -353,6 +368,20 @@
   <button class="btn sec" id="moverHome">🏠 回大廳</button>
 </div>
 
+<!-- ===== 棲地基地：經營/養成（離線也會成長，回來收成） ===== -->
+<div id="habitat" class="scr hide">
+  <h1>🏡 棲地基地</h1>
+  <h2>清除入侵種、種下原生植物——植物會隨時間成長，離線也在長大，回來收成保育值！</h2>
+  <div id="habHeader">
+    <span id="habRestoreTxt">復原度 0%</span>
+    <span id="habEcoTxt">🌿 可收成 0</span>
+  </div>
+  <div class="hbar"><i id="habRestoreBar"></i></div>
+  <div id="habGrid"></div>
+  <p id="habHint" style="font-size:12px;color:#a5d6a7;margin-top:8px;">🥀 入侵種：點掉它　🟫 空地：點下去種植　🌱🌿🌳 依時間長大，點成熟的收成</p>
+  <button class="btn sec" id="habBack" style="margin-top:10px;">返回大廳</button>
+</div>
+
 <!-- ===== 好友連線（需要網路；單機部分完全不受影響） ===== -->
 <div id="coop" class="scr hide">
   <h1>🌐 好友連線</h1>
@@ -382,5 +411,6 @@
 <script type="module" src="./src/legacy.js"></script>
 <script type="module" src="./src/moba.js"></script>
 <script type="module" src="./src/net.js"></script>
+<script type="module" src="./src/habitat.js"></script>
 </body>
 </html>
