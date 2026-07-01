@@ -787,28 +787,38 @@
       g.restore(); }
     // 共用座標（腳、頭、耳）
     const hx=bLen*(bird?0.62:fish?0.82:0.72), hr=r*(bird?0.32:fish?0.34:0.46);
-    const sw=walk*r*0.38, lr=r*(u.kind==="bear"?0.19:0.15);
+    const sw=walk*r*0.38, lr=r*(u.kind==="bear"?0.19:(u.kind==="deer"||u.kind==="muntjac")?0.1:0.15);
     // 四肢：每條腿有 [附著x, 附著y, 腳掌x, 腳掌y, 步態相位]，前肢朝前外、後肢朝後外，
     // 爬蟲/青蛙外張更誇張；鳥為雙腿。有明確前後之分＋站姿，不再是身體下塞四顆蛋。
-    const reptile=(u.kind==="iguana"||u.kind==="anole"), lizardSplay=reptile?1.5:(u.kind==="frog"?1.7:1.0);
-    const lyA=bW*0.72, lyF=bW*(reptile?1.5:u.kind==="frog"?1.55:1.02), lxf=bLen*0.5, lxb=bLen*0.52;
-    const footFx=reptile?bLen*0.28:bLen*0.66, footBx=reptile?-bLen*0.72:-bLen*0.7;
+    const reptile=(u.kind==="iguana"||u.kind==="anole"), ungulate=(u.kind==="deer"||u.kind==="muntjac"), frogK=(u.kind==="frog");
+    const lizardSplay=reptile?1.5:ungulate?1.3:1.0;
+    const lyA=bW*0.72, lyF=bW*(reptile?1.5:ungulate?1.55:1.02), lxf=bLen*0.5, lxb=bLen*0.52;
+    const footFx=reptile?bLen*0.28:ungulate?bLen*0.6:bLen*0.66, footBx=reptile?-bLen*0.72:ungulate?-bLen*0.64:-bLen*0.7;
+    // 獼猴：靈長類四肢——前肢(手臂)細長朝前伸、後肢(腿)屈蹲朝外，手腳較小
+    const macaqueK=(u.kind==="macaque");
+    // 青蛙：前腿短小朝前、後腿肥大屈膝朝後外（蹲姿），另用專屬座標
     const limbs=bird?
-      [[-bLen*0.08,-lyA*0.5, -bLen*0.05,bW*1.35, 1],[-bLen*0.08,lyA*0.5, -bLen*0.05,bW*1.35, -1]]
-      :[[lxf,-lyA, footFx,-lyF*lizardSplay, 1],[lxf,lyA, footFx,lyF*lizardSplay, -1],
-        [-lxb,-lyA, footBx,-lyF*lizardSplay, -1],[-lxb,lyA, footBx,lyF*lizardSplay, 1]];
+      [[-bLen*0.08,-lyA*0.5, -bLen*0.05,bW*1.35, 1,1],[-bLen*0.08,lyA*0.5, -bLen*0.05,bW*1.35, -1,1]]
+      :macaqueK?
+      [[bLen*0.55,-bW*0.6, bLen*1.05,-bW*1.15, 1,0.75],[bLen*0.55,bW*0.6, bLen*1.05,bW*1.15, -1,0.75],
+       [-bLen*0.5,-bW*0.7, -bLen*0.85,-bW*1.25, -1,0.8],[-bLen*0.5,bW*0.7, -bLen*0.85,bW*1.25, 1,0.8]]
+      :frogK?
+      [[bLen*0.5,-bW*0.55, bLen*0.85,-bW*0.85, 1,0.8],[bLen*0.5,bW*0.55, bLen*0.85,bW*0.85, -1,0.8],
+       [-bLen*0.2,-bW*0.7, -bLen*0.95,-bW*1.15, -1,1.6],[-bLen*0.2,bW*0.7, -bLen*0.95,bW*1.15, 1,1.6]]
+      :[[lxf,-lyA, footFx,-lyF*lizardSplay, 1,1],[lxf,lyA, footFx,lyF*lizardSplay, -1,1],
+        [-lxb,-lyA, footBx,-lyF*lizardSplay, -1,1],[-lxb,lyA, footBx,lyF*lizardSplay, 1,1]];
     const earR=hr*(u.kind==="bear"?0.5:u.kind==="macaque"?0.4:0.44);
     const noLegs=flyer||fish||u.kind==="snail";
-    const limbW=r*(u.kind==="bear"?0.2:u.kind==="deer"||u.kind==="muntjac"?0.13:reptile?0.09:0.15);
+    const limbW=r*(u.kind==="bear"?0.2:u.kind==="deer"||u.kind==="muntjac"?0.13:u.kind==="macaque"?0.11:reptile?0.09:0.15);
     // 一條腿：大腿骨（描邊）+ 腳掌（橢圓），可帶步態擺動
-    function drawLimb(L,wOut,limbCol,footCol2){ const ph=L[4]*sw;
+    function drawLimb(L,wOut,limbCol,footCol2){ const ph=L[4]*sw, sc=L[5]||1, flr=lr*sc;
       const ax=L[0], ay=L[1], fx=L[2]+ph, fy=L[3];
-      g.strokeStyle=wOut>0?INK:limbCol; g.lineWidth=limbW+wOut; g.lineCap="round";
+      g.strokeStyle=wOut>0?INK:limbCol; g.lineWidth=limbW*sc+wOut; g.lineCap="round";
       g.beginPath(); g.moveTo(ax,ay); g.lineTo(fx,fy); g.stroke();
-      if(wOut>0){ g.fillStyle=INK; g.beginPath(); g.ellipse(fx,fy,lr+wOut*0.7,lr*0.9+wOut*0.7,L[4]*0.3,0,7); g.fill(); }
-      else { g.fillStyle=footCol2; g.beginPath(); g.ellipse(fx,fy,lr,lr*0.9,L[4]*0.3,0,7); g.fill();
+      if(wOut>0){ g.fillStyle=INK; g.beginPath(); g.ellipse(fx,fy,flr+wOut*0.7,flr*0.9+wOut*0.7,L[4]*0.3,0,7); g.fill(); }
+      else { g.fillStyle=footCol2; g.beginPath(); g.ellipse(fx,fy,flr,flr*0.9,L[4]*0.3,0,7); g.fill();
         g.strokeStyle="rgba(0,0,0,0.25)"; g.lineWidth=Math.max(1,r*0.03);
-        for(const tn of [-0.4,0,0.4]){ g.beginPath(); g.moveTo(fx+tn*lr,fy+fy*0.02); g.lineTo(fx+tn*lr*1.5,fy+(fy>0?lr:-lr)*0.9); g.stroke(); } } }
+        for(const tn of [-0.4,0,0.4]){ g.beginPath(); g.moveTo(fx+tn*flr,fy+fy*0.02); g.lineTo(fx+tn*flr*1.5,fy+(fy>0?flr:-flr)*0.9); g.stroke(); } } }
     g.lineCap="butt";
 
     // 頸子（鹿/山羌/獼猴有明顯頸部，接在頭與身體之間，讓側影一眼不同）
@@ -918,19 +928,23 @@
     // 鮭魚背鰭（洄游意象，畫在身體中段）
     if(fish){ g.fillStyle=shade(col,-18); g.beginPath(); g.moveTo(-r*0.05,-bW*0.9); g.lineTo(r*0.15,-bW*1.7); g.lineTo(r*0.35,-bW*0.85); g.closePath(); g.fill();
       g.strokeStyle="rgba(0,0,0,0.2)"; g.lineWidth=Math.max(1,r*0.03); g.stroke(); }
-    // 鳥翼（俯視：雙翼收合貼在背側、尖端朝後；微微上下拍動）+ 尾羽扇
+    // 鳥翼（俯視：雙翼收合貼背、尖端朝後；小尺寸可讀——用單一乾淨葉形+一道飛羽切痕）
     if(bird){ const wf=u.moving?bW*0.12*Math.abs(Math.sin(gt*10+u.phase)):bW*0.04;
       const wingCol=u.kind==="magpie"?"#123f8c":u.kind==="pheasant"?"#1a2a52":"#eef1f6";
-      const wingDark=u.kind==="ibis"?"#c9d2dc":shade(wingCol,-28);
-      for(const s of [-1,1]){
-        g.fillStyle=INK; g.beginPath(); g.ellipse(-bLen*0.12,s*(bW*0.5+wf),bLen*0.66,bW*0.34,-s*0.22,0,7); g.fill();
-        g.fillStyle=wingCol; g.beginPath(); g.ellipse(-bLen*0.1,s*(bW*0.5+wf),bLen*0.58,bW*0.27,-s*0.22,0,7); g.fill();
-        // 翼尖初級飛羽（深色排列）
-        g.fillStyle=wingDark; g.beginPath(); g.ellipse(-bLen*0.62,s*(bW*0.72+wf),bLen*0.22,bW*0.14,-s*0.4,0,7); g.fill(); }
-      // 尾羽扇（收窄的三根，畫在身體後方）
+      const tipCol=u.kind==="ibis"?"#111":shade(wingCol,-34);
+      for(const s of [-1,1]){ const wy=s*(bW*0.52+wf);
+        // 收合翼：前寬後尖的葉形（葉尖朝後）
+        g.fillStyle=INK; g.beginPath(); g.moveTo(bLen*0.35,wy*0.5); g.quadraticCurveTo(-bLen*0.1,wy*1.5,-bLen*0.78,wy*0.7); g.quadraticCurveTo(-bLen*0.1,wy*0.2,bLen*0.35,wy*0.5); g.fill();
+        g.fillStyle=wingCol; g.beginPath(); g.moveTo(bLen*0.3,wy*0.55); g.quadraticCurveTo(-bLen*0.08,wy*1.4,-bLen*0.72,wy*0.72); g.quadraticCurveTo(-bLen*0.08,wy*0.28,bLen*0.3,wy*0.55); g.fill();
+        // 翼尖深色（初級飛羽，單塊粗色，小尺寸也看得出）
+        g.fillStyle=tipCol; g.beginPath(); g.moveTo(-bLen*0.4,wy*0.95); g.quadraticCurveTo(-bLen*0.8,wy*0.75,-bLen*0.72,wy*0.55); g.quadraticCurveTo(-bLen*0.55,wy*0.85,-bLen*0.4,wy*0.95); g.fill(); }
+      // 尾羽扇（單塊三角扇，收窄朝後；高對比）
       const tailCol=u.kind==="ibis"?INK:wingCol;
-      g.fillStyle=INK; for(const a of [-0.28,0,0.28]){ g.save(); g.rotate(a); g.beginPath(); g.ellipse(-bLen*1.02,0,bLen*0.42,bW*0.16,0,0,7); g.fill(); g.restore(); }
-      g.fillStyle=tailCol; for(const a of [-0.24,0,0.24]){ g.save(); g.rotate(a); g.beginPath(); g.ellipse(-bLen*0.98,0,bLen*0.36,bW*0.11,0,0,7); g.fill(); g.restore(); }
+      g.fillStyle=INK; g.beginPath(); g.moveTo(-bLen*0.6,-bW*0.32); g.lineTo(-bLen*1.28,-bW*0.5); g.lineTo(-bLen*1.4,0); g.lineTo(-bLen*1.28,bW*0.5); g.lineTo(-bLen*0.6,bW*0.32); g.closePath(); g.fill();
+      g.fillStyle=tailCol; g.beginPath(); g.moveTo(-bLen*0.58,-bW*0.24); g.lineTo(-bLen*1.18,-bW*0.4); g.lineTo(-bLen*1.28,0); g.lineTo(-bLen*1.18,bW*0.4); g.lineTo(-bLen*0.58,bW*0.24); g.closePath(); g.fill();
+      // 尾羽分隔線（兩道，增加羽片辨識）
+      g.strokeStyle="rgba(0,0,0,0.3)"; g.lineWidth=Math.max(1,r*0.03);
+      for(const s of [-1,1]){ g.beginPath(); g.moveTo(-bLen*0.7,s*bW*0.1); g.lineTo(-bLen*1.24,s*bW*0.22); g.stroke(); }
       // 鳥腳（兩隻細腳伸出腹側）
       g.strokeStyle="#d9a23a"; if(u.kind==="ibis") g.strokeStyle="#333"; g.lineWidth=Math.max(1.4,r*0.05); g.lineCap="round";
       for(const s of [-1,1]){ g.beginPath(); g.moveTo(bLen*0.1,s*bW*0.3); g.lineTo(bLen*0.05,s*bW*0.95); g.stroke(); } g.lineCap="butt"; }
