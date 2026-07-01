@@ -141,6 +141,14 @@
   .hc-item button:disabled{ background:#546e7a; box-shadow:0 3px 0 #37474f; opacity:.6; cursor:not-allowed; }
   .hc-item .hc-built-tag{ font-size:12px; font-weight:800; color:#a5d6a7; }
   #moba, #mpick, #mover{ z-index:40; } #mpick, #mover{ z-index:41; }
+  /* 結算畫面：戲劇化放射光暈背景 + 飄浮光點，勝負都適用的氛圍層 */
+  #mover{ background:radial-gradient(circle at 50% 38%, rgba(255,213,79,.16), rgba(7,20,12,.94) 62%); overflow:hidden; }
+  #mover::before{ content:""; position:absolute; inset:0; pointer-events:none;
+    background-image:radial-gradient(circle, rgba(255,235,180,.9) 1.4px, transparent 1.4px);
+    background-size:64px 64px; background-position:0 0; opacity:.28; animation:moverDrift 14s linear infinite; }
+  @keyframes moverDrift{ from{ background-position:0 0; } to{ background-position:-320px 640px; } }
+  #mover h1{ animation:moverPop .5s cubic-bezier(.2,1.6,.4,1); text-shadow:0 4px 18px rgba(255,213,79,.4); }
+  @keyframes moverPop{ 0%{ transform:scale(.6); opacity:0; } 70%{ transform:scale(1.08); opacity:1; } 100%{ transform:scale(1); } }
   .scr{ position:absolute; inset:0; z-index:10; display:flex; flex-direction:column; align-items:center; justify-content:center;
     text-align:center; padding:20px; background:rgba(7,20,12,.92); overflow:auto; }
   .scr.hide{ display:none; }
