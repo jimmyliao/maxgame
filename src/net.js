@@ -94,7 +94,7 @@
       roomPlayersCache=data.players||{}; lastRoomData=data;
       renderRoom(data);
       // guest 端：偵測 status 由 waiting → playing，自動進場開始接收 host 廣播
-      if(!isHost && data.status==="playing" && lastStatus!=="playing" && !isNetActive){ beginGuestSync((data.config&&data.config.size)||3); }
+      if(!isHost && data.status==="playing" && lastStatus!=="playing" && !isNetActive){ const sz=(data.config&&data.config.size)||3; runCountdown(()=>beginGuestSync(sz)); }
       lastStatus=data.status;
     });
   }
@@ -106,47 +106,77 @@
     const cc=cv.getContext("2d"); cc.clearRect(0,0,cv.width,cv.height);
     if(window.__drawCreature){ try{ window.__drawCreature(cc,key,cv.width/2,cv.height*0.62,cv.height*0.42,{t:0}); }catch(e){} } }
 
+  // 依 joinedAt 排序的全體玩家清單（房主排最前），讓每個人在房間都看到自己＋其他所有隊友
+  function orderedPlayers(){ return Object.keys(roomPlayersCache||{})
+    .map(uid=>({uid, p:roomPlayersCache[uid]}))
+    .sort((a,b)=> (b.p.host?1:0)-(a.p.host?1:0) || ((a.p.joinedAt||0)-(b.p.joinedAt||0)) ); }
   function renderRoom(data){
-    const me=roomPlayersCache[myUid()]||null, otherUid=otherPlayerUid(), other=otherUid?roomPlayersCache[otherUid]:null;
+    const me=roomPlayersCache[myUid()]||null;
     if(me) myHeroKey=me.heroKey||myHeroKey;
-    const st=$("roomStatus"); if(st) st.textContent = data.status==="playing" ? "遊戲進行中…" : "等待朋友加入…（房間代碼："+(currentRoom||"")+"）";
+    const players=orderedPlayers();
+    const st=$("roomStatus"); if(st) st.textContent = data.status==="playing" ? "遊戲進行中…" : ("等待隊友加入…（"+players.length+" 人在房間・代碼 "+(currentRoom||"")+"）");
 
-    const nickMe=$("csNickMe"); if(nickMe) nickMe.textContent=(isHost?"👑 ":"🌿 ")+((me&&me.nick)||getNick()||"我");
-    const readyMe=$("csReadyMe"); if(readyMe){ readyMe.textContent=(me&&me.ready)?"✅ 準備完成":"未準備"; readyMe.classList.toggle("on",!!(me&&me.ready)); }
-    const heroMe=$("csHeroMe"); if(heroMe) heroMe.textContent=(me&&me.heroKey)?heroName(me.heroKey):"請選擇守護者";
-    if(me&&me.heroKey) drawPortrait("csPortraitMe",me.heroKey);
+    // 房主設定（模式/人數）——房主可改，非房主唯讀顯示目前設定
+    renderHostCfg(data.config||{gameMode:"normal",size:3});
 
-    const nickOther=$("csNickOther"); const readyOther=$("csReadyOther"); const heroOther=$("csHeroOther");
-    if(other){
-      if(nickOther) nickOther.textContent=(other.host?"👑 ":"🌿 ")+(other.nick||"朋友");
-      if(readyOther){ readyOther.textContent=other.ready?"✅ 準備完成":"未準備"; readyOther.classList.toggle("on",!!other.ready); }
-      if(heroOther) heroOther.textContent=other.heroKey?heroName(other.heroKey):"選角中…";
-      if(other.heroKey) drawPortrait("csPortraitOther",other.heroKey);
-    } else {
-      if(nickOther) nickOther.textContent="朋友";
-      if(readyOther){ readyOther.textContent="未準備"; readyOther.classList.remove("on"); }
-      if(heroOther) heroOther.textContent="尚未加入";
-      const cv=$("csPortraitOther"); if(cv) cv.getContext("2d").clearRect(0,0,cv.width,cv.height);
-    }
+    // 動態列出全部隊員（含自己），每個人都看得到自己＋其他所有人
+    const wrap=$("croomSlots"); if(wrap){ wrap.innerHTML="";
+      players.forEach(({uid,p})=>{ const isMe=uid===myUid();
+        const slot=document.createElement("div"); slot.className="croom-slot"+(isMe?" me":"");
+        const badge=p.host?"👑 ":"🌿 "; const nick=(p.nick||(p.host?"房主":"隊友"))+(isMe?"（你）":"");
+        slot.innerHTML='<div class="cs-hdr"><span class="cs-nick">'+badge+escapeHtml(nick)+'</span>'+
+          '<span class="cs-ready'+(p.ready?" on":"")+'">'+(p.ready?"✅ 準備完成":"未準備")+'</span></div>'+
+          '<canvas class="cs-portrait" width="220" height="84"></canvas>'+
+          '<div class="cs-heroname">'+(p.heroKey?escapeHtml(heroName(p.heroKey)):"選角中…")+'</div>';
+        wrap.appendChild(slot);
+        if(p.heroKey){ const cv=slot.querySelector("canvas"); if(cv&&window.__drawCreature){ try{ window.__drawCreature(cv.getContext("2d"),p.heroKey,cv.width/2,cv.height*0.62,cv.height*0.42,{t:0}); }catch(e){} } }
+      }); }
 
-    buildPicker(me, other);
+    buildPicker(me, players);
 
-    const sameHero = !!(me&&other&&me.heroKey&&other.heroKey&&me.heroKey===other.heroKey);
-    const warn=$("coopSameHeroWarn"); if(warn) warn.textContent=sameHero?"⚠ 你們選了同一隻守護者，請至少一人換一隻不同的！":"";
+    // 每個人的守護者都要不同：有重複就擋
+    const keys=players.map(x=>x.p.heroKey).filter(Boolean);
+    const dupHero = keys.length!==new Set(keys).size;
+    const warn=$("coopSameHeroWarn"); if(warn) warn.textContent=dupHero?"⚠ 有人選了同一隻守護者，請改成每個人都不同！":"";
 
     const readyBtn=$("coopReady"); if(readyBtn) readyBtn.classList.toggle("on",!!(me&&me.ready));
-    const bothReady = !!(me&&me.ready&&other&&other.ready);
+    const enough = players.length>=2;
+    const allReady = enough && players.every(x=>x.p.ready);
+    const allChosen = players.every(x=>x.p.heroKey);
     const startBtn=$("coopStart");
     if(startBtn){ startBtn.style.display = isHost ? "" : "none";
-      startBtn.disabled = !(bothReady && other && !sameHero);
-      startBtn.textContent = !other ? "⚔ 等待朋友加入" : sameHero ? "⚔ 請選不同守護者" : !bothReady ? "⚔ 等待雙方準備完成" : "⚔ 開始對戰"; }
+      startBtn.disabled = !(allReady && allChosen && !dupHero);
+      startBtn.textContent = !enough ? "⚔ 等待隊友加入" : dupHero ? "⚔ 請選不同守護者" : !allChosen ? "⚔ 有人還沒選角" : !allReady ? "⚔ 等待全員準備完成" : "⚔ 開始對戰"; }
   }
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+  // 開賽 3-2-1 倒數（房主/隊友各自本機跑，蓋在房間上、顯示全體隊友名字），數完才呼叫 done() 真正進場
+  let countingDown=false;
+  function runCountdown(done){ const ov=$("coopCountdown");
+    if(!ov){ done(); return; }
+    if(countingDown) return; countingDown=true;
+    const names=orderedPlayers().map(x=>(x.p.nick||"隊友")).join("、");
+    const nm=$("ccNames"); if(nm) nm.textContent="🌿 出戰隊伍："+names;
+    ov.classList.remove("hide");
+    const num=$("ccNum"); let n=3;
+    (function tick(){ if(n>=1){ if(num){ num.textContent=String(n); num.style.animation="none"; void num.offsetWidth; num.style.animation="ccPop .8s ease"; } n--; setTimeout(tick,800); }
+      else { if(num){ num.textContent="開始！"; num.style.animation="none"; void num.offsetWidth; num.style.animation="ccPop .8s ease"; }
+        setTimeout(()=>{ ov.classList.add("hide"); countingDown=false; done(); }, 750); } })();
+  }
+  const MODE_LABEL={normal:"🌳 復育戰",time:"⏱ 限時挑戰",pve:"🎯 外來種防衛戰"};
+  function renderHostCfg(cfg){ const box=$("croomHostCfg"); if(box) box.classList.toggle("readonly",!isHost);
+    document.querySelectorAll("#cfgModeGroup .cfg-btn").forEach(b=>b.classList.toggle("on",b.dataset.mode===(cfg.gameMode||"normal")));
+    document.querySelectorAll("#cfgSizeGroup .cfg-btn").forEach(b=>b.classList.toggle("on",String(cfg.size||3)===b.dataset.size));
+    const info=$("croomCfgInfo"); if(info) info.textContent=(isHost?"房主設定：":"房主已設定：")+(MODE_LABEL[cfg.gameMode||"normal"]||"復育戰")+"　"+((cfg.size||3))+" 人隊伍"; }
+  async function setRoomCfg(patch){ if(!isHost||!currentRoom||!window.__fb) return;
+    const cur=roomConfig(); const next=Object.assign({gameMode:"normal",size:3}, cur, patch);
+    const { ref, update } = window.__fb; try{ await update(ref(fbDb,"rooms/"+currentRoom+"/config"),next); }catch(e){} }
 
-  function buildPicker(me,other){
+  function buildPicker(me,players){
     const wrap=$("croomPick"); if(!wrap) return; wrap.innerHTML="";
-    const otherKey=other?other.heroKey:null;
+    // 其他所有隊友已選的角色都算「已被選」，我不能選（每個人都要不同）
+    const takenByOthers=new Set((players||[]).filter(x=>x.uid!==myUid()).map(x=>x.p.heroKey).filter(Boolean));
     heroList().forEach(h=>{
-      const b=document.createElement("button"); const mine=me&&me.heroKey===h.key; const taken=otherKey===h.key && !mine;
+      const b=document.createElement("button"); const mine=me&&me.heroKey===h.key; const taken=takenByOthers.has(h.key) && !mine;
       b.className="rb"+(mine?" sel":"")+(taken?" taken":"");
       const cv=document.createElement("canvas"); cv.width=96; cv.height=96; b.appendChild(cv);
       const cc=cv.getContext("2d"); if(window.__drawCreature){ try{ window.__drawCreature(cc,h.key,48,54,34,{t:0}); }catch(e){} }
@@ -195,7 +225,7 @@
     try{
       const { ref, update } = window.__fb;
       await update(ref(fbDb,"rooms/"+currentRoom),{ status:"playing", config:{gameMode,size}, updatedAt:Date.now() });
-      beginHostSync(size, me.heroKey, guests.map(g=>({uid:g.uid, kind:g.player.heroKey})), gameMode);
+      runCountdown(()=> beginHostSync(size, me.heroKey, guests.map(g=>({uid:g.uid, kind:g.player.heroKey})), gameMode));
     }catch(err){ netMsg("開始對戰失敗，請檢查網路後重試。"); console.error("startGame failed:",err); }
   }
 
@@ -274,4 +304,7 @@
   tap("coopReady",toggleReady);
   tap("coopStart",startGame);
   tap("coopLeave",leaveRoom);
+  // 房主設定：模式與隊伍人數（非房主 pointer-events 已被 .readonly 擋住）
+  document.querySelectorAll("#cfgModeGroup .cfg-btn").forEach(b=> b.addEventListener("pointerdown",(e)=>{ e.preventDefault(); if(isHost) setRoomCfg({gameMode:b.dataset.mode}); },{passive:false}));
+  document.querySelectorAll("#cfgSizeGroup .cfg-btn").forEach(b=> b.addEventListener("pointerdown",(e)=>{ e.preventDefault(); if(isHost) setRoomCfg({size:parseInt(b.dataset.size,10)}); },{passive:false}));
 })();

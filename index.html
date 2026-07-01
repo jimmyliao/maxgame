@@ -126,6 +126,18 @@
   /* 好友大廳（#coopRoom）：仿大廳視覺——兩人並肩站在同一片棲地場景，而非抽象房間代碼列表 */
   #coopRoom{ background:radial-gradient(circle at 50% 30%, rgba(56,120,72,.5), rgba(7,20,12,.94) 72%); padding:14px 16px; }
   #coopRoom h1{ font-size:19px; } #coopRoom .room-code{ color:#ffd54f; letter-spacing:3px; }
+  #croomHostCfg .cfg-group{ display:flex; gap:4px; background:rgba(0,0,0,.28); padding:4px; border-radius:14px; }
+  #croomHostCfg .cfg-btn{ border:none; border-radius:10px; background:transparent; color:#c8e6c9; font-size:12px; font-weight:800; padding:6px 10px; cursor:pointer; }
+  #croomHostCfg .cfg-btn.on{ background:#2e7d32; color:#fff; }
+  #croomHostCfg.readonly{ opacity:.85; pointer-events:none; }
+  #coopCountdown{ position:absolute; inset:0; z-index:30; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:radial-gradient(circle at 50% 45%, rgba(20,50,30,.72), rgba(4,10,7,.94)); backdrop-filter:blur(3px); }
+  #coopCountdown.hide{ display:none; }
+  #coopCountdown #ccNames{ font-size:15px; font-weight:800; color:#ffe082; margin-bottom:8px; text-align:center; padding:0 18px; }
+  #coopCountdown #ccNum{ font-size:96px; font-weight:900; color:#fff; text-shadow:0 0 30px rgba(255,213,79,.8); line-height:1;
+    animation:ccPop .8s ease; }
+  #coopCountdown .cc-sub{ font-size:16px; font-weight:800; color:#a5d6a7; margin-top:10px; }
+  @keyframes ccPop{ 0%{ transform:scale(2.2); opacity:0; } 40%{ transform:scale(1); opacity:1; } 100%{ transform:scale(.9); opacity:.85; } }
   #croomSlots{ display:flex; gap:10px; justify-content:center; width:100%; max-width:520px; margin:6px 0 4px; flex-wrap:wrap; }
   .croom-slot{ flex:1; min-width:210px; max-width:250px; background:rgba(10,26,16,.72); border:2px solid rgba(255,255,255,.16);
     border-radius:18px; padding:10px 10px 12px; box-shadow:0 4px 14px rgba(0,0,0,.35); }
@@ -632,19 +644,24 @@
     <button class="btn sec" id="coopCopyCode" style="margin:0;padding:6px 14px;font-size:12.5px;">📋 複製代碼傳給隊友</button>
   </div>
   <h2 id="roomStatus">等待朋友加入…</h2>
-  <div id="croomSlots">
-    <div class="croom-slot me" id="croomSlotMe">
-      <div class="cs-hdr"><span class="cs-nick" id="csNickMe">我</span><span class="cs-ready" id="csReadyMe">未準備</span></div>
-      <canvas class="cs-portrait" id="csPortraitMe" width="220" height="84"></canvas>
-      <div class="cs-heroname" id="csHeroMe">請選擇守護者</div>
+  <!-- 房主專屬：選遊戲模式與隊伍人數（非房主唯讀顯示） -->
+  <div id="croomHostCfg" style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin:2px 0 6px;">
+    <div class="cfg-group" id="cfgModeGroup">
+      <button class="cfg-btn" data-mode="normal">🌳 復育戰</button>
+      <button class="cfg-btn" data-mode="time">⏱ 限時</button>
+      <button class="cfg-btn" data-mode="pve">🎯 防衛戰</button>
     </div>
-    <div class="croom-slot" id="croomSlotOther">
-      <div class="cs-hdr"><span class="cs-nick" id="csNickOther">朋友</span><span class="cs-ready" id="csReadyOther">未準備</span></div>
-      <canvas class="cs-portrait" id="csPortraitOther" width="220" height="84"></canvas>
-      <div class="cs-heroname" id="csHeroOther">尚未加入</div>
+    <div class="cfg-group" id="cfgSizeGroup">
+      <button class="cfg-btn" data-size="2">2人</button>
+      <button class="cfg-btn" data-size="3">3人</button>
+      <button class="cfg-btn" data-size="4">4人</button>
+      <button class="cfg-btn" data-size="5">5人</button>
     </div>
   </div>
-  <p style="font-size:12px;color:#a5d6a7;margin:2px 0;">選一隻守護者（雙方必須選不同的）</p>
+  <div id="croomCfgInfo" style="font-size:12px;color:#ffe082;min-height:1.2em;margin-bottom:4px;"></div>
+  <!-- 全部隊員（含自己）動態列出，由 net.js renderRoom 產生 -->
+  <div id="croomSlots"></div>
+  <p style="font-size:12px;color:#a5d6a7;margin:2px 0;">選一隻守護者（每個人必須選不同的）</p>
   <div id="croomPick"></div>
   <p id="coopSameHeroWarn"></p>
   <p id="coopRoomNet" style="color:#ffab91;min-height:1.2em;"></p>
@@ -653,6 +670,12 @@
     <button class="btn" id="coopStart" disabled>⚔ 開始對戰</button>
   </div>
   <button class="btn sec" id="coopLeave">離開小隊</button>
+  <!-- 開賽 3-2-1 倒數：蓋在房間上（含隊友名字），數完才真正進場 -->
+  <div id="coopCountdown" class="hide">
+    <div id="ccNames"></div>
+    <div id="ccNum">3</div>
+    <div class="cc-sub">準備出戰！</div>
+  </div>
 </div>
 
 <script type="module" src="./src/legacy.js"></script>
