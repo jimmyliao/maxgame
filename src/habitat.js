@@ -11,26 +11,38 @@
   const TRICKLE_S = 30, TRICKLE_CAP = 20;                   // 成熟後累積速度／上限
   const WEATHER_PERIOD_MS = 3*60*1000;
 
+  // seed：每個區域的種子特性各自不同（呼應真實物種生態）——
+  //   grow=成長時間倍率（<1 長得快、>1 長得慢）；trickle=成熟後每累積 1 單位產出所需秒數；
+  //   cap=單棵可屯上限；worth=每單位收成換算的保育值；tip=給玩家看的策略提示。
+  //   設計理念：讓每塊棲地有不同節奏——水生草本速生速收但單價低、針葉巨木/高山圓柏極慢但單價極高、紅樹林上限高適合離線屯。
   const REGION_INFO = {
     paddy:   { label:"稻田",  plant:"台灣萍蓬草", shape:"lily",
                fact:"台灣特有水生植物，僅存於桃園、南投等少數埤塘濕地，是台灣原生睡蓮科植物中最稀有的一種。",
+               seed:{ name:"萍蓬草種子", icon:"🌱", grow:0.65, trickle:22, cap:12, worth:1, tip:"速生速收：長得最快、單價低，適合勤收成" },
                sky:["#7fa8c9","#e8dfa8"], nightSky:["#1c2440","#33305a"], ground:["#8a9659","#5a6a39"] },
     hill:    { label:"淺山",  plant:"台灣欒樹", shape:"round",
                fact:"台灣特有種喬木，秋天開黃花、結紅色蒴果，是淺山生態系的重要指標樹種，也是許多昆蟲的蜜源植物。",
+               seed:{ name:"欒樹蒴果", icon:"🌰", grow:1.0, trickle:30, cap:20, worth:1, tip:"均衡型：成長與產出都中規中矩，最好上手" },
                sky:["#bcdcee","#eaf1d6"], nightSky:["#151d2e","#232e2a"], ground:["#6b7d3f","#45591f"] },
     stream:  { label:"溪流",  plant:"台灣杉", shape:"conifer",
                fact:"台灣特有種，是唯一以「台灣」命名的針葉巨木，生長在中海拔溪谷雲霧帶，為台灣森林的珍貴象徵。",
+               seed:{ name:"台灣杉毬果", icon:"🌲", grow:1.9, trickle:46, cap:30, worth:3, tip:"慢養高價：針葉巨木長超慢，但每次收成值 3 倍保育值" },
                sky:["#a9d6ec","#e3f1e6"], nightSky:["#131f2c","#1c2c30"], ground:["#5d7e3a","#3a5626"] },
     wetland: { label:"濕地",  plant:"水筆仔", shape:"mangrove",
                fact:"台灣原生紅樹林植物，胎生苗會直接在母株上發芽，是淡水河口濕地重要的護岸與棲地植物。",
+               seed:{ name:"水筆仔胎生苗", icon:"🌿", grow:1.05, trickle:28, cap:30, worth:1, tip:"積少成多：屯貨上限高，很適合離線放置慢慢累積" },
                sky:["#f4b483","#9fb1c8"], nightSky:["#211a2c","#2d2436"], ground:["#6f7e88","#3a525c"] },
     alpine:  { label:"高山寒原", icon:"🏔", plant:"玉山圓柏", shape:"juniper", unlockLv:5,
                fact:"台灣特有種，生長於海拔3000公尺以上的高山稜線，常年強風吹成匍匐狀的「風衝矮林」，是台灣特有種高山山椒魚重要的棲息環境。",
+               seed:{ name:"玉山圓柏毬果", icon:"❄️", grow:2.3, trickle:52, cap:24, worth:4, tip:"極慢極珍稀：高山風衝矮林長最慢，但單價最高（4 倍）" },
                sky:["#c9d9ea","#f2ecdf"], nightSky:["#10182c","#232244"], ground:["#8b8a7c","#5c5b4e"] },
     estuary: { label:"濕地河口", icon:"🦩", plant:"欖李", shape:"heron", unlockLv:10,
                fact:"台灣原生紅樹林四大樹種之一，多生長在河口高鹽度泥灘，是黑面琵鷺等度冬水鳥重要的覓食與棲息濕地。",
+               seed:{ name:"欖李果實", icon:"🦪", grow:1.3, trickle:34, cap:34, worth:2, tip:"高上限稍慢：屯量全區最多，單價 2 倍，長線經營首選" },
                sky:["#f7c896","#a9c6d6"], nightSky:["#251c2a","#1e2c38"], ground:["#8a8562","#4f5a44"] },
   };
+  const DEFAULT_SEED={ name:"種子", icon:"🌱", grow:1, trickle:30, cap:20, worth:1, tip:"" };
+  function seedOf(region){ const info=REGION_INFO[region]||REGION_INFO.paddy; return info.seed||DEFAULT_SEED; }
 
   const REGION_KEYS = Object.keys(REGION_INFO);                 // 全部 6 區（含未解鎖）：資料層一律備妥田地，UI 層再決定是否顯示分頁
   const BASE_REGIONS = ["paddy","hill","stream","wetland"];      // 恆常可見的 4 區
@@ -153,20 +165,23 @@
   function growMult(){ return weatherNow()==="rain" ? 0.8 : 1; }
   function trickleMult(){ return weatherNow()==="rain" ? 0.75 : 1; }
 
-  function stageOf(tile){
+  // region 省略時預設為目前分頁；跨區查詢（__habitatHealth）要明確帶入該區，才能吃到該區種子的成長倍率
+  function stageOf(tile,region){
     if(tile.state==="invasive") return "invasive";
     if(tile.state==="unplanted"){
       if((now()-tile.emptySince)/1000 > INVADE_S){ tile.state="invasive"; delete tile.emptySince; return "invasive"; }
       return "empty";
     }
-    const el=(now()-tile.plantedAt)/1000, m=growMult();
-    if(el<SPROUT_S*m) return "sprout";
-    if(el<SAPLING_S*m) return "sapling";
+    const g=seedOf(region||data.current).grow, el=(now()-tile.plantedAt)/1000, m=growMult();
+    if(el<SPROUT_S*g*m) return "sprout";
+    if(el<SAPLING_S*g*m) return "sapling";
     return "mature";
   }
-  function storedOf(tile){ if(stageOf(tile)!=="mature") return 0;
-    const el=Math.max(0,(now()-(tile.lastCollect||tile.plantedAt))/1000);
-    return Math.min(TRICKLE_CAP, Math.floor(el/(TRICKLE_S*trickleMult()))); }
+  function storedOf(tile,region){ if(stageOf(tile,region)!=="mature") return 0;
+    const sd=seedOf(region||data.current), el=Math.max(0,(now()-(tile.lastCollect||tile.plantedAt))/1000);
+    return Math.min(sd.cap, Math.floor(el/(sd.trickle*trickleMult()))); }
+  // 收成實得保育值＝屯貨單位數 × 該區種子單價（越珍稀的物種每單位越值錢）
+  function harvestGain(units,region){ return Math.round(units*seedOf(region||data.current).worth); }
 
   const WMETA={ sunny:{icon:"☀️",txt:"晴天"}, cloudy:{icon:"☁️",txt:"陰天"}, rain:{icon:"🌧️",txt:"下雨中・生長加速！"} };
 
@@ -524,7 +539,7 @@
     else { drawSpecies(REGION_INFO[data.current].shape,pos.x,pos.y,pos.scale,sway,ripe,sp.popT,stage);
       if(ripe){ const pl=0.5+0.5*Math.sin(performance.now()/300); ctx.save(); ctx.globalAlpha=0.5+0.4*pl; ctx.fillStyle="#fff59d";
         ctx.beginPath(); ctx.arc(pos.x,pos.y-18*pos.scale,3*pos.scale,0,7); ctx.fill(); ctx.restore();
-        const stv=storedOf(tile), tag=STAGE_TAG[stage]?(" "+STAGE_TAG[stage]):""; ctx.font="bold "+Math.round(11*pos.scale)+"px sans-serif"; ctx.textAlign="center"; ctx.fillStyle="#ffd54f"; ctx.strokeStyle="rgba(0,0,0,.6)"; ctx.lineWidth=3;
+        const stv=harvestGain(storedOf(tile)), tag=STAGE_TAG[stage]?(" "+STAGE_TAG[stage]):""; ctx.font="bold "+Math.round(11*pos.scale)+"px sans-serif"; ctx.textAlign="center"; ctx.fillStyle="#ffd54f"; ctx.strokeStyle="rgba(0,0,0,.6)"; ctx.lineWidth=3;
         ctx.strokeText("+"+stv+tag,pos.x,pos.y-24*pos.scale); ctx.fillText("+"+stv+tag,pos.x,pos.y-24*pos.scale); } }
   }
 
@@ -545,7 +560,9 @@
     const info=REGION_INFO[data.current]||REGION_INFO.paddy, night=isNight(), w=weatherNow(), wm=WMETA[w];
     document.querySelectorAll("#habRegions .hregion[data-r]").forEach(b=>b.classList.toggle("on", b.dataset.r===data.current));
     $("habWeather") && ($("habWeather").textContent=(night?"🌙 夜間":"☀️ 白天")+"　"+wm.icon+" "+wm.txt);
-    $("habSpecies") && ($("habSpecies").textContent="🌳 本區培育："+info.plant+"——"+info.fact);
+    const sd=seedOf(data.current);
+    $("habSpecies") && ($("habSpecies").textContent="🌳 本區培育："+info.plant+"　"+sd.icon+sd.name+"——"+info.fact);
+    $("habSeedTip") && ($("habSeedTip").textContent=sd.icon+" 這區種子特性："+sd.tip);
     refreshRegionVisibility();
   }
   // 新棲地分頁只在「等級已解鎖 + 走廊已串聯」時才出現；沒串聯但等級夠了，給一個可點的解鎖提示引導去建走廊
@@ -585,12 +602,12 @@
     else if(st==="empty"){ tile.state="planted"; tile.plantedAt=now(); tile.lastCollect=now(); delete tile.emptySince; }
     else if(st==="mature"){ const s=storedOf(tile); if(s>0) harvestTile(i,tile,s); }
     const sp=spots[i]; if(sp) sp.popT=1; save(data); updateHUD(); }
-  function harvestTile(i,tile,s){ window.__awardEco && window.__awardEco(s); tile.lastCollect=now(); tile.harvestCount=(tile.harvestCount||0)+1;
+  function harvestTile(i,tile,s){ const gain=harvestGain(s); window.__awardEco && window.__awardEco(gain); tile.lastCollect=now(); tile.harvestCount=(tile.harvestCount||0)+1;
     const pos=spotPos(i); burstAt(pos.x,pos.y-16*pos.scale);
     const info=REGION_INFO[data.current]||REGION_INFO.paddy, tag=STAGE_TAG[harvestStage(tile)]?("　"+STAGE_TAG[harvestStage(tile)]+"！"):"";
-    banner("🧺 收成 "+info.plant+" +"+s+" 保育值！"+tag); }
+    banner("🧺 收成 "+info.plant+" +"+gain+" 保育值！"+tag); }
   function collectAll(){ let total=0, n=0;
-    for(let i=0;i<N;i++){ const tile=curTiles()[i]; if(stageOf(tile)==="mature"){ const s=storedOf(tile); if(s>0){ total+=s; n++; tile.lastCollect=now(); tile.harvestCount=(tile.harvestCount||0)+1;
+    for(let i=0;i<N;i++){ const tile=curTiles()[i]; if(stageOf(tile)==="mature"){ const s=storedOf(tile); if(s>0){ total+=harvestGain(s); n++; tile.lastCollect=now(); tile.harvestCount=(tile.harvestCount||0)+1;
       const pos=spotPos(i); burstAt(pos.x,pos.y-16*pos.scale); const sp=spots[i]; if(sp) sp.popT=1; } } }
     if(total>0){ window.__awardEco && window.__awardEco(total); banner("🧺 一次收成 "+n+" 棵，共 +"+total+" 保育值！"); } else banner("目前還沒有成熟可收成的植物");
     save(data); updateHUD(); }
@@ -603,7 +620,7 @@
     if(visitorHitTest(p.x,p.y)){ collectVisitor(); return; }
     const i=hitTest(p.x,p.y); if(i>=0) tap(i); },{passive:false});
 
-  function setRegion(r){ if(!REGION_INFO[r]) return; data.current=r; save(data); applyTheme(); banner("🌏 已切換到"+REGION_INFO[r].label+"棲地——培育"+REGION_INFO[r].plant); }
+  function setRegion(r){ if(!REGION_INFO[r]) return; data.current=r; save(data); applyTheme(); const sd=seedOf(r); banner("🌏 已切換到"+REGION_INFO[r].label+"棲地——播下"+sd.icon+sd.name+"（"+sd.tip+"）"); }
 
   /* ---------- 生態走廊面板：花保育值串聯兩棲地，串通後解鎖新棲地分頁＋跨物種協力任務回饋 ---------- */
   function renderCorridorList(){
@@ -662,7 +679,7 @@
      戰場健康度影響對戰數值；對戰獲勝回饋棲地復育素材。data 隨時是最新（load 於每次開關時同步）。 */
   window.__habitatRegions = () => REGION_KEYS.filter(regionVisible).map(k=>({ key:k, label:REGION_INFO[k].label, plant:REGION_INFO[k].plant }));
   window.__habitatHealth = (region) => { const tiles=(data.regions||{})[region]; if(!tiles) return 0;
-    let w=0; for(const tile of tiles){ const st=stageOf(tile); w += st==="mature"?1:st==="sapling"?0.6:st==="sprout"?0.3:0; } return w/N; };
+    let w=0; for(const tile of tiles){ const st=stageOf(tile,region); w += st==="mature"?1:st==="sapling"?0.6:st==="sprout"?0.3:0; } return w/N; };
   window.__habitatBoost = (region, n) => { const tiles=(data.regions||{})[region]; if(!tiles) return;
     let left=n|0;
     for(const tile of tiles){ if(left<=0) break; if(tile.state==="invasive"){ tile.state="unplanted"; tile.emptySince=now(); left--; } }
@@ -670,6 +687,11 @@
     save(data); };
   // 生態走廊串聯查詢：供未來「跨物種協力任務」等模組判斷兩棲地是否已串通
   window.__corridorLinked = (a,b) => corridorBuilt(a,b);
+  // 除錯／QA 用：給定區域與「種下後經過幾秒」，回傳該區種子在那個時間點的階段/屯貨/實得保育值（純函數，驗證每區種子差異）
+  window.__habitatSeedDebug = (region, elapsedSec) => { const sd=seedOf(region);
+    const tile={ state:"planted", plantedAt:now()-elapsedSec*1000, lastCollect:now()-elapsedSec*1000 };
+    const stage=stageOf(tile,region), stored=storedOf(tile,region);
+    return { region, seed:sd, stage, stored, gain:harvestGain(stored,region) }; };
   // 訪客系統唯讀查詢接點：供 HUD／測試判斷目前時間窗格是否會有訪客（純函數，不改變任何狀態）
   window.__habitatVisitPlan = (region) => visitPlan(region);
   window.__habitatVisitorSeen = () => loadVisitorLog();
