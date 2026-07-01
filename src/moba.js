@@ -60,6 +60,9 @@
   let shrine=null, nurseries=[], heroes=[], invaders=[], fx=[], floats=[], hprojs=[];
   let player=null, spawnT=0, restore=0, killCount=0, surgeT=45, finalAssault=false, mshake=0, eliteFlash=0;
   let combo=0, comboT=0, comboBest=0, comboPop=0;   // 連擊系統：短時間內連續驅逐入侵種會疊加，逾時歸零
+  // 撿拾式必殺技：地圖四周散落「守護之力」能量球，玩家走過去撿起後才能施放超強範圍必殺，用完冷卻很久（要再撿一顆）
+  let relics=[], relicSpawnT=0;
+  const RELIC_MAX=3, RELIC_SPAWN=16, RELIC_R=22, ULT_CD=28;   // 場上最多 3 顆、每 16 秒補一顆；施放後 28 秒內撿不了新的（冷卻很久）
   // 戰場商店（金幣/購買強化）已抽成獨立模組 src/battleshop.js，這裡只透過 window.__shopXxx 呼叫生命週期鉤子
   let pickMode="normal", timeAttack=false;
   let battleRegion="paddy", healthBonus=0;   // 復育↔對戰核心循環：戰場棲地健康度影響數值加成
@@ -110,7 +113,7 @@
   function getBest(size){ try{ const v=parseFloat(localStorage.getItem("shoutu_besttime_"+size)); return isNaN(v)?null:v; }catch(e){ return null; } }
   function setBest(size,t){ try{ localStorage.setItem("shoutu_besttime_"+size,String(t)); }catch(e){} }
   const cam={x:0,y:0}, mv={x:0,y:0};
-  let wantSp=false, wantBack=false, wantAtk=false, wantAtkT=0;
+  let wantSp=false, wantBack=false, wantAtk=false, wantAtkT=0, wantUlt=false;
   let zoom=1, ZMIN=0.62; const ZMAX=1.8;
   // 快捷訊息：指揮 AI 隊友（集合/攻擊/撤退/小心/讚），有實際行為、不只是裝飾文字
   const QMSG={ rally:{icon:"📣",txt:"集合！",dur:5}, focus:{icon:"⚔",txt:"攻擊！",dur:5}, retreat:{icon:"🛡",txt:"撤退！",dur:5}, careful:{icon:"⚠",txt:"小心！",dur:3},
@@ -125,7 +128,7 @@
   function mkHero(kind,isPlayer){ return { kind, isPlayer:!!isPlayer, x:0,y:0, r:24, hp:340, maxhp:340,
     dmg:28, range:70, cd:0.6, t:0, spCd:0, speed:isPlayer?172:150, face:0, dead:false, respawn:0, name:KNAME[kind]||kind,
     hitT:0, anim:0, moving:false, phase:Math.random()*6.28, atkA:0, mood:"n", moodT:0,
-    dr:0, invulnT:0, stealthT:0, shieldT:0, talent:null, blessT:0 }; }   // dr=天賦減傷 0~1；talent=第3級主動技能旗標；blessT=山羌祝福加速剩餘時間
+    dr:0, invulnT:0, stealthT:0, shieldT:0, talent:null, blessT:0, ult:false, ultCd:0 }; }   // dr=天賦減傷 0~1；talent=第3級主動技能旗標；blessT=山羌祝福加速剩餘時間；ult=手上是否握有撿到的必殺；ultCd=施放後長冷卻
   const CHARGERS=["iguana","anole"];   // 體型較大/敏捷的入侵種會蓄力衝撞，逼玩家主動走位閃避，不是站樁對打
   function mkInvader(kind,elite){ const p=edgePoint(), scale=1+Math.min(1.3,clock/120)*0.6; // 隨時間越來越強
     const isAnole=kind==="anole"&&!elite; // 沙氏變色蜥：體型小、繁殖力強 → 個體弱小但速度快（呼應真實生態習性）
@@ -139,6 +142,7 @@
 
   function setup(size){ teamSize=size; clock=0; ended=false; restore=0; killCount=0; spawnT=2; surgeT=42; finalAssault=false; directive=null; directiveCd=0; bubble=null; eliteFlash=0; timeAttack=(pickMode==="time");
     combo=0; comboT=0; comboBest=0; comboPop=0;
+    relics=[]; relicSpawnT=5;   // 開場 5 秒後第一顆守護之力才降臨，避免一開場就有必殺
     if(window.__shopReset) window.__shopReset();
     fx=[]; floats=[]; invaders=[]; hprojs=[]; weatherFx=[];
     weatherBattle=pickWeather();
@@ -239,6 +243,8 @@
     if(comboT>0){ comboT-=dt; if(comboT<=0) combo=0; }
     if(wantAtkT>0){ wantAtkT-=dt; if(wantAtkT<=0) wantAtk=false; }
     if(window.__shopTick) window.__shopTick(dt);
+    // 守護之力能量球：定時在地圖四周（避開中央神木）補充，場上最多 RELIC_MAX 顆
+    if(relics.length<RELIC_MAX){ relicSpawnT-=dt; if(relicSpawnT<=0){ relicSpawnT=RELIC_SPAWN; relics.push(spawnRelic()); toast("⭐ 守護之力降臨地圖！撿起可施放必殺"); } }
     // 入侵浪潮：更兇、隨時間加速、精英「入侵種王」
     // PVE 防衛戰模式：入侵種池只出目標種（沙氏變色蜥另建入侵池，一般模式不會自然出現）
     const pveInvPool=pveEvent?[pveEvent.target]:INVADERS;
@@ -296,7 +302,7 @@
     for(const h of heroes){
       if(h.dead){ h.respawn-=dt; if(h.respawn<=0){ h.dead=false; h.hp=h.maxhp; h.x=SHX+(Math.random()*120-60); h.y=SHY+110; ring(h.x,h.y,40,"#66bb6a"); } continue; }
       if(h.t>0) h.t-=dt; if(h.spCd>0) h.spCd-=dt; if(h.hitT>0) h.hitT-=dt; if(h.atkA>0) h.atkA-=dt; if(h.moodT>0) h.moodT-=dt; h.moving=false;
-      if(h.invulnT>0) h.invulnT-=dt; if(h.stealthT>0) h.stealthT-=dt;
+      if(h.invulnT>0) h.invulnT-=dt; if(h.stealthT>0) h.stealthT-=dt; if(h.ultCd>0) h.ultCd-=dt;
       if(h.blessT>0){ h.blessT-=dt; h.speed=Math.round((h.baseSpeed||h.speed)*1.22); } else if(h.baseSpeed) h.speed=h.baseSpeed;   // 山羌靈奔祝福：暫時加速，逐幀還原避免疊乘
       if(h.isPlayer){ updatePlayer(h,dt); continue; }
       if(h===netGuestHero){ updateNetGuestHero(h,dt); continue; }   // 好友連線：這隻由遠端玩家操控，host 端套用其搖桿輸入，不跑 AI
@@ -356,9 +362,10 @@
       shrineHp:Math.round(shrine.hp), shrineMax:shrine.maxhp,
       nurseries:nurseries.map(n=>({hp:Math.round(n.hp),max:n.maxhp,growth:Math.round(n.growth*100)/100})),
       heroes:heroes.map((h,i)=>({i, kind:h.kind, x:Math.round(h.x), y:Math.round(h.y), face:Math.round(h.face*100)/100,
-        hp:Math.round(h.hp), max:h.maxhp, dead:h.dead, lv:h.level||1, name:h.name, isPlayer:!!h.isPlayer, isGuest:h===netGuestHero, moving:h.moving})),
+        hp:Math.round(h.hp), max:h.maxhp, dead:h.dead, lv:h.level||1, name:h.name, isPlayer:!!h.isPlayer, isGuest:h===netGuestHero, moving:h.moving, ult:!!h.ult, ultCd:Math.round(h.ultCd*10)/10})),
       invaders:invaders.slice(0,60).map(v=>({kind:v.kind, x:Math.round(v.x), y:Math.round(v.y), face:Math.round(v.face*100)/100,
         hp:Math.round(v.hp), max:v.maxhp, elite:!!v.elite, moving:v.moving})),
+      relics:relics.map(r=>({x:Math.round(r.x), y:Math.round(r.y), phase:Math.round(r.phase*100)/100})),
       ended, win:ended?(restore>=1):null };
   }
   // guest 端：用收到的快照直接覆蓋渲染用的陣列/物件，不做本地模擬（reuse render()/drawUnit 等既有繪製函式）
@@ -370,8 +377,10 @@
     netGuestHero=null;
     if(Array.isArray(s.heroes)) heroes=s.heroes.map(d=>{ const base=mkHero(d.kind,d.isPlayer); base.x=d.x; base.y=d.y; base.face=d.face||0;
       base.hp=d.hp; base.maxhp=d.max||base.maxhp; base.dead=!!d.dead; base.level=d.lv||1; base.name=d.name||base.name; base.moving=!!d.moving;
+      base.ult=!!d.ult; base.ultCd=d.ultCd||0;
       if(d.isGuest) netGuestHero=base; return base; });
     if(Array.isArray(s.invaders)) invaders=s.invaders.map(d=>{ const v=mkInvader(d.kind,d.elite); v.x=d.x; v.y=d.y; v.face=d.face||0; v.hp=d.hp; v.maxhp=d.max||v.maxhp; v.moving=!!d.moving; return v; });
+    relics=Array.isArray(s.relics)? s.relics.map(r=>({x:r.x, y:r.y, phase:r.phase||0})) : [];
     // guest 端鏡頭/HUD 一定要跟著「我自己選的角色」（isGuest 那隻），不能落到 isPlayer（那是房主的角色）——
     // 這是造成朋友端「看起來兩人是同一隻」的根因：舊版一律抓 isPlayer，guest 端因此鏡頭黏在房主身上
     player=netGuestHero||heroes.find(h=>h.isPlayer)||heroes[0]||null;
@@ -384,16 +393,18 @@
   }
   window.__netApplySnapshot=applySnapshot;   // net.js 收到 Firebase 資料後呼叫這個把畫面更新成 host 廣播的內容
   // guest 端：把本機搖桿/技能輸入送給 net.js 節流上傳到 rooms/<code>/inputs/<uid>；host 端收到後寫進 netGuestInput 套用
-  window.__netSetGuestInput=(inp)=>{ if(!inp) return; netGuestInput.mvx=inp.mvx||0; netGuestInput.mvy=inp.mvy||0; if(inp.sp) netGuestInput.sp=true; if(inp.back) netGuestInput.back=true; if(inp.atk) netGuestInput.atk=true; };
-  window.__netLocalInput=()=>{ const inp={ mvx:mv.x, mvy:mv.y, sp:wantSp, back:wantBack, atk:wantAtk }; wantSp=false; wantBack=false; wantAtk=false; wantAtkT=0; return inp; };
+  window.__netSetGuestInput=(inp)=>{ if(!inp) return; netGuestInput.mvx=inp.mvx||0; netGuestInput.mvy=inp.mvy||0; if(inp.sp) netGuestInput.sp=true; if(inp.back) netGuestInput.back=true; if(inp.atk) netGuestInput.atk=true; if(inp.ult) netGuestInput.ult=true; };
+  window.__netLocalInput=()=>{ const inp={ mvx:mv.x, mvy:mv.y, sp:wantSp, back:wantBack, atk:wantAtk, ult:wantUlt }; wantSp=false; wantBack=false; wantAtk=false; wantAtkT=0; wantUlt=false; return inp; };
   window.__netCheckStale=()=>{ if(netRole!=="guest"||!netLastRecvT) return false; netStale=(performance.now()-netLastRecvT)>NET_TIMEOUT_MS; return netStale; };
 
   function updatePlayer(h,dt){
     const mag=Math.hypot(mv.x,mv.y);
     if(mag>0.12){ const ang=Math.atan2(mv.y,mv.x); h.face=ang; const s=h.speed*Math.min(1,mag); h.x+=Math.cos(ang)*s*dt; h.y+=Math.sin(ang)*s*dt; h.moving=true; h.anim+=dt; }
     keepIn(h);
+    tryPickRelic(h);
     if(wantBack){ wantBack=false; h.x=shrine.x; h.y=shrine.y+100; h.hp=h.maxhp; ring(h.x,h.y,46,"#80deea"); toast("回到神木旁・補滿體力"); }
     if(wantSp){ wantSp=false; if(h.spCd<=0) castSp(h); }
+    if(wantUlt){ wantUlt=false; castUlt(h); }
     const tg=nearestInvader(h,h.range+60);
     h.aim=(tg && tg.d<=h.range+tg.e.r+40 && !tg.e.dead)? tg.e : null;
     // 普通攻擊改成按鍵觸發（不再貼近就自動打），角色動作跟玩家操作直接掛勾，戰鬥手感更主動、不生硬。
@@ -401,13 +412,15 @@
     if(wantAtk && tg && tg.d<=h.range+tg.e.r && h.t<=0){ wantAtk=false; wantAtkT=0; meleeHit(h,tg.e,h.dmg); }
   }
   // 好友連線：host 端套用遠端朋友的搖桿/技能輸入到朋友操控的那隻守護者身上（結構同 updatePlayer，資料來源是 netGuestInput 而非本機 mv/wantSp）
-  let netGuestInput={mvx:0,mvy:0,sp:false,back:false,atk:false};
+  let netGuestInput={mvx:0,mvy:0,sp:false,back:false,atk:false,ult:false};
   function updateNetGuestHero(h,dt){
     const ix=netGuestInput.mvx||0, iy=netGuestInput.mvy||0, mag=Math.hypot(ix,iy);
     if(mag>0.12){ const ang=Math.atan2(iy,ix); h.face=ang; const s=h.speed*Math.min(1,mag); h.x+=Math.cos(ang)*s*dt; h.y+=Math.sin(ang)*s*dt; h.moving=true; h.anim+=dt; }
     keepIn(h);
+    tryPickRelic(h);
     if(netGuestInput.back){ netGuestInput.back=false; h.x=shrine.x; h.y=shrine.y+100; h.hp=h.maxhp; ring(h.x,h.y,46,"#80deea"); }
     if(netGuestInput.sp){ netGuestInput.sp=false; if(h.spCd<=0) castSp(h); }
+    if(netGuestInput.ult){ netGuestInput.ult=false; castUlt(h); }
     const tg=nearestInvader(h,h.range+60);
     h.aim=(tg && tg.d<=h.range+tg.e.r+40 && !tg.e.dead)? tg.e : null;
     if(netGuestInput.atk && tg && tg.d<=h.range+tg.e.r && h.t<=0){ netGuestInput.atk=false; meleeHit(h,tg.e,h.dmg); }
@@ -480,8 +493,43 @@
   function castSp(h){ const s=SKILL[h.kind]; h.spCd=h.spMax||(s&&s.cd)||7; h.atkA=0.3;
     if(h.isPlayer){ mshake=Math.max(mshake,6); toast((s?s.name:"技能")+(h.talent?"！🌟":"！")); }
     (s?s.fn:skSlam)(h); }
+
+  /* ---------- 撿拾式必殺技：守護之力 ---------- */
+  // 在地圖四周（避開中央神木區）隨機生成能量球；用時間相位讓每顆微微上下浮動、發光
+  function spawnRelic(){ const edge=Math.floor(Math.random()*4), m=180;
+    let x,y;
+    if(edge===0){ x=m+Math.random()*(MW-2*m); y=m+Math.random()*180; }
+    else if(edge===1){ x=m+Math.random()*(MW-2*m); y=MH-m-Math.random()*180; }
+    else if(edge===2){ x=m+Math.random()*180; y=m+Math.random()*(MH-2*m); }
+    else { x=MW-m-Math.random()*180; y=m+Math.random()*(MH-2*m); }
+    return { x, y, phase:Math.random()*6.28 }; }
+  // 只有玩家操控的守護者（本機玩家 / 好友）才能撿；撿起後手上握有一發必殺，冷卻中(ultCd>0)或已握有時不再撿
+  function tryPickRelic(h){ if(h.ult || h.ultCd>0 || !relics.length) return;
+    for(let i=0;i<relics.length;i++){ const rl=relics[i]; if(dist(h,rl)<h.r+RELIC_R+6){
+      relics.splice(i,1); h.ult=true; ring(h.x,h.y,60,"#ffe082"); sparks(h.x,h.y,20,"#ffe082");
+      if(h.isPlayer){ mshake=Math.max(mshake,5); toast("⭐ 撿到守護之力！按【必殺】施放毀滅波"); }
+      return; } } }
+  // 必殺：以自身為中心的巨大守護怒濤，重創範圍內所有入侵種（大傷害＋擊退＋震暈），並額外推進棲地復原；用完長冷卻、要再撿一顆
+  function castUlt(h){ if(!h.ult) return; h.ult=false; h.ultCd=ULT_CD; h.atkA=0.4;
+    const R=340, dmg=130;
+    ring(h.x,h.y,R,"#ffd54f"); ring(h.x,h.y,R*0.6,"#fff59d"); sparks(h.x,h.y,40,"#ffe082"); mshake=Math.max(mshake,14); eliteFlash=0.5;
+    let hitN=0;
+    for(const v of invaders){ if(v.dead) continue; if(dist(h,v)<R+v.r){ hurt(v,dmg,{isPlayer:true,kind:h.kind}); knock(v,h.x,h.y,60); v.stun=Math.max(v.stun,1.3); hitN++; } }
+    restore=clamp(restore+0.03,0,1);
+    if(h.isPlayer){ toast("💥 守護怒濤！橫掃 "+hitN+" 隻入侵種"); }
+    floats.push({x:h.x,y:h.y-h.r-10,txt:"守護怒濤！",col:"#ffd54f",life:1.0,big:true}); }
   function keepIn(h){ h.x=clamp(h.x,40,MW-40); h.y=clamp(h.y,40,MH-40);
     for(const o of [shrine,...nurseries]){ if(o.hp<=0) continue; const d=dist(h,o),min=o.r+h.r; if(d<min&&d>0){ const a=Math.atan2(h.y-o.y,h.x-o.x); h.x=o.x+Math.cos(a)*min; h.y=o.y+Math.sin(a)*min; } } }
+
+  /* ---------- 守護之力能量球繪製：發光星芒 + 上下浮動 + 光暈脈動 ---------- */
+  function drawRelics(){ for(const r of relics){ const bob=Math.sin(clock*2+r.phase)*5, pl=0.5+0.5*Math.sin(clock*3+r.phase);
+    const x=r.x, y=r.y+bob;
+    ctx.save();
+    const g=ctx.createRadialGradient(x,y,2,x,y,RELIC_R*1.8); g.addColorStop(0,"rgba(255,236,150,0.9)"); g.addColorStop(0.5,"rgba(255,213,79,0.35)"); g.addColorStop(1,"rgba(255,213,79,0)");
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,RELIC_R*1.8*(0.9+pl*0.2),0,7); ctx.fill();
+    ctx.globalCompositeOperation="lighter"; ctx.fillStyle="#fff59d"; starG(ctx,x,y,RELIC_R*(0.85+pl*0.15));
+    ctx.globalCompositeOperation="source-over"; ctx.fillStyle="rgba(0,0,0,0.18)"; ctx.beginPath(); ctx.ellipse(r.x,r.y+14,RELIC_R*0.7,RELIC_R*0.24,0,0,7); ctx.fill();
+    ctx.restore(); } }
 
   /* ---------- 特效 ---------- */
   function sparks(x,y,n,col){ for(let i=0;i<n;i++){ const a=Math.random()*6.28,s=60+Math.random()*150; fx.push({type:"spark",x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:0.3+Math.random()*0.2,max:0.5,r:1.5+Math.random()*2,col}); } if(fx.length>150) fx.splice(0,fx.length-150); }
@@ -501,6 +549,7 @@
     const g=ctx.createLinearGradient(0,0,0,VH); g.addColorStop(0,top); g.addColorStop(1,bot); ctx.fillStyle=g; ctx.fillRect(0,0,VW,VH);
     ctx.save(); if(mshake>0) ctx.translate((Math.random()-0.5)*mshake,(Math.random()-0.5)*mshake); ctx.scale(zoom,zoom); ctx.translate(-cam.x,-cam.y);
     drawField();
+    drawRelics();
     // 依 y 疊放
     const ents=[shrine,...nurseries.filter(n=>n.hp>0)];
     for(const v of invaders) ents.push(v);
@@ -823,6 +872,11 @@
       if(u.hp<u.maxhp) bar(u.x,u.y-R-8,u.elite?40:26,u.hp/u.maxhp,"#ff8a80");
       if(u.stun>0){ ctx.fillStyle="#ffe082"; for(let s=0;s<3;s++){ const a=clock*7+s*2.1; ctx.beginPath(); ctx.arc(u.x+Math.cos(a)*R*0.9,u.y-R-2+Math.sin(a)*3,2.4,0,7); ctx.fill(); } } } }
   function drawHero(h){ const r=h.r, R=r*kcfg(h.kind).sz;
+    // 手上握有撿到的守護之力：腳下金色脈動光環，提醒可以按【必殺】
+    if(h.ult){ const pl=0.5+0.5*Math.sin(clock*4); ctx.save(); ctx.globalCompositeOperation="lighter";
+      const ag=ctx.createRadialGradient(h.x,h.y,R*0.3,h.x,h.y,R*1.9); ag.addColorStop(0,"rgba(255,213,79,"+(0.28+0.15*pl).toFixed(3)+")"); ag.addColorStop(1,"rgba(255,213,79,0)");
+      ctx.fillStyle=ag; ctx.beginPath(); ctx.arc(h.x,h.y,R*1.9,0,7); ctx.fill(); ctx.restore();
+      ctx.strokeStyle="rgba(255,236,150,"+(0.5+0.4*pl).toFixed(3)+")"; ctx.lineWidth=2.4; ctx.beginPath(); ctx.arc(h.x,h.y,R*1.35,0,7); ctx.stroke(); }
     const stealthy=h.stealthT>0; if(stealthy) ctx.globalAlpha=0.4;
     drawCreatureTop(h,r,"ally");
     if(stealthy){ ctx.globalAlpha=1; ctx.fillStyle="#b0bec5"; ctx.font="12px sans-serif"; ctx.textAlign="center"; ctx.fillText("👻",h.x,h.y-R-30); }
@@ -850,7 +904,12 @@
     const mm=Math.floor(clock/60),ss=Math.floor(clock%60); txt("mclock",mm+":"+(ss<10?"0":"")+ss);
     if(pveEvent){ txt("mBest","🎯 "+KNAME[pveEvent.target]+" "+pveEvent.got+"/"+pveEvent.need+"　⏱ "+fmtTime(pveEvent.timeLeft)); }
     else if(timeAttack){ const b=getBest(teamSize); txt("mBest", b?("🏆 最佳 "+fmtTime(b)):"⏱ 挑戰紀錄中"); } else txt("mBest","");
-    const sp=document.getElementById("mSp"); if(sp){ const mx=(player&&player.spMax)||8, cd=player&&player.spCd>0?player.spCd:0; sp.querySelector(".fill").style.height=(cd/mx*100)+"%"; sp.classList.toggle("ready",cd<=0); } }
+    const sp=document.getElementById("mSp"); if(sp){ const mx=(player&&player.spMax)||8, cd=player&&player.spCd>0?player.spCd:0; sp.querySelector(".fill").style.height=(cd/mx*100)+"%"; sp.classList.toggle("ready",cd<=0); }
+    // 必殺鈕：握有守護之力＝金色可施放（ready）；冷卻中＝倒數遮罩由下往上退；空手＝上鎖(locked)提示去撿
+    const ub=document.getElementById("mUlt");
+    if(ub){ const hasUlt=!!(player&&player.ult), cd=(player&&player.ultCd>0)?player.ultCd:0;
+      ub.classList.toggle("ready",hasUlt); ub.classList.toggle("locked",!hasUlt);
+      const fill=ub.querySelector(".fill"); if(fill) fill.style.height=(!hasUlt&&cd>0)?((cd/ULT_CD*100)+"%"):"0%"; } }
   function setW(id,f){ const el=document.getElementById(id); if(el) el.style.width=(clamp(f,0,1)*100)+"%"; }
   function txt(id,v){ const el=document.getElementById(id); if(el) el.textContent=v; }
 
@@ -911,6 +970,7 @@
   if(stick){ stick.addEventListener("pointerdown",stickStart,{passive:false}); stick.addEventListener("pointermove",stickMove,{passive:false}); stick.addEventListener("pointerup",stickEnd,{passive:false}); stick.addEventListener("pointercancel",stickEnd,{passive:false}); stick.addEventListener("pointerleave",stickEnd,{passive:false}); }
   const tap=(id,fn)=>{ const e=document.getElementById(id); if(e) e.addEventListener("pointerdown",(ev)=>{ ev.preventDefault(); fn(); },{passive:false}); };
   tap("mSp",()=>{ wantSp=true; }); tap("mBack",()=>{ wantBack=true; }); tap("mAtk",()=>{ wantAtk=true; wantAtkT=0.28; });
+  tap("mUlt",()=>{ if(player&&player.ult) wantUlt=true; else toast("先到地圖四周撿一顆 ⭐ 守護之力才能施放必殺"); });
   // 縮放：＋/－ 鈕、雙指縮放、滾輪
   tap("mZoomIn",()=>setZoom(zoom+0.2)); tap("mZoomOut",()=>setZoom(zoom-0.2));
   // 快捷訊息：開合輪盤 + 送出指令（真的會指揮 AI 隊友，不只是裝飾）
@@ -964,13 +1024,18 @@
   document.querySelectorAll("#pveTargets .hregion").forEach(b=>b.addEventListener("pointerdown",(e)=>{ e.preventDefault(); setPveTarget(b.dataset.pv); },{passive:false}));
   tap("pick3",()=>start(3)); tap("pick5",()=>start(5)); tap("pickBack",()=>hide("mpick"));
   tap("moverAgain",()=>start(teamSize)); tap("moverHome",exitToLobby);
-  window.addEventListener("keydown",(e)=>{ if(!running) return; if(e.key==="ArrowLeft"||e.key==="a")mv.x=-1; else if(e.key==="ArrowRight"||e.key==="d")mv.x=1; else if(e.key==="ArrowUp"||e.key==="w")mv.y=-1; else if(e.key==="ArrowDown"||e.key==="s")mv.y=1; else if(e.key==="k"||e.key==="Shift")wantSp=true; else if(e.key==="b")wantBack=true; else if(e.key==="j"||e.key===" "){ wantAtk=true; wantAtkT=0.28; } });
+  window.addEventListener("keydown",(e)=>{ if(!running) return; if(e.key==="ArrowLeft"||e.key==="a")mv.x=-1; else if(e.key==="ArrowRight"||e.key==="d")mv.x=1; else if(e.key==="ArrowUp"||e.key==="w")mv.y=-1; else if(e.key==="ArrowDown"||e.key==="s")mv.y=1; else if(e.key==="k"||e.key==="Shift")wantSp=true; else if(e.key==="b")wantBack=true; else if(e.key==="j"||e.key===" "){ wantAtk=true; wantAtkT=0.28; } else if(e.key==="l"){ if(player&&player.ult) wantUlt=true; } });
   window.addEventListener("keyup",(e)=>{ if(["ArrowLeft","a","ArrowRight","d"].includes(e.key))mv.x=0; if(["ArrowUp","w","ArrowDown","s"].includes(e.key))mv.y=0; });
 
   window.MOBA={ start, exit:exitToLobby, startNetHost, startNetGuest,
     // 除錯／QA 用內部狀態快照（不影響玩法，方便無頭瀏覽器驗收天候・PVE 數值是否真的生效）
-    debug:()=>({ weatherBattle, pveEvent, netRole, heroes:heroes.map(h=>({kind:h.kind,speed:h.speed,dmg:h.dmg,isPlayer:!!h.isPlayer,isGuest:h===netGuestHero})), playerKind:player&&player.kind, weatherFxLen:weatherFx.length, invadersLen:invaders.length }),
+    debug:()=>({ weatherBattle, pveEvent, netRole, heroes:heroes.map(h=>({kind:h.kind,speed:h.speed,dmg:h.dmg,isPlayer:!!h.isPlayer,isGuest:h===netGuestHero})), playerKind:player&&player.kind, weatherFxLen:weatherFx.length, invadersLen:invaders.length,
+      relics:relics.length, playerUlt:!!(player&&player.ult), playerUltCd:player?Math.round((player.ultCd||0)*10)/10:0 }),
     snapshot:()=>snapshot(), applySnapshot:(s)=>applySnapshot(s),   // 除錯／QA 用：無頭瀏覽器模擬「host 廣播 → guest 套用」全流程驗證好友連線鏡頭是否正確
+    // 除錯／QA 用：撿拾式必殺技全流程——強制生一顆能量球到玩家腳下、觸發撿拾、施放必殺
+    dbgRelicAt:()=>{ if(player) relics.push({x:player.x+10,y:player.y,phase:0}); return relics.length; },
+    dbgPick:()=>{ if(player) tryPickRelic(player); return !!(player&&player.ult); },
+    dbgUlt:()=>{ const n=invaders.length; if(player&&player.ult) castUlt(player); return { firedCd:player?player.ultCd:0, invBefore:n, invAfter:invaders.length }; },
     forceWeather:(w)=>{ if(WEATHER_KEYS.indexOf(w)>=0){ weatherBattle=w; heroes.forEach(h=>{ h.speed=Math.round(h.speed*weatherSpeedMul(h.kind)); }); } } };
 
   // 給獨立模組 src/battleshop.js 用的橋接（玩家物件/提示文字/購買特效），不直接暴露內部狀態

@@ -82,6 +82,9 @@
   .mbtn.sp{ width:84px; height:84px; background:#6a1b9a; font-size:17px; }
   .mbtn.sp.ready{ animation:glow 1s infinite; }
   .mbtn.atk{ width:76px; height:76px; background:#c62828; font-size:16px; margin-bottom:4px; }
+  .mbtn.ult{ width:66px; height:66px; background:linear-gradient(160deg,#ff8f00,#ffca28); color:#5d2b00; font-size:15px; margin-bottom:4px; }
+  .mbtn.ult.locked{ background:#546e7a; color:rgba(255,255,255,.55); }
+  .mbtn.ult.ready{ animation:glow 0.7s infinite; }
   .mbtn.back{ width:60px; height:60px; background:#00897b; font-size:13px; margin-bottom:10px; }
   .mbtn:active{ transform:translateY(2px); filter:brightness(1.15); }
   .mbtn .fill{ position:absolute; left:0; bottom:0; width:100%; background:rgba(0,0,0,.55); height:0%; pointer-events:none; }
@@ -464,6 +467,7 @@
   <div id="mstick"><div id="mknob"></div></div>
   <div id="mbtns">
     <button id="mBack" class="mbtn back">回神木</button>
+    <button id="mUlt" class="mbtn ult locked"><span class="fill"></span>必殺</button>
     <button id="mAtk" class="mbtn atk">攻擊</button>
     <button id="mSp" class="mbtn sp"><span class="fill"></span>技能</button>
   </div>
