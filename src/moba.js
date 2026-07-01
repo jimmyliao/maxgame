@@ -60,7 +60,7 @@
   let shrine=null, nurseries=[], heroes=[], invaders=[], fx=[], floats=[], hprojs=[];
   let player=null, spawnT=0, restore=0, killCount=0, surgeT=45, finalAssault=false, mshake=0, eliteFlash=0;
   let combo=0, comboT=0, comboBest=0, comboPop=0;   // 連擊系統：短時間內連續驅逐入侵種會疊加，逾時歸零
-  let nextUpgradeAt=6, upgradePending=false, upgradesTaken=[];   // 戰鬥中強化：每擊殺累積到門檻，選一項本場永久生效的強化，build 感讓每場都不一樣
+  let gold=0, shopOpen=false, upgradeLevels={}, shopRefreshT=0;   // 戰場商店：每秒累積金幣，隨時開店花錢買強化，可重複購買
   let pickMode="normal", timeAttack=false;
   let battleRegion="paddy", healthBonus=0;   // 復育↔對戰核心循環：戰場棲地健康度影響數值加成
   // 好友連線（選用）：netRole=null 純單機（預設，行為完全不變）；"host" 本機模擬+定期廣播；"guest" 不跑模擬，只接收快照渲染+送出操控
@@ -101,34 +101,34 @@
   const ECO_FACT={ leopard_iguana:"石虎會捕食小型爬蟲類，對綠鬣蜥有天敵壓制力！", leopard_anole:"石虎的掠食本能對沙氏變色蜥格外有效！",
     magpie_ibis:"台灣藍鵲會主動驅趕護巢，克制外來的埃及聖䴉！", bear_ibis:"黑熊體型壓制，讓聖䴉不敢靠近！" };
 
-  /* ---------- 戰鬥中強化：每擊殺累積到門檻跳 3 選 1，本場永久生效、不重複，讓每場戰鬥有自己的成長路線 ---------- */
+  /* ---------- 戰場商店：每秒累積金幣，隨時開店花錢買強化，可重複購買、價格遞增，比隨機三選一更有主動性 ---------- */
+  const GOLD_RATE=4;   // 每秒累積金幣
   const UPGRADE_POOL=[
-    { key:"dmg", icon:"⚔️", name:"猛擊", desc:"攻擊力 +18%", apply:h=>{ h.dmg=Math.round(h.dmg*1.18); } },
-    { key:"speed", icon:"💨", name:"疾風", desc:"移動速度 +15%", apply:h=>{ h.speed=Math.round(h.speed*1.15); h.baseSpeed=h.speed; } },
-    { key:"range", icon:"🎯", name:"廣域", desc:"攻擊距離 +20%", apply:h=>{ h.range=Math.round(h.range*1.2); } },
-    { key:"cdr", icon:"⏱️", name:"敏捷", desc:"技能冷卻 -15%", apply:h=>{ h.spMax=Math.max(1.5,h.spMax*0.85); } },
-    { key:"hp", icon:"❤️", name:"強韌", desc:"最大生命 +20%，立即回滿", apply:h=>{ const add=Math.round(h.maxhp*0.2); h.maxhp+=add; h.hp=h.maxhp; } },
-    { key:"lifesteal", icon:"🩸", name:"活力", desc:"攻擊附加 12% 生命偷取", apply:h=>{ h.lifesteal=(h.lifesteal||0)+0.12; } },
-    { key:"dr", icon:"🛡️", name:"堅甲", desc:"受到傷害 -10%", apply:h=>{ h.dr=Math.min(0.6,(h.dr||0)+0.1); } },
-    { key:"knock", icon:"🌀", name:"重擊", desc:"擊退幅度大幅提升", apply:h=>{ h.knockMul=(h.knockMul||1)+0.7; } },
+    { key:"dmg", icon:"⚔️", name:"猛擊", desc:"攻擊力 +18%", cost:35, apply:h=>{ h.dmg=Math.round(h.dmg*1.18); } },
+    { key:"speed", icon:"💨", name:"疾風", desc:"移動速度 +12%", cost:35, apply:h=>{ h.speed=Math.round(h.speed*1.12); h.baseSpeed=h.speed; } },
+    { key:"range", icon:"🎯", name:"廣域", desc:"攻擊距離 +15%", cost:40, apply:h=>{ h.range=Math.round(h.range*1.15); } },
+    { key:"cdr", icon:"⏱️", name:"敏捷", desc:"技能冷卻 -12%", cost:45, apply:h=>{ h.spMax=Math.max(1.5,h.spMax*0.88); } },
+    { key:"hp", icon:"❤️", name:"強韌", desc:"最大生命 +18%，立即回滿", cost:40, apply:h=>{ const add=Math.round(h.maxhp*0.18); h.maxhp+=add; h.hp=h.maxhp; } },
+    { key:"lifesteal", icon:"🩸", name:"活力", desc:"攻擊附加生命偷取 +8%", cost:55, apply:h=>{ h.lifesteal=(h.lifesteal||0)+0.08; } },
+    { key:"dr", icon:"🛡️", name:"堅甲", desc:"受到傷害 -8%", cost:55, apply:h=>{ h.dr=Math.min(0.6,(h.dr||0)+0.08); } },
+    { key:"knock", icon:"🌀", name:"重擊", desc:"擊退幅度提升", cost:30, apply:h=>{ h.knockMul=(h.knockMul||1)+0.5; } },
   ];
-  function rollUpgrades(){ const pool=UPGRADE_POOL.filter(u=>upgradesTaken.indexOf(u.key)<0);
-    const src=pool.length>=3?pool:UPGRADE_POOL; const picks=[];
-    const copy=src.slice(); while(picks.length<3 && copy.length){ picks.push(copy.splice(Math.floor(Math.random()*copy.length),1)[0]); }
-    return picks; }
-  function checkUpgradeTrigger(){ if(upgradePending || pveEvent) return;   // PVE 限時模式聚焦清剿，不中斷節奏
-    if(killCount>=nextUpgradeAt){ nextUpgradeAt+=6+Math.floor(Math.random()*3); openUpgradeChoice(); } }
-  function openUpgradeChoice(){ upgradePending=true; const picks=rollUpgrades();
-    const box=document.getElementById("mUpgradeCards"); if(!box) return; box.innerHTML="";
-    picks.forEach(u=>{ const b=document.createElement("button"); b.className="mu-card";
-      b.innerHTML='<div class="mu-icon">'+u.icon+'</div><div class="mu-name">'+u.name+'</div><div class="mu-desc">'+u.desc+'</div>';
-      b.addEventListener("pointerdown",(e)=>{ e.preventDefault(); pickUpgrade(u); },{passive:false});
-      box.appendChild(b); });
-    const panel=document.getElementById("mUpgrade"); if(panel) panel.classList.remove("hide"); }
-  function pickUpgrade(u){ upgradePending=false; upgradesTaken.push(u.key);
-    const panel=document.getElementById("mUpgrade"); if(panel) panel.classList.add("hide");
-    if(player){ u.apply(player); ring(player.x,player.y,60,"#ffd54f"); sparks(player.x,player.y,18,"#ffd54f"); mshake=Math.max(mshake,5); }
-    toast("🌟 獲得強化：「"+u.name+"」"+u.desc); }
+  function upgradeCost(u){ const lv=upgradeLevels[u.key]||0; return Math.round(u.cost*Math.pow(1.55,lv)); }
+  function toggleShop(force){ const panel=document.getElementById("mShop"); if(!panel) return;
+    shopOpen=(force!==undefined)?force:!shopOpen; panel.classList.toggle("hide",!shopOpen); if(shopOpen) renderShop(); }
+  function renderShop(){ const box=document.getElementById("mShopCards"), goldEl=document.getElementById("mShopGold"); if(!box) return;
+    if(goldEl) goldEl.textContent="💰 "+Math.floor(gold);
+    box.innerHTML="";
+    UPGRADE_POOL.forEach(u=>{ const lv=upgradeLevels[u.key]||0, cost=upgradeCost(u), afford=gold>=cost;
+      const b=document.createElement("button"); b.className="mu-card"+(afford?"":" mu-disabled");
+      b.innerHTML='<div class="mu-icon">'+u.icon+'</div><div class="mu-name">'+u.name+(lv>0?(' Lv.'+lv):'')+'</div>'+
+        '<div class="mu-desc">'+u.desc+'</div><div class="mu-cost">💰'+cost+'</div>';
+      b.addEventListener("pointerdown",(e)=>{ e.preventDefault(); buyUpgrade(u); },{passive:false});
+      box.appendChild(b); }); }
+  function buyUpgrade(u){ const cost=upgradeCost(u); if(gold<cost || !player) return;
+    gold-=cost; upgradeLevels[u.key]=(upgradeLevels[u.key]||0)+1;
+    u.apply(player); ring(player.x,player.y,60,"#ffd54f"); sparks(player.x,player.y,18,"#ffd54f");
+    toast("🛒 購入「"+u.name+"」"+u.desc); renderShop(); }
 
   /* ---------- PVE 限時外來種防衛戰：清除指定入侵種，時間到未達標即失敗 ---------- */
   let pveEvent=null;   // {target, need, got, timeLeft, active}
@@ -168,7 +168,7 @@
 
   function setup(size){ teamSize=size; clock=0; ended=false; restore=0; killCount=0; spawnT=2; surgeT=42; finalAssault=false; directive=null; directiveCd=0; bubble=null; eliteFlash=0; timeAttack=(pickMode==="time");
     combo=0; comboT=0; comboBest=0; comboPop=0;
-    nextUpgradeAt=6; upgradePending=false; upgradesTaken=[]; const upEl=document.getElementById("mUpgrade"); if(upEl) upEl.classList.add("hide");
+    gold=0; shopOpen=false; upgradeLevels={}; shopRefreshT=0; const shopEl=document.getElementById("mShop"); if(shopEl) shopEl.classList.add("hide");
     fx=[]; floats=[]; invaders=[]; hprojs=[]; weatherFx=[];
     weatherBattle=pickWeather();
     pveEvent=(pickMode==="pve")? { target:pvePickTarget, need:PVE_NEED[pvePickTarget]||12, got:0, timeLeft:PVE_DUR, active:true } : null;
@@ -241,7 +241,7 @@
       const fact=ECO_FACT[by.kind+"_"+o.kind]; if(fact && Math.random()<0.5) toast("🔗 "+fact); } // 守護者擊退入侵種：得意 + 生物防治鏈科普
     if(pveEvent && pveEvent.active && o.kind===pveEvent.target){ pveEvent.got++;
       if(pveEvent.got>=pveEvent.need){ pveEvent.active=false; toast("🎯 防衛戰成功！"+KNAME[pveEvent.target]+" 已清除足額！"); endGame(true); } }
-    checkUpgradeTrigger();
+    gold+=o.elite?15:3;   // 擊殺額外進帳，主動打怪比純等時間更划算
   }
 
   /* ---------- 攻擊 ---------- */
@@ -265,6 +265,8 @@
     if(comboPop>0) comboPop=Math.max(0,comboPop-dt*1.8);
     if(comboT>0){ comboT-=dt; if(comboT<=0) combo=0; }
     if(wantAtkT>0){ wantAtkT-=dt; if(wantAtkT<=0) wantAtk=false; }
+    gold+=GOLD_RATE*dt; const goldEl=document.getElementById("mGoldTxt"); if(goldEl) goldEl.textContent="💰"+Math.floor(gold);
+    if(shopOpen){ shopRefreshT-=dt; if(shopRefreshT<=0){ shopRefreshT=0.3; renderShop(); } }   // 開店中定時刷新能不能買，不用每幀重繪
     // 入侵浪潮：更兇、隨時間加速、精英「入侵種王」
     // PVE 防衛戰模式：入侵種池只出目標種（沙氏變色蜥另建入侵池，一般模式不會自然出現）
     const pveInvPool=pveEvent?[pveEvent.target]:INVADERS;
@@ -947,6 +949,8 @@
     bubble={icon:q.icon,txt:q.txt,t:1.8}; toast(q.icon+" "+q.txt);
     const w=document.getElementById("mChatWheel"); if(w) w.classList.add("hide"); }
   tap("mChatBtn",()=>{ const w=document.getElementById("mChatWheel"); if(w) w.classList.toggle("hide"); });
+  tap("mShopBtn",()=>toggleShop());
+  tap("mShopClose",()=>toggleShop(false));
   document.querySelectorAll("#mChatWheel .qmsg").forEach(b=>{ b.addEventListener("pointerdown",(ev)=>{ ev.preventDefault(); sendQuickMsg(b.dataset.q); },{passive:false}); });
   const pts=new Map(); let pinchD=0, pinchZ=1;
   cv.addEventListener("pointerdown",(e)=>{ pts.set(e.pointerId,{x:e.clientX,y:e.clientY}); if(pts.size===2){ const a=[...pts.values()]; pinchD=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)||1; pinchZ=zoom; } },{passive:false});
