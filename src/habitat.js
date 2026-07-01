@@ -153,6 +153,26 @@
     if(w==="rain"){ ctx.strokeStyle="rgba(200,220,255,0.5)"; ctx.lineWidth=1.4;
       for(let i=0;i<26;i++){ const rx=(i*37+  (t*220)% (VW+60)) % (VW+60) - 30; const ry=((i*53 + t*380) % (VH+40)) - 20;
         ctx.beginPath(); ctx.moveTo(rx,ry); ctx.lineTo(rx-4,ry+12); ctx.stroke(); } }
+    // 光束（晴天/陰天太陽穿透感）+ 環境飄浮粒子（白天花粉光點／夜晚螢火蟲），營造電影感氛圍
+    if(!night && w!=="rain"){ ctx.save(); ctx.globalCompositeOperation="lighter";
+      for(let i=0;i<3;i++){ const a=-1.35+i*0.14; ctx.strokeStyle="rgba(255,244,200,0.05)"; ctx.lineWidth=VW*0.05;
+        ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(sx+Math.cos(a)*VH*1.4,sy+Math.sin(a)*VH*1.4); ctx.stroke(); } ctx.restore(); }
+    drawAmbientMotes(t,night,w);
+  }
+  // 環境粒子：硬上限 26 顆、位置由固定亂數種子決定（不用陣列動態 push，天生就有上限，零回收成本）
+  function drawAmbientMotes(t,night,w){
+    if(w==="rain") return; const n=night?18:26;
+    ctx.save(); ctx.globalCompositeOperation="lighter";
+    for(let i=0;i<n;i++){ const sp=0.06+ghash(i,20)*0.05, ph=ghash(i,21)*6.28;
+      const bx=ghash(i,22)*VW, by=VH*(0.15+ghash(i,23)*0.75);
+      const dy=Math.sin(t*sp*20+ph)*VH*0.03, dx=Math.sin(t*sp*13+ph*1.7)*VW*0.015;
+      const tw=0.35+0.35*Math.sin(t*(night?2.2:1.1)+ph*3);
+      const x=bx+dx, y=by+dy-((t*8+i*37)%(VH*1.1));
+      const yy= y< -20 ? y+VH*1.1+20 : y;
+      ctx.globalAlpha=tw; ctx.fillStyle= night? "rgba(200,255,160,0.9)" : "rgba(255,250,220,0.75)";
+      ctx.beginPath(); ctx.arc(x,yy,night?1.8:1.1,0,7); ctx.fill();
+      if(night){ ctx.globalAlpha=tw*0.4; ctx.beginPath(); ctx.arc(x,yy,4.2,0,7); ctx.fill(); } }
+    ctx.restore(); ctx.globalAlpha=1;
   }
   // 各棲地的招牌地貌：讓人一眼認出「這是稻田／淺山／溪流／濕地」，不是只換底色
   function ghash(i,seed){ const s=Math.sin(i*91.7+seed*13.1)*43758.5453; return s-Math.floor(s); }
