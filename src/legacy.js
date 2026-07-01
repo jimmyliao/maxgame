@@ -1023,6 +1023,8 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   // ===== 守護神木 MOBA 模組接點（不改既有合約，只導出唯讀資訊與回大廳刷新） =====
   window.__featuredKey=()=> (HEROES[featured]&&HEROES[featured].key)||"leopard";
   window.__unlockedKeys=()=> HEROES.filter(h=>isHeroUnlocked(h.key)).map(h=>h.key);
+  window.__heroList=()=> HEROES.filter(h=>isHeroUnlocked(h.key)).map(h=>({key:h.key,name:h.name}));   // 給好友大廳選角 UI 用的唯讀清單（不含鎖定角色）
+  window.__drawCreature=drawCreature;   // 給好友大廳選角頭像用；簽名/畫法完全沿用鐵則內的 drawCreature，不另寫一份繪製邏輯
   window.__heroLevel=(key)=> heroLevel(key);   // 守護者等級（最高 50、永不退級）
   window.__heroTalent=(key)=> talentSummary(key);   // 天賦加成摘要：{path,pathName,tier,mods:{dmg,speed,spCd,dr},active}|null
   window.__awardEco=(n)=>{ gainEco(n); };

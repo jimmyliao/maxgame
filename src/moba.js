@@ -145,7 +145,7 @@
     pveEvent=(pickMode==="pve")? { target:pvePickTarget, need:PVE_NEED[pvePickTarget]||12, got:0, timeLeft:PVE_DUR, active:true } : null;
     shrine={ x:SHX, y:SHY, r:76, hp:1400, maxhp:1400, kind:"shrine", hitT:0 };
     nurseries=NPOS.map(p=>({ x:p.x, y:p.y, r:34, hp:340, maxhp:340, growth:0.15, contested:false, kind:"nursery" }));
-    const myKey=(window.__featuredKey&&window.__featuredKey())||"leopard";
+    const myKey=window.__netHostKeyOverride||(window.__featuredKey&&window.__featuredKey())||"leopard";
     const kinds=[myKey]; for(const k of GUARDIANS){ if(kinds.length>=size) break; if(k!==myKey) kinds.push(k); }
     while(kinds.length<size) kinds.push(GUARDIANS[kinds.length%GUARDIANS.length]);
     healthBonus=(window.__habitatHealth&&window.__habitatHealth(battleRegion))||0;   // 該地區棲地健康度 0~1
