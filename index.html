@@ -84,6 +84,7 @@
     text-shadow:0 2px 6px #000; pointer-events:none; opacity:0; transition:opacity .3s; text-align:center; white-space:nowrap; }
   #mtoast.show{ opacity:1; }
   #mpick .row{ margin:6px 0; } #mpick .btn{ min-width:120px; font-size:20px; }
+  #coopJoinRow.hide{ display:none; }
   #moba, #mpick, #mover{ z-index:40; } #mpick, #mover{ z-index:41; }
   .scr{ position:absolute; inset:0; z-index:10; display:flex; flex-direction:column; align-items:center; justify-content:center;
     text-align:center; padding:20px; background:rgba(7,20,12,.92); overflow:auto; }
@@ -152,6 +153,9 @@
     background:linear-gradient(100deg, transparent, rgba(255,255,255,.75), transparent); transform:skewX(-20deg);
     animation:playShine 2.6s ease-in-out infinite; pointer-events:none; }
   #lobby .play-btn:active{ transform:translateY(3px); }
+  #lobby .play-btn.sec{ margin-top:8px; padding:10px; font-size:15px; letter-spacing:1px; background:linear-gradient(#4fd1c5,#00897b); color:#fff;
+    animation:none; box-shadow:0 4px 0 #00695c; }
+  #lobby .play-btn.sec::after{ display:none; }
   @keyframes playPulse{ 0%,100%{ box-shadow:0 6px 0 #e09400, 0 10px 24px rgba(0,0,0,.5), 0 0 0 rgba(255,213,79,0);} 50%{ box-shadow:0 6px 0 #e09400, 0 10px 30px rgba(0,0,0,.5), 0 0 26px rgba(255,213,79,.85);} }
   @keyframes playShine{ 0%{ left:-70%;} 55%,100%{ left:150%;} }
   #lobby .lobby-nav{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:10px; width:100%; max-width:420px; }
@@ -188,6 +192,7 @@
         <div class="hero-tag" id="hsTag"></div>
         <div class="roster" id="roster"></div>
         <button class="play-btn" id="playBtn">⚔ 對 戰</button>
+        <button class="play-btn sec" id="coopBtn">🌐 好友連線</button>
         <div class="lobby-nav">
           <button class="navb" id="navDaily">📋 任務</button>
           <button class="navb" id="navUpg">🌱 復育</button>
@@ -340,7 +345,34 @@
   <button class="btn sec" id="moverHome">🏠 回大廳</button>
 </div>
 
+<!-- ===== 好友連線（需要網路；單機部分完全不受影響） ===== -->
+<div id="coop" class="scr hide">
+  <h1>🌐 好友連線</h1>
+  <h2>跟朋友即時連線，一起守護同一片棲地</h2>
+  <p id="coopNet" style="color:#ffab91;"></p>
+  <div id="coopName" class="row" style="flex-direction:column;align-items:center;gap:10px;">
+    <input id="nickInput" maxlength="10" placeholder="幫自己取個暱稱" style="padding:10px 14px;border-radius:20px;border:none;font-size:15px;width:220px;text-align:center;">
+    <div class="row">
+      <button class="btn" id="coopCreate">🏠 建立房間</button>
+      <button class="btn" id="coopJoinBtn">🔑 加入房間</button>
+    </div>
+  </div>
+  <div id="coopJoinRow" class="row hide" style="margin-top:10px;">
+    <input id="roomCodeInput" maxlength="5" placeholder="房間代碼" style="padding:10px 14px;border-radius:20px;border:none;font-size:16px;width:120px;text-align:center;letter-spacing:3px;text-transform:uppercase;">
+    <button class="btn" id="coopJoinGo">加入</button>
+  </div>
+  <button class="btn sec" id="coopBack">返回大廳</button>
+</div>
+<div id="coopRoom" class="scr hide">
+  <h1>房間 <span id="roomCode"></span></h1>
+  <h2 id="roomStatus">等待玩家加入…</h2>
+  <div id="roomPlayers" class="row" style="flex-direction:column;gap:8px;width:100%;max-width:320px;"></div>
+  <button class="btn" id="coopStart">⚔ 開始遊戲</button>
+  <button class="btn sec" id="coopLeave">離開房間</button>
+</div>
+
 <script type="module" src="./src/legacy.js"></script>
 <script type="module" src="./src/moba.js"></script>
+<script type="module" src="./src/net.js"></script>
 </body>
 </html>
