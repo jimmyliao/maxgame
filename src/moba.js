@@ -46,7 +46,7 @@
 
   /* ---------- 狀態 ---------- */
   let running=false, raf=0, lastT=0, clock=0, teamSize=3, ended=false;
-  let shrine=null, nurseries=[], heroes=[], invaders=[], fx=[], floats=[];
+  let shrine=null, nurseries=[], heroes=[], invaders=[], fx=[], floats=[], hprojs=[];
   let player=null, spawnT=0, restore=0, killCount=0, surgeT=45, finalAssault=false, mshake=0;
   const cam={x:0,y:0}, mv={x:0,y:0};
   let wantSp=false, wantBack=false;
@@ -63,19 +63,20 @@
   function mkInvader(kind,elite){ const p=edgePoint(), scale=1+Math.min(1.3,clock/120)*0.6; // 隨時間越來越強
     const hp=Math.round((elite?300:64)*scale);
     return { kind, x:p.x, y:p.y, r:elite?30:16, hp, maxhp:hp, dmg:Math.round((elite?18:10)*scale), range:elite?44:32,
-      cd:0.9, t:0, speed:elite?62:82, face:0, dead:false, elite, hitT:0, tgt:null, anim:0, moving:false, phase:Math.random()*6.28, atkA:0 }; }
+      cd:0.9, t:0, speed:elite?62:82, face:0, dead:false, elite, hitT:0, tgt:null, anim:0, moving:false, phase:Math.random()*6.28, atkA:0, stun:0 }; }
   function edgePoint(){ const s=Math.floor(Math.random()*4), u=Math.random();
     if(s===0) return {x:u*MW,y:20}; if(s===1) return {x:u*MW,y:MH-20}; if(s===2) return {x:20,y:u*MH}; return {x:MW-20,y:u*MH}; }
 
   function setup(size){ teamSize=size; clock=0; ended=false; restore=0; killCount=0; spawnT=2; surgeT=42; finalAssault=false;
-    fx=[]; floats=[]; invaders=[];
+    fx=[]; floats=[]; invaders=[]; hprojs=[];
     shrine={ x:SHX, y:SHY, r:76, hp:1400, maxhp:1400, kind:"shrine", hitT:0 };
     nurseries=NPOS.map(p=>({ x:p.x, y:p.y, r:34, hp:340, maxhp:340, growth:0.15, contested:false, kind:"nursery" }));
     const myKey=(window.__featuredKey&&window.__featuredKey())||"leopard";
     const kinds=[myKey]; for(const k of GUARDIANS){ if(kinds.length>=size) break; if(k!==myKey) kinds.push(k); }
     while(kinds.length<size) kinds.push(GUARDIANS[kinds.length%GUARDIANS.length]);
     heroes=kinds.map((k,i)=>{ const h=mkHero(k,i===0); const ang=-1.57+(i-(size-1)/2)*0.6; h.x=SHX+Math.cos(ang)*150; h.y=SHY+Math.sin(ang)*150;
-      const lv=(window.__heroLevel&&window.__heroLevel(k))||1; h.level=lv; h.maxhp=Math.round(h.maxhp*(1+(lv-1)*0.03)); h.hp=h.maxhp; h.dmg=Math.round(h.dmg*(1+(lv-1)*0.02)); return h; });
+      const lv=(window.__heroLevel&&window.__heroLevel(k))||1; h.level=lv; h.maxhp=Math.round(h.maxhp*(1+(lv-1)*0.03)); h.hp=h.maxhp; h.dmg=Math.round(h.dmg*(1+(lv-1)*0.02));
+      h.spMax=(SKILL[k]&&SKILL[k].cd)||7; return h; });
     player=heroes[0];
     cam.x=clamp(player.x-VW/2,0,Math.max(0,MW-VW)); cam.y=clamp(player.y-VH/2,0,Math.max(0,MH-VH));
   }
@@ -124,11 +125,19 @@
     if(restore>=0.75 && !finalAssault){ finalAssault=true; toast("⚠ 最終反撲・守住神木！"); for(let i=0;i<6;i++) pushInv(false); pushInv(true); pushInv(true); }
 
     // 入侵種
-    for(const v of invaders){ if(v.dead) continue; if(v.t>0) v.t-=dt; if(v.hitT>0) v.hitT-=dt; if(v.atkA>0) v.atkA-=dt; v.moving=false;
+    for(const v of invaders){ if(v.dead) continue; if(v.hitT>0) v.hitT-=dt;
+      if(v.stun>0){ v.stun-=dt; v.moving=false; continue; }   // 被震暈：不動不攻
+      if(v.t>0) v.t-=dt; if(v.atkA>0) v.atkA-=dt; v.moving=false;
       const tg=invaderTarget(v); v.tgt=tg; const reach=v.range+(tg.r||0);
       if(dist(v,tg)<=reach){ if(v.t<=0){ v.t=v.cd; v.face=Math.atan2(tg.y-v.y,tg.x-v.x); v.atkA=0.2; hurt(tg,v.dmg,v); } }
       else { const ang=Math.atan2(tg.y-v.y,tg.x-v.x); v.face=ang; v.x+=Math.cos(ang)*v.speed*dt; v.y+=Math.sin(ang)*v.speed*dt; v.moving=true; v.anim+=dt; } }
     invaders=invaders.filter(v=>!v.dead);
+
+    // 守護者技能投射物（疾風刃，可穿透）
+    for(const p of hprojs){ p.life-=dt; p.x+=p.vx*dt; p.y+=p.vy*dt;
+      for(const v of invaders){ if(v.dead||p.hits.indexOf(v)>=0) continue; if(dist(p,v)<v.r+11){ hurt(v,p.dmg,{isPlayer:true}); knock(v,p.x-p.vx*0.02,p.y-p.vy*0.02,16); p.hits.push(v); p.pierce--; } }
+      if(p.pierce<=0) p.life=0; }
+    hprojs=hprojs.filter(p=>p.life>0 && p.x>-40 && p.x<MW+40 && p.y>-40 && p.y<MH+40);
 
     // 英雄
     for(const h of heroes){
@@ -175,8 +184,30 @@
     h.aim=(tg && tg.d<=h.range+tg.e.r+40 && !tg.e.dead)? tg.e : null;
     if(tg && tg.d<=h.range+tg.e.r && h.t<=0) meleeHit(h,tg.e,h.dmg);
   }
-  function castSp(h){ h.spCd=8; h.atkA=0.3; ring(h.x,h.y,135,"#fff59d"); ring(h.x,h.y,90,"#ffe082"); sparks(h.x,h.y,24,"#fff59d"); floats.push({x:h.x,y:h.y-46,txt:"守護爆發!",col:"#fff59d",life:0.7});
-    for(const v of invaders){ if(!v.dead && dist(h,v)<145){ hurt(v,h.dmg*2.4,h); knock(v,h.x,h.y,44); } } if(h.isPlayer) mshake=Math.max(mshake,9); }
+  // 點到線段距離（突進命中判定）
+  function segDist(px,py,ax,ay,bx,by){ const dx=bx-ax,dy=by-ay,l2=dx*dx+dy*dy||1; let t=((px-ax)*dx+(py-ay)*dy)/l2; t=clamp(t,0,1); return Math.hypot(px-(ax+t*dx),py-(ay+t*dy)); }
+  // 每隻守護者的專屬技能
+  function skDash(h){ const ang=(h.aim&&!h.aim.dead)?Math.atan2(h.aim.y-h.y,h.aim.x-h.x):h.face;
+    const ex=clamp(h.x+Math.cos(ang)*210,40,MW-40), ey=clamp(h.y+Math.sin(ang)*210,40,MH-40);
+    fx.push({type:"streak",x:h.x,y:h.y,x2:ex,y2:ey,life:0.25,max:0.25,col:"#fff59d"});
+    for(const v of invaders){ if(!v.dead && segDist(v.x,v.y,h.x,h.y,ex,ey)<46){ hurt(v,h.dmg*2.2,h); knock(v,h.x,h.y,34); } }
+    h.x=ex; h.y=ey; ring(ex,ey,60,"#fff59d"); sparks(ex,ey,16,"#fff59d"); }
+  function skDive(h){ const tg=nearestInvader(h,650); const ex=clamp(tg?tg.e.x:h.x+Math.cos(h.face)*180,40,MW-40), ey=clamp(tg?tg.e.y:h.y+Math.sin(h.face)*180,40,MH-40);
+    fx.push({type:"streak",x:h.x,y:h.y,x2:ex,y2:ey,life:0.22,max:0.22,col:"#4fc3f7"}); h.x=ex; h.y=ey; ring(ex,ey,95,"#4fc3f7"); sparks(ex,ey,20,"#81d4fa");
+    for(const v of invaders){ if(!v.dead && dist({x:ex,y:ey},v)<95){ hurt(v,h.dmg*2.6,h); knock(v,ex,ey,30); } } }
+  function skSlam(h){ ring(h.x,h.y,175,"#ffd54f"); ring(h.x,h.y,118,"#ffe082"); sparks(h.x,h.y,26,"#ffd54f"); mshake=Math.max(mshake,11);
+    for(const v of invaders){ if(!v.dead && dist(h,v)<175){ hurt(v,h.dmg*2.4,h); knock(v,h.x,h.y,60); v.stun=Math.max(v.stun,1.2); } } }
+  function skSonic(h){ ring(h.x,h.y,215,"#b3e5fc"); ring(h.x,h.y,150,"#e1f5fe"); sparks(h.x,h.y,24,"#b3e5fc"); mshake=Math.max(mshake,8);
+    for(const v of invaders){ if(!v.dead && dist(h,v)<215){ hurt(v,h.dmg*1.8,h); knock(v,h.x,h.y,40); v.stun=Math.max(v.stun,1.6); } } }
+  function skShoot(h){ for(let i=-1;i<=1;i++){ const a=h.face+i*0.24; hprojs.push({x:h.x+Math.cos(a)*h.r,y:h.y+Math.sin(a)*h.r,vx:Math.cos(a)*540,vy:Math.sin(a)*540,dmg:h.dmg*1.6,life:1.1,hits:[],pierce:3,col:"#b2ff59"}); } }
+  function skHeal(h){ ring(h.x,h.y,210,"#a5d6a7"); sparks(h.x,h.y,22,"#a5d6a7");
+    for(const a of heroes){ if(!a.dead && dist(h,a)<210){ a.hp=Math.min(a.maxhp,a.hp+120); floats.push({x:a.x,y:a.y-a.r-12,txt:"+120",col:"#a5d6a7",life:0.9}); } }
+    for(const v of invaders){ if(!v.dead && dist(h,v)<155) knock(v,h.x,h.y,52); } }
+  const SKILL={ leopard:{name:"閃電突進",cd:6,fn:skDash}, bear:{name:"震地",cd:9,fn:skSlam}, cicada:{name:"音爆",cd:9,fn:skSonic},
+    dragonfly:{name:"疾風刃",cd:6,fn:skShoot}, magpie:{name:"俯衝啄擊",cd:6,fn:skDive}, deer:{name:"復育號角",cd:8,fn:skHeal} };
+  function castSp(h){ const s=SKILL[h.kind]; h.spCd=(s&&s.cd)||7; h.atkA=0.3;
+    if(h.isPlayer){ mshake=Math.max(mshake,6); toast((s?s.name:"技能")+"！"); }
+    (s?s.fn:skSlam)(h); }
   function keepIn(h){ h.x=clamp(h.x,40,MW-40); h.y=clamp(h.y,40,MH-40);
     for(const o of [shrine,...nurseries]){ if(o.hp<=0) continue; const d=dist(h,o),min=o.r+h.r; if(d<min&&d>0){ const a=Math.atan2(h.y-o.y,h.x-o.x); h.x=o.x+Math.cos(a)*min; h.y=o.y+Math.sin(a)*min; } } }
 
@@ -212,7 +243,10 @@
       if(e.type==="spark"){ ctx.globalAlpha=a; ctx.fillStyle=e.col; ctx.beginPath(); ctx.arc(e.x,e.y,e.r,0,7); ctx.fill(); }
       else if(e.type==="ring"){ const rr=e.r0+(e.r1-e.r0)*(1-a); ctx.globalAlpha=a*0.9; ctx.strokeStyle=e.col; ctx.lineWidth=4; ctx.beginPath(); ctx.arc(e.x,e.y,rr,0,7); ctx.stroke(); }
       else if(e.type==="slash"){ ctx.globalAlpha=a; ctx.strokeStyle=e.col; ctx.lineWidth=5; ctx.beginPath(); ctx.arc(e.x,e.y,20,e.a-0.9,e.a+0.9); ctx.stroke(); }
+      else if(e.type==="streak"){ ctx.globalAlpha=a; ctx.strokeStyle=e.col; ctx.lineWidth=10*a+3; ctx.lineCap="round"; ctx.beginPath(); ctx.moveTo(e.x,e.y); ctx.lineTo(e.x2,e.y2); ctx.stroke(); ctx.lineCap="butt"; }
       ctx.globalAlpha=1; }
+    // 技能投射物（疾風刃）
+    for(const p of hprojs){ ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(Math.atan2(p.vy,p.vx)); ctx.fillStyle=p.col; ctx.beginPath(); ctx.ellipse(0,0,13,4.5,0,0,7); ctx.fill(); ctx.globalAlpha=0.4; ctx.beginPath(); ctx.ellipse(-6,0,18,7,0,0,7); ctx.fill(); ctx.restore(); ctx.globalAlpha=1; }
     ctx.textAlign="center"; ctx.textBaseline="middle";
     for(const f of floats){ ctx.globalAlpha=Math.min(1,f.life*1.8); ctx.fillStyle=f.col; ctx.font="bold "+(f.big?20:14)+"px sans-serif"; ctx.fillText(f.txt,f.x,f.y); ctx.globalAlpha=1; }
     ctx.restore();
@@ -368,7 +402,8 @@
   }
   function drawUnit(u,r,isInv){ drawCreatureTop(u,r,isInv?"inv":"ally"); const R=r*kcfg(u.kind).sz;
     if(isInv){ if(u.elite){ ctx.fillStyle="#ffca28"; ctx.font="bold 11px sans-serif"; ctx.textAlign="center"; ctx.fillText("👑"+KNAME[u.kind]+"王",u.x,u.y-R-12); }
-      if(u.hp<u.maxhp) bar(u.x,u.y-R-8,u.elite?40:26,u.hp/u.maxhp,"#ff8a80"); } }
+      if(u.hp<u.maxhp) bar(u.x,u.y-R-8,u.elite?40:26,u.hp/u.maxhp,"#ff8a80");
+      if(u.stun>0){ ctx.fillStyle="#ffe082"; for(let s=0;s<3;s++){ const a=clock*7+s*2.1; ctx.beginPath(); ctx.arc(u.x+Math.cos(a)*R*0.9,u.y-R-2+Math.sin(a)*3,2.4,0,7); ctx.fill(); } } } }
   function drawHero(h){ const r=h.r, R=r*kcfg(h.kind).sz; drawCreatureTop(h,r,"ally");
     if(h.isPlayer){ ctx.strokeStyle="#ffd54f"; ctx.lineWidth=3; ctx.beginPath(); ctx.ellipse(h.x,h.y+r*0.5,R*1.2,R*0.5,0,0,7); ctx.stroke();
       const bY=h.y-R*1.8-Math.sin(clock*4)*3; ctx.fillStyle="#ffd54f"; ctx.beginPath(); ctx.moveTo(h.x,bY+10); ctx.lineTo(h.x-7,bY); ctx.lineTo(h.x+7,bY); ctx.fill(); }
@@ -381,7 +416,7 @@
   function updateHUD(){ setW("mhpAlly",shrine.hp/shrine.maxhp); txt("mhpAllyTxt",Math.ceil(shrine.hp));
     setW("mRestore",restore); txt("mRestoreTxt",Math.floor(restore*100)+"%");
     const mm=Math.floor(clock/60),ss=Math.floor(clock%60); txt("mclock",mm+":"+(ss<10?"0":"")+ss);
-    const sp=document.getElementById("mSp"); if(sp){ const cd=player&&player.spCd>0?player.spCd:0; sp.querySelector(".fill").style.height=(cd/8*100)+"%"; sp.classList.toggle("ready",cd<=0); } }
+    const sp=document.getElementById("mSp"); if(sp){ const mx=(player&&player.spMax)||8, cd=player&&player.spCd>0?player.spCd:0; sp.querySelector(".fill").style.height=(cd/mx*100)+"%"; sp.classList.toggle("ready",cd<=0); } }
   function setW(id,f){ const el=document.getElementById(id); if(el) el.style.width=(clamp(f,0,1)*100)+"%"; }
   function txt(id,v){ const el=document.getElementById(id); if(el) el.textContent=v; }
 
