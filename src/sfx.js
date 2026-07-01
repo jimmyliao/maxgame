@@ -63,6 +63,12 @@
   document.addEventListener("pointerdown",(e)=>{ ensure(); const el=e.target&&e.target.closest&&e.target.closest(SEL);
     if(el){ const back=/back|close|離開|關閉|回/.test((el.id||"")+" "+(el.className||"")+" "+(el.textContent||"")); play(back?"back":"tap"); } }, true);
 
-  window.__sfx={ play, setMuted:(m)=>{ muted=!!m; try{ localStorage.setItem("shoutu_muted",muted?"1":"0"); }catch(e){} },
+  window.__sfx={ play, setMuted:(m)=>{ muted=!!m; try{ localStorage.setItem("shoutu_muted",muted?"1":"0"); }catch(e){} refreshSetBtn(); },
     toggle:()=>{ window.__sfx.setMuted(!muted); return muted; }, muted:()=>muted };
+
+  // 設定畫面的「音效：開/關」按鈕，自成一體在本模組接線（不需改 legacy.js）
+  function refreshSetBtn(){ const b=document.getElementById("setSound"); if(b) b.textContent=muted?"🔇 音效：關":"🔊 音效：開"; }
+  function wireSetBtn(){ const b=document.getElementById("setSound"); if(!b) return; refreshSetBtn();
+    b.addEventListener("pointerdown",(e)=>{ e.preventDefault(); const m=window.__sfx.toggle(); if(!m){ ensure(); play("tap"); } },{passive:false}); }
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",wireSetBtn); else wireSetBtn();
 })();
