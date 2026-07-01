@@ -153,8 +153,8 @@
   .btn.sec{ background:#546e7a; box-shadow:0 4px 0 #37474f; font-size:14px; padding:9px 20px; }
   .row{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
   #map .cards,#dex .cards{ display:flex; flex-direction:column; gap:10px; width:100%; max-width:480px; margin-top:6px; }
-  .card{ display:flex; align-items:center; gap:12px; background:rgba(255,255,255,.08); border-radius:16px; padding:10px 12px;
-    cursor:pointer; text-align:left; border:2px solid transparent; }
+  .card{ display:flex; align-items:center; gap:12px; background:linear-gradient(rgba(255,255,255,.1),rgba(255,255,255,.04)); border-radius:16px; padding:10px 12px;
+    cursor:pointer; text-align:left; border:2px solid transparent; box-shadow:0 2px 6px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.08); }
   .card.locked{ opacity:.45; cursor:not-allowed; } .card.cleared{ border-color:#66bb6a; }
   .card canvas{ width:52px; height:52px; flex:none; }
   .card .info{ flex:1; } .card .info .t{ font-size:15px; font-weight:800; color:#fff; }
@@ -176,15 +176,16 @@
   #lobby #heroShow{ position:absolute; inset:0; width:100%; height:100%; z-index:0; }
   #lobby .lb-top{ position:absolute; top:0; left:0; right:0; z-index:2; display:flex; align-items:flex-start;
     justify-content:space-between; gap:8px; padding:10px 12px; padding-top:max(10px,env(safe-area-inset-top)); }
-  #lobby .lb-profile{ display:flex; align-items:center; gap:8px; background:rgba(8,24,16,.6); border:1px solid rgba(255,255,255,.18);
-    border-radius:30px; padding:5px 12px 5px 5px; box-shadow:0 2px 8px rgba(0,0,0,.4); }
+  #lobby .lb-profile{ display:flex; align-items:center; gap:8px; background:rgba(8,24,16,.55); border:1px solid rgba(255,255,255,.2);
+    border-radius:30px; padding:5px 12px 5px 5px; box-shadow:0 2px 8px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.08); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
   #lobby .lb-ava{ width:34px; height:34px; border-radius:50%; background:linear-gradient(#43a047,#1b5e20);
     display:flex; align-items:center; justify-content:center; font-size:18px; border:2px solid #ffd54f; }
   #lobby .lb-name{ font-size:13px; font-weight:900; color:#fff; line-height:1.1; }
   #lobby .lb-lv{ font-size:11px; color:#a5d6a7; }
   #lobby .lb-curr{ display:flex; gap:6px; }
-  #lobby .lb-pill{ background:rgba(8,24,16,.6); border:1px solid rgba(255,255,255,.18); border-radius:20px;
-    padding:6px 12px; font-size:13px; font-weight:800; color:#e8f5e9; box-shadow:0 2px 8px rgba(0,0,0,.4); white-space:nowrap; }
+  #lobby .lb-pill{ background:rgba(8,24,16,.55); border:1px solid rgba(255,255,255,.2); border-radius:20px;
+    padding:6px 12px; font-size:13px; font-weight:800; color:#e8f5e9; box-shadow:0 2px 8px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.08); white-space:nowrap;
+    backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
   #lobby .lb-pill b{ color:#ffd54f; }
   #lobby .lb-ticker{ position:absolute; top:max(58px,calc(env(safe-area-inset-top) + 50px)); left:0; right:0; z-index:2;
     background:rgba(8,24,16,.45); padding:5px 14px; font-size:12px; color:#d4ecc4; white-space:nowrap; overflow:hidden;
@@ -198,8 +199,10 @@
   #lobby .hero-tag{ font-size:13px; color:#d4ecc4; margin-top:4px; text-align:center; padding:0 12px; text-shadow:0 1px 4px rgba(0,0,0,.6); }
   #lobby .roster{ display:flex; gap:9px; justify-content:center; padding:11px 0 12px; flex-wrap:wrap; }
   #lobby .rb{ width:56px; height:56px; border-radius:16px; border:2px solid rgba(255,255,255,.22);
-    background:rgba(0,0,0,.35); cursor:pointer; padding:0; overflow:hidden; box-shadow:0 2px 6px rgba(0,0,0,.4); }
-  #lobby .rb.sel{ border-color:#ffd54f; box-shadow:0 0 16px rgba(255,213,79,.7); transform:translateY(-2px); }
+    background:radial-gradient(circle at 50% 30%, rgba(255,255,255,.12), rgba(0,0,0,.4) 70%); cursor:pointer; padding:0; overflow:hidden;
+    box-shadow:0 2px 6px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.1); transition:transform .15s ease, box-shadow .15s ease; }
+  #lobby .rb.sel{ border-color:#ffd54f; box-shadow:0 0 4px rgba(255,213,79,.9), 0 0 20px rgba(255,213,79,.55), inset 0 1px 0 rgba(255,255,255,.2); transform:translateY(-2px); }
+  #lobby .rb:active{ transform:scale(.94); }
   #lobby .rb canvas{ width:100%; height:100%; display:block; }
   #lobby .play-btn{ position:relative; overflow:hidden; width:100%; max-width:420px; border:none; border-radius:30px;
     background:linear-gradient(#ffe082,#ffb300); color:#3e2723; font-size:22px; font-weight:900; letter-spacing:2px;
@@ -214,11 +217,12 @@
   #lobby .lobby-nav{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; width:100%; max-width:420px; }
   #lobby .lobby-nav.primary{ margin-top:10px; }
   #lobby .lobby-nav.secondary{ margin-top:6px; }
-  #lobby .navb{ flex:1 1 30%; background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.24);
-    color:#e8f5e9; font-size:14px; font-weight:800; border-radius:18px; padding:11px 6px; cursor:pointer; }
-  #lobby .navb:active{ filter:brightness(1.25); }
-  #lobby .navb.sm{ flex:1 1 21%; background:rgba(255,255,255,.07); border-color:rgba(255,255,255,.12);
-    color:#b9d4c2; font-size:11.5px; font-weight:700; padding:7px 4px; border-radius:14px; }
+  #lobby .navb{ flex:1 1 30%; background:linear-gradient(rgba(255,255,255,.2),rgba(255,255,255,.08)); border:1px solid rgba(255,255,255,.26);
+    color:#e8f5e9; font-size:14px; font-weight:800; border-radius:18px; padding:11px 6px; cursor:pointer;
+    box-shadow:0 2px 5px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.15); transition:transform .12s ease; }
+  #lobby .navb:active{ filter:brightness(1.25); transform:scale(.96); }
+  #lobby .navb.sm{ flex:1 1 21%; background:linear-gradient(rgba(255,255,255,.1),rgba(255,255,255,.03)); border-color:rgba(255,255,255,.14);
+    color:#b9d4c2; font-size:11.5px; font-weight:700; padding:7px 4px; border-radius:14px; box-shadow:0 1px 3px rgba(0,0,0,.25); }
   /* ===== 場景轉場 ===== */
   #xfade{ position:fixed; inset:0; z-index:50; opacity:0; pointer-events:none;
     background:radial-gradient(circle at 50% 45%, #14422a, #06170d);
