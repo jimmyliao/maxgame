@@ -63,11 +63,11 @@
   /* ---------- 建立 ---------- */
   function mkHero(kind,isPlayer){ return { kind, isPlayer:!!isPlayer, x:0,y:0, r:24, hp:340, maxhp:340,
     dmg:28, range:70, cd:0.6, t:0, spCd:0, speed:isPlayer?172:150, face:0, dead:false, respawn:0, name:KNAME[kind]||kind,
-    hitT:0, anim:0, moving:false, phase:Math.random()*6.28, atkA:0 }; }
+    hitT:0, anim:0, moving:false, phase:Math.random()*6.28, atkA:0, mood:"n", moodT:0 }; }
   function mkInvader(kind,elite){ const p=edgePoint(), scale=1+Math.min(1.3,clock/120)*0.6; // 隨時間越來越強
     const hp=Math.round((elite?300:64)*scale);
     return { kind, x:p.x, y:p.y, r:elite?30:16, hp, maxhp:hp, dmg:Math.round((elite?18:10)*scale), range:elite?44:32,
-      cd:0.9, t:0, speed:elite?62:82, face:0, dead:false, elite, hitT:0, tgt:null, anim:0, moving:false, phase:Math.random()*6.28, atkA:0, stun:0 }; }
+      cd:0.9, t:0, speed:elite?62:82, face:0, dead:false, elite, hitT:0, tgt:null, anim:0, moving:false, phase:Math.random()*6.28, atkA:0, stun:0, mood:"n", moodT:0 }; }
   function edgePoint(){ const s=Math.floor(Math.random()*4), u=Math.random();
     if(s===0) return {x:u*MW,y:20}; if(s===1) return {x:u*MW,y:MH-20}; if(s===2) return {x:20,y:u*MH}; return {x:MW-20,y:u*MH}; }
 
@@ -103,11 +103,17 @@
   function onDeath(o,by){
     if(o.kind==="shrine"){ endGame(false); return; }
     if(o.kind==="nursery"){ ring(o.x,o.y,60,"#ff8a80"); toast("一處復育苗圃被毀！"); return; }
+    if(o.isPlayer!==undefined){ // 守護者被擊退（不算入侵種戰果）
+      o.dead=true; o.respawn=4+teamSize*0.6; ring(o.x,o.y,40,"#ef5350");
+      floats.push({x:o.x,y:o.y-40,txt:KNAME[o.kind]+" 被擊退！",col:"#ffab91",life:1.1});
+      if(by && by.elite!==undefined){ by.mood="proud"; by.moodT=1.6; } // 入侵種擊退守護者：得意
+      return; }
     // 入侵種
     o.dead=true; killCount++; ring(o.x,o.y,o.elite?60:26,"#cddc39"); sparks(o.x,o.y,o.elite?26:12,o.elite?"#ffca28":"#cddc39");
     if(o.elite){ mshake=Math.max(mshake,10); ring(o.x,o.y,90,"#ffca28"); }
     restore=clamp(restore+(o.elite?0.05:0.012),0,1);
     floats.push({x:o.x,y:o.y-30,txt:(o.elite?"入侵種王 ":"")+KNAME[o.kind]+" 被驅逐  🌿復原+"+(o.elite?5:1)+"%",col:"#c5e1a5",life:1.1});
+    if(by && by.isPlayer!==undefined){ by.mood="proud"; by.moodT=1.6; } // 守護者擊退入侵種：得意
   }
 
   /* ---------- 攻擊 ---------- */
@@ -129,7 +135,7 @@
     if(restore>=0.75 && !finalAssault){ finalAssault=true; toast("⚠ 最終反撲・守住神木！"); for(let i=0;i<6;i++) pushInv(false); pushInv(true); pushInv(true); }
 
     // 入侵種
-    for(const v of invaders){ if(v.dead) continue; if(v.hitT>0) v.hitT-=dt;
+    for(const v of invaders){ if(v.dead) continue; if(v.hitT>0) v.hitT-=dt; if(v.moodT>0) v.moodT-=dt;
       if(v.stun>0){ v.stun-=dt; v.moving=false; continue; }   // 被震暈：不動不攻
       if(v.t>0) v.t-=dt; if(v.atkA>0) v.atkA-=dt; v.moving=false;
       const tg=invaderTarget(v); v.tgt=tg; const reach=v.range+(tg.r||0);
@@ -146,7 +152,7 @@
     // 英雄
     for(const h of heroes){
       if(h.dead){ h.respawn-=dt; if(h.respawn<=0){ h.dead=false; h.hp=h.maxhp; h.x=SHX+(Math.random()*120-60); h.y=SHY+110; ring(h.x,h.y,40,"#66bb6a"); } continue; }
-      if(h.t>0) h.t-=dt; if(h.spCd>0) h.spCd-=dt; if(h.hitT>0) h.hitT-=dt; if(h.atkA>0) h.atkA-=dt; h.moving=false;
+      if(h.t>0) h.t-=dt; if(h.spCd>0) h.spCd-=dt; if(h.hitT>0) h.hitT-=dt; if(h.atkA>0) h.atkA-=dt; if(h.moodT>0) h.moodT-=dt; h.moving=false;
       if(h.isPlayer){ updatePlayer(h,dt); continue; }
       // AI 守護者：優先打靠近苗圃/神木的入侵種
       let tg=nearestInvader(h,420);
@@ -358,73 +364,124 @@
       ctx.save(); ctx.translate(u.x+Math.cos(f)*lunge,gy+Math.sin(f)*lunge*0.4); ctx.rotate(f); if(u.hitT>0) ctx.globalAlpha=0.85;
       ctx.drawImage(spr,-S/2,-S/2,S,S); ctx.restore(); return; }
     const bLen=r*cfg.long, bW=r*cfg.wide;
+    const proud=(u.mood==="proud" && u.moodT>0 && !angry);
+    const OUT=Math.max(2.2,r*0.11);
+    const earKind=(u.kind==="leopard"||u.kind==="bear"||u.kind==="deer");
     // 影子（方向性、柔和；光源在左上，影子落右下）
     ctx.fillStyle="rgba(0,0,0,0.13)"; ctx.beginPath(); ctx.ellipse(u.x+r*0.28,u.y+r*0.66,bLen*1.08,r*0.42,0,0,7); ctx.fill();
     ctx.fillStyle="rgba(0,0,0,0.24)"; ctx.beginPath(); ctx.ellipse(u.x+r*0.18,u.y+r*0.62,bLen*0.82,r*0.32,0,0,7); ctx.fill();
     // 陣營地環
     ctx.fillStyle=faction==="inv"?"rgba(239,83,80,0.30)":"rgba(102,187,106,0.4)"; ctx.beginPath(); ctx.ellipse(u.x,u.y+r*0.55,bLen*1.02,r*0.4,0,0,7); ctx.fill();
-    ctx.save(); ctx.translate(u.x+Math.cos(f)*lunge,gy+Math.sin(f)*lunge*0.4); ctx.rotate(f); ctx.scale(1,breath);
-    // 尾巴（貓/鹿/鬣蜥各異）
+    // 離屏畫布：先把角色畫在自己的座標系(面向右)，最後統一套「立體上色」再貼回主畫布——
+    // 跟大廳 drawCreature 同一套質感手法(source-atop 頂光/底暗)，不再用逐塊硬邊高光/陰影。
+    const R2=Math.max(48,Math.ceil(r*3.0));
+    const oc=drawCreatureTop._oc||(drawCreatureTop._oc=document.createElement("canvas"));
+    const g=drawCreatureTop._g||(drawCreatureTop._g=oc.getContext("2d"));
+    if(oc.width!==R2*2){ oc.width=R2*2; oc.height=R2*2; }
+    g.setTransform(1,0,0,1,R2,R2); g.clearRect(-R2,-R2,R2*2,R2*2);
+    g.save(); g.scale(1,breath);
+    // 尾巴（貓/鹿/鬣蜥各異，畫在最底層）
     if(u.kind==="leopard"||u.kind==="deer"||u.kind==="iguana"){ const tw=Math.sin(gt*3+u.phase)*r*0.4, tl=u.kind==="iguana"?1.7:1.35;
-      ctx.strokeStyle=col; ctx.lineWidth=r*(u.kind==="deer"?0.12:0.2); ctx.lineCap="round";
-      ctx.beginPath(); ctx.moveTo(-bLen*0.8,0); ctx.quadraticCurveTo(-r*(tl*0.85),tw,-r*tl,tw*1.5); ctx.stroke(); ctx.lineCap="butt"; }
-    // 腳（走路擺動）— 露出身體外緣、深色毛用對比亮腳
-    if(!flyer){ const c=hex(col), lum=c[0]*0.299+c[1]*0.587+c[2]*0.114; const footCol=lum<95?shade(col,58):shade(col,-38);
-      const sw=walk*r*0.38, lr=r*(u.kind==="bear"?0.22:0.18);
-      const ly=bW*0.98, lxf=bLen*0.42, lxb=bLen*0.5;
-      const legs=bird?[[-r*0.05,-ly*0.6,1],[-r*0.05,ly*0.6,-1]]
-        :[[lxf,-ly,1],[lxf,ly,-1],[-lxb,-ly,-1],[-lxb,ly,1]];
-      ctx.fillStyle=footCol; ctx.strokeStyle=INK; ctx.lineWidth=Math.max(1.5,r*0.08);
-      for(const L of legs){ ctx.beginPath(); ctx.ellipse(L[0]+L[2]*sw,L[1],lr,lr*1.2,0,0,7); ctx.fill(); ctx.stroke(); } }
-    // 身體（漫畫賽璐璐：平塗色 + 硬邊高光/陰影 + 粗黑描邊）
-    ctx.beginPath(); ctx.ellipse(0,0,bLen,bW,0,0,7); ctx.fillStyle=u.hitT>0?"#fff":col; ctx.fill();
-    if(u.hitT<=0){ ctx.save(); ctx.clip(); ctx.rotate(-f);   // 光源固定左上
-      ctx.fillStyle=shade(col,-46); ctx.beginPath(); ctx.ellipse(bLen*0.42,bW*0.5,bLen*1.05,bW*1.05,0,0,7); ctx.fill();   // 硬邊陰影(右下)
-      ctx.fillStyle=shade(col,54); ctx.beginPath(); ctx.ellipse(-bLen*0.5,-bW*0.55,bLen*0.62,bW*0.5,0,0,7); ctx.fill();     // 硬邊高光(左上)
-      ctx.restore(); }
-    ctx.strokeStyle=INK; ctx.lineWidth=Math.max(2,r*0.13); ctx.stroke();
-    // 背部花紋 / 殼 / 棘
-    if(u.kind==="leopard"){ ctx.strokeStyle="rgba(62,40,16,0.6)"; ctx.lineWidth=r*0.05; for(const o of [[-.35,-.25],[-.05,.2],[.15,-.28],[.35,.08],[-.15,-.02],[.2,.35]]){ ctx.beginPath(); ctx.arc(o[0]*bLen*1.15,o[1]*bW*1.35,r*0.1,0,7); ctx.stroke(); } }
-    else if(u.kind==="bear"){ ctx.fillStyle="rgba(255,255,255,0.9)"; ctx.beginPath(); ctx.moveTo(bLen*0.35,-bW*0.5); ctx.lineTo(bLen*0.55,0); ctx.lineTo(bLen*0.35,bW*0.5); ctx.lineWidth=r*0.12; ctx.strokeStyle="rgba(255,255,255,0.9)"; ctx.stroke(); } // 胸前白 V
-    else if(u.kind==="deer"){ ctx.fillStyle="rgba(255,255,255,0.7)"; for(const o of [[-.2,-.4],[.15,.3],[.3,-.3],[-.35,.35],[0,0]]){ ctx.beginPath(); ctx.arc(o[0]*bLen*1.2,o[1]*bW*1.5,r*0.08,0,7); ctx.fill(); } }
-    else if(u.kind==="snail"){ ctx.fillStyle=shade(col,-15); ctx.beginPath(); ctx.arc(-bLen*0.1,0,bW*0.95,0,7); ctx.fill();
-      ctx.strokeStyle=dark; ctx.lineWidth=r*0.16; ctx.beginPath(); for(let a=0;a<16;a++){ const rr=bW*0.85*(1-a/19),px=-bLen*0.1+Math.cos(a*0.9)*rr,py=Math.sin(a*0.9)*rr; a?ctx.lineTo(px,py):ctx.moveTo(px,py); } ctx.stroke(); }
-    else if(u.kind==="iguana"){ ctx.fillStyle=lite; for(let i=-3;i<=3;i++){ ctx.beginPath(); ctx.moveTo(i*bLen*0.16,-r*0.05); ctx.lineTo(i*bLen*0.16-r*0.07,-bW*0.9); ctx.lineTo(i*bLen*0.16+r*0.07,-bW*0.9); ctx.closePath(); ctx.fill(); } }
-    else if(u.kind==="frog"){ ctx.fillStyle="rgba(40,70,20,0.5)"; for(const o of [[-.2,-.3],[.1,.35],[.25,-.2]]){ ctx.beginPath(); ctx.arc(o[0]*bLen*1.1,o[1]*bW*1.1,r*0.13,0,7); ctx.fill(); } }
-    // 頭（描邊）
+      g.strokeStyle=INK; g.lineWidth=r*(u.kind==="deer"?0.12:0.2)+OUT*0.8; g.lineCap="round";
+      g.beginPath(); g.moveTo(-bLen*0.8,0); g.quadraticCurveTo(-r*(tl*0.85),tw,-r*tl,tw*1.5); g.stroke();
+      g.strokeStyle=col; g.lineWidth=r*(u.kind==="deer"?0.12:0.2);
+      g.beginPath(); g.moveTo(-bLen*0.8,0); g.quadraticCurveTo(-r*(tl*0.85),tw,-r*tl,tw*1.5); g.stroke(); g.lineCap="butt"; }
+    // 共用座標（腳、頭、耳）
     const hx=bLen*(bird?0.62:0.72), hr=r*(bird?0.32:0.46);
-    // 耳（先畫於頭後：貓/鹿尖耳含粉內耳、熊圓耳）
-    if(u.kind==="leopard"||u.kind==="bear"||u.kind==="deer"){ const er=hr*(u.kind==="bear"?0.5:0.44);
-      for(const s of [-1,1]){ ctx.fillStyle=shade(col,10); ctx.beginPath(); ctx.arc(hx-hr*0.15,s*hr*0.9,er,0,7); ctx.fill(); ctx.strokeStyle=INK; ctx.lineWidth=Math.max(1.5,r*0.08); ctx.stroke();
-        if(u.kind!=="bear"){ ctx.fillStyle="#e79ab0"; ctx.beginPath(); ctx.arc(hx-hr*0.1,s*hr*0.9,er*0.5,0,7); ctx.fill(); } } }
-    // 頭（平塗 + 硬邊陰影 + 粗黑描邊）
-    ctx.beginPath(); ctx.arc(hx,0,hr,0,7); ctx.fillStyle=u.hitT>0?"#fff":shade(col,14); ctx.fill();
-    if(u.hitT<=0){ ctx.save(); ctx.clip(); ctx.fillStyle=shade(col,-34); ctx.beginPath(); ctx.arc(hx+hr*0.5,hr*0.5,hr,0,7); ctx.fill(); ctx.restore(); }
-    ctx.strokeStyle=INK; ctx.lineWidth=Math.max(1.6,r*0.09); ctx.stroke();
-    // 口鼻（哺乳類頭前突出，增加立體）
-    if(mammal){ ctx.fillStyle=u.hitT>0?"#fff":lite; ctx.beginPath(); ctx.ellipse(hx+hr*0.58,0,hr*0.5,hr*0.4,0,0,7); ctx.fill(); ctx.strokeStyle="rgba(0,0,0,0.28)"; ctx.lineWidth=1; ctx.stroke(); }
-    // 青蛙凸眼（頭頂兩側）
-    if(u.kind==="frog"){ ctx.fillStyle=shade(col,25); ctx.beginPath(); ctx.arc(hx,-hr*0.8,hr*0.5,0,7); ctx.arc(hx,hr*0.8,hr*0.5,0,7); ctx.fill(); }
+    const sw=walk*r*0.38, lr=r*(u.kind==="bear"?0.22:0.18);
+    const ly=bW*0.98, lxf=bLen*0.42, lxb=bLen*0.5;
+    const legs=bird?[[-r*0.05,-ly*0.6,1],[-r*0.05,ly*0.6,-1]]
+      :[[lxf,-ly,1],[lxf,ly,-1],[-lxb,-ly,-1],[-lxb,ly,1]];
+    const earR=hr*(u.kind==="bear"?0.5:0.44);
+
+    // ===== 第一遍：黑色輪廓底（整隻放大一圈，畫出唯一乾淨外框，不再有接縫）=====
+    g.fillStyle=INK;
+    if(!flyer) for(const L of legs){ g.beginPath(); g.ellipse(L[0]+L[2]*sw,L[1],lr+OUT*0.7,lr*1.2+OUT*0.7,0,0,7); g.fill(); }
+    g.beginPath(); g.ellipse(0,0,bLen+OUT,bW+OUT,0,0,7); g.fill();
+    if(earKind) for(const s of [-1,1]){ g.beginPath(); g.arc(hx-hr*0.15,s*hr*0.9,earR+OUT*0.7,0,7); g.fill(); }
+    g.beginPath(); g.arc(hx,0,hr+OUT,0,7); g.fill();
+    if(mammal){ g.beginPath(); g.ellipse(hx+hr*0.58,0,hr*0.5+OUT*0.7,hr*0.4+OUT*0.7,0,0,7); g.fill(); }
+    if(u.kind==="frog"){ g.beginPath(); g.arc(hx,-hr*0.8,hr*0.5+OUT*0.6,0,7); g.arc(hx,hr*0.8,hr*0.5+OUT*0.6,0,7); g.fill(); }
+
+    // ===== 第二遍：平塗正色（不再逐一描邊，靠底圖露邊當外框；立體感留給最後的整體頂光/底暗）=====
+    if(!flyer){ const cc=hex(col), lum=cc[0]*0.299+cc[1]*0.587+cc[2]*0.114; const footCol=lum<95?shade(col,58):shade(col,-38);
+      g.fillStyle=footCol; for(const L of legs){ g.beginPath(); g.ellipse(L[0]+L[2]*sw,L[1],lr,lr*1.2,0,0,7); g.fill();
+        g.strokeStyle="rgba(0,0,0,0.22)"; g.lineWidth=Math.max(1,r*0.035); for(const tn of [-0.4,0,0.4]){ g.beginPath(); g.moveTo(L[0]+L[2]*sw+tn*lr,L[1]+lr*0.7); g.lineTo(L[0]+L[2]*sw+tn*lr,L[1]+lr*1.15); g.stroke(); } } } // 腳趾切痕
+    g.beginPath(); g.ellipse(0,0,bLen,bW,0,0,7); g.fillStyle=u.hitT>0?"#fff":col; g.fill();
+    // 背部花紋 / 殼 / 棘
+    if(u.kind==="leopard"){ g.strokeStyle="rgba(62,40,16,0.6)"; g.lineWidth=r*0.05; for(const o of [[-.35,-.25],[-.05,.2],[.15,-.28],[.35,.08],[-.15,-.02],[.2,.35]]){ g.beginPath(); g.arc(o[0]*bLen*1.15,o[1]*bW*1.35,r*0.1,0,7); g.stroke(); } }
+    else if(u.kind==="bear"){ g.beginPath(); g.moveTo(bLen*0.35,-bW*0.5); g.lineTo(bLen*0.55,0); g.lineTo(bLen*0.35,bW*0.5); g.lineWidth=r*0.12; g.strokeStyle="rgba(255,255,255,0.9)"; g.stroke(); }
+    else if(u.kind==="deer"){ g.fillStyle="rgba(255,255,255,0.7)"; for(const o of [[-.2,-.4],[.15,.3],[.3,-.3],[-.35,.35],[0,0]]){ g.beginPath(); g.arc(o[0]*bLen*1.2,o[1]*bW*1.5,r*0.08,0,7); g.fill(); } }
+    else if(u.kind==="snail"){ g.fillStyle=shade(col,-15); g.beginPath(); g.arc(-bLen*0.1,0,bW*0.95,0,7); g.fill();
+      g.strokeStyle=dark; g.lineWidth=r*0.16; g.beginPath(); for(let a=0;a<16;a++){ const rr=bW*0.85*(1-a/19),px=-bLen*0.1+Math.cos(a*0.9)*rr,py=Math.sin(a*0.9)*rr; a?g.lineTo(px,py):g.moveTo(px,py); } g.stroke(); }
+    else if(u.kind==="iguana"){ g.fillStyle=lite; for(let i=-3;i<=3;i++){ g.beginPath(); g.moveTo(i*bLen*0.16,-r*0.05); g.lineTo(i*bLen*0.16-r*0.07,-bW*0.9); g.lineTo(i*bLen*0.16+r*0.07,-bW*0.9); g.closePath(); g.fill(); } }
+    else if(u.kind==="frog"){ g.fillStyle="rgba(40,70,20,0.5)"; for(const o of [[-.2,-.3],[.1,.35],[.25,-.2]]){ g.beginPath(); g.arc(o[0]*bLen*1.1,o[1]*bW*1.1,r*0.13,0,7); g.fill(); } }
+    // 耳：正色 + 粉內耳（外框已由底圖給了，這裡不再描邊）
+    if(earKind) for(const s of [-1,1]){ g.fillStyle=shade(col,10); g.beginPath(); g.arc(hx-hr*0.15,s*hr*0.9,earR,0,7); g.fill();
+      if(u.kind!=="bear"){ g.fillStyle="#e79ab0"; g.beginPath(); g.arc(hx-hr*0.1,s*hr*0.9,earR*0.5,0,7); g.fill(); } }
+    // 頭：正色
+    g.beginPath(); g.arc(hx,0,hr,0,7); g.fillStyle=u.hitT>0?"#fff":shade(col,14); g.fill();
+    // 口鼻
+    if(mammal){ g.fillStyle=u.hitT>0?"#fff":lite; g.beginPath(); g.ellipse(hx+hr*0.58,0,hr*0.5,hr*0.4,0,0,7); g.fill(); }
+    // 青蛙凸眼底座
+    if(u.kind==="frog"){ g.fillStyle=shade(col,25); g.beginPath(); g.arc(hx,-hr*0.8,hr*0.5,0,7); g.arc(hx,hr*0.8,hr*0.5,0,7); g.fill(); }
     // 鹿角
-    if(u.kind==="deer"){ ctx.strokeStyle="#8d6e63"; ctx.lineWidth=r*0.08; ctx.lineCap="round";
-      for(const s of [-1,1]){ ctx.beginPath(); ctx.moveTo(hx,s*hr*0.6); ctx.lineTo(hx+r*0.4,s*hr*1.3); ctx.moveTo(hx+r*0.22,s*hr*1.0); ctx.lineTo(hx+r*0.45,s*hr*0.6); ctx.stroke(); } ctx.lineCap="butt"; }
+    if(u.kind==="deer"){ g.strokeStyle="#6d4c2f"; g.lineWidth=r*0.08+2; g.lineCap="round";
+      for(const s of [-1,1]){ g.beginPath(); g.moveTo(hx,s*hr*0.6); g.lineTo(hx+r*0.4,s*hr*1.3); g.moveTo(hx+r*0.22,s*hr*1.0); g.lineTo(hx+r*0.45,s*hr*0.6); g.stroke(); }
+      g.strokeStyle="#8d6e63"; g.lineWidth=r*0.08;
+      for(const s of [-1,1]){ g.beginPath(); g.moveTo(hx,s*hr*0.6); g.lineTo(hx+r*0.4,s*hr*1.3); g.moveTo(hx+r*0.22,s*hr*1.0); g.lineTo(hx+r*0.45,s*hr*0.6); g.stroke(); } g.lineCap="butt"; }
     // 鳥喙 + 藍鵲長尾
-    if(bird){ ctx.fillStyle=u.kind==="ibis"?"#222":"#e8a13a"; ctx.beginPath(); ctx.moveTo(hx+hr*0.6,-hr*0.15); ctx.lineTo(hx+hr*(u.kind==="ibis"?2.6:1.5),u.kind==="ibis"?hr*0.5:0); ctx.lineTo(hx+hr*0.6,hr*0.15); ctx.closePath(); ctx.fill();
-      if(u.kind==="ibis"){ ctx.fillStyle="#222"; ctx.beginPath(); ctx.arc(hx,0,hr*0.9,0,7); ctx.fill(); } // 聖䴉黑頭
-      if(u.kind==="magpie"){ ctx.strokeStyle="#1565c0"; ctx.lineWidth=r*0.26; ctx.lineCap="round"; ctx.beginPath(); ctx.moveTo(-bLen*0.8,0); ctx.lineTo(-r*1.7,Math.sin(gt*3+u.phase)*r*0.25); ctx.stroke(); ctx.lineCap="butt"; } }
+    if(bird){ g.fillStyle=INK; g.beginPath(); g.moveTo(hx+hr*0.55,-hr*0.2); g.lineTo(hx+hr*(u.kind==="ibis"?2.65:1.55),u.kind==="ibis"?hr*0.55:0); g.lineTo(hx+hr*0.55,hr*0.2); g.closePath(); g.fill();
+      g.fillStyle=u.kind==="ibis"?"#333":"#e8a13a"; g.beginPath(); g.moveTo(hx+hr*0.6,-hr*0.15); g.lineTo(hx+hr*(u.kind==="ibis"?2.6:1.5),u.kind==="ibis"?hr*0.5:0); g.lineTo(hx+hr*0.6,hr*0.15); g.closePath(); g.fill();
+      if(u.kind==="ibis"){ g.fillStyle="#222"; g.beginPath(); g.arc(hx,0,hr*0.9,0,7); g.fill(); }
+      if(u.kind==="magpie"){ g.strokeStyle=INK; g.lineWidth=r*0.26+3; g.lineCap="round"; g.beginPath(); g.moveTo(-bLen*0.8,0); g.lineTo(-r*1.7,Math.sin(gt*3+u.phase)*r*0.25); g.stroke();
+        g.strokeStyle="#1565c0"; g.lineWidth=r*0.26; g.beginPath(); g.moveTo(-bLen*0.8,0); g.lineTo(-r*1.7,Math.sin(gt*3+u.phase)*r*0.25); g.stroke(); g.lineCap="butt"; } }
     // 蝸牛觸角
-    if(u.kind==="snail"){ ctx.strokeStyle=col; ctx.lineWidth=r*0.06; for(const s of [-1,1]){ ctx.beginPath(); ctx.moveTo(hx,s*hr*0.4); ctx.lineTo(hx+r*0.25,s*hr*0.9); ctx.stroke(); } }
+    if(u.kind==="snail"){ g.strokeStyle=col; g.lineWidth=r*0.06; for(const s of [-1,1]){ g.beginPath(); g.moveTo(hx,s*hr*0.4); g.lineTo(hx+r*0.25,s*hr*0.9); g.stroke(); } }
     // 翅（拍動）
-    if(flyer){ const flap=0.4+0.6*Math.abs(Math.sin(gt*20+u.phase)), wl=u.kind==="dragonfly"?1.1:0.85; ctx.fillStyle=u.kind==="dragonfly"?"rgba(190,240,250,0.55)":"rgba(210,225,200,0.6)";
-      for(const s of [-1,1]){ ctx.save(); ctx.scale(1,s*flap); ctx.beginPath(); ctx.ellipse(r*0.1,bW*2.2,r*wl,r*0.32,0,0,7); ctx.fill(); ctx.restore(); } }
-    // 眼睛（白+虹膜+高光；攻擊時虹膜轉紅+怒眉；飛蟲複眼；蝸牛眼在眼柄，這裡略過）
+    if(flyer){ const flap=0.4+0.6*Math.abs(Math.sin(gt*20+u.phase)), wl=u.kind==="dragonfly"?1.1:0.85; g.fillStyle=u.kind==="dragonfly"?"rgba(190,240,250,0.55)":"rgba(210,225,200,0.6)";
+      for(const s of [-1,1]){ g.save(); g.scale(1,s*flap); g.beginPath(); g.ellipse(r*0.1,bW*2.2,r*wl,r*0.32,0,0,7); g.fill(); g.restore(); } }
+
+    // ===== 表情：眼睛 + 嘴巴 + 生氣/得意 特效 =====
     if(u.kind!=="snail"){ const eyx=u.kind==="frog"?hx:hx+hr*0.32, eyy=u.kind==="frog"?hr*0.82:hr*0.4, er=hr*0.3;
-      if(flyer){ for(const s of [-1,1]){ ctx.fillStyle=shade(col,-22); ctx.beginPath(); ctx.arc(hx+hr*0.15,s*hr*0.55,hr*0.5,0,7); ctx.fill(); ctx.fillStyle="rgba(255,255,255,0.45)"; ctx.beginPath(); ctx.arc(hx+hr*0.3,s*hr*0.42,hr*0.16,0,7); ctx.fill(); } }
-      else { for(const s of [-1,1]){ ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(eyx,s*eyy,er,0,7); ctx.fill();
-          ctx.fillStyle=angry?"#c62828":"#3a2a1a"; ctx.beginPath(); ctx.arc(eyx+er*0.35,s*eyy,er*0.62,0,7); ctx.fill();
-          ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(eyx+er*0.08,s*eyy-er*0.35,er*0.3,0,7); ctx.fill(); }
-        if(mammal){ ctx.fillStyle="#3a2a20"; ctx.beginPath(); ctx.arc(hx+hr*0.98,0,hr*0.15,0,7); ctx.fill(); }
-        if(angry){ ctx.strokeStyle="rgba(0,0,0,0.6)"; ctx.lineWidth=r*0.06; for(const s of [-1,1]){ ctx.beginPath(); ctx.moveTo(eyx-hr*0.15,s*eyy-hr*0.5); ctx.lineTo(eyx+hr*0.4,s*eyy-hr*0.22); ctx.stroke(); } } } }
+      if(flyer){ for(const s of [-1,1]){ g.fillStyle=shade(col,-22); g.beginPath(); g.arc(hx+hr*0.15,s*hr*0.55,hr*0.5,0,7); g.fill(); g.fillStyle="rgba(255,255,255,0.45)"; g.beginPath(); g.arc(hx+hr*0.3,s*hr*0.42,hr*0.16,0,7); g.fill(); } }
+      else if(proud){ // 得意：瞇眼笑 + 腮紅 + 得意嘴 + 頭上星星
+        g.strokeStyle=INK; g.lineWidth=Math.max(1.8,r*0.1); g.lineCap="round";
+        for(const s of [-1,1]){ g.beginPath(); g.moveTo(eyx-er*0.85,s*eyy); g.quadraticCurveTo(eyx,s*eyy-s*er*0.95,eyx+er*0.85,s*eyy); g.stroke(); }
+        g.lineCap="butt";
+        g.fillStyle="rgba(255,138,128,0.55)"; for(const s of [-1,1]){ g.beginPath(); g.ellipse(eyx-hr*0.05,s*eyy*1.7,hr*0.22,hr*0.15,0,0,7); g.fill(); }
+        g.strokeStyle=INK; g.lineWidth=Math.max(1.6,r*0.09); g.lineCap="round";
+        g.beginPath(); g.moveTo(hx+hr*0.75,-hr*0.12); g.quadraticCurveTo(hx+hr*1.05,hr*0.12,hx+hr*0.55,hr*0.28); g.stroke(); g.lineCap="butt";
+        const sp=1+0.25*Math.sin(gt*8); g.fillStyle="#ffd54f";
+        for(const sd of [[hr*0.3,-hr*1.5,0.16],[hr*1.1,-hr*0.9,0.11]]){ starG(g,hx+sd[0],sd[1],hr*sd[2]*sp); }
+      } else { // 一般 / 生氣
+        for(const s of [-1,1]){ g.fillStyle="#fff"; g.beginPath(); g.arc(eyx,s*eyy,er,0,7); g.fill();
+          g.strokeStyle="rgba(0,0,0,0.35)"; g.lineWidth=Math.max(0.9,r*0.03); g.stroke();
+          g.fillStyle=angry?"#d32f2f":"#3a2a1a"; g.beginPath(); g.arc(eyx+er*0.35,s*eyy,er*0.62,0,7); g.fill();
+          g.fillStyle="#1a0f08"; g.beginPath(); g.arc(eyx+er*0.35,s*eyy,er*0.28,0,7); g.fill();
+          g.fillStyle="#fff"; g.beginPath(); g.arc(eyx+er*0.08,s*eyy-er*0.35,er*0.3,0,7); g.fill(); }
+        if(mammal){ g.fillStyle="#3a2a20"; g.beginPath(); g.arc(hx+hr*0.98,0,hr*0.15,0,7); g.fill(); }
+        if(angry){
+          g.strokeStyle=INK; g.lineWidth=Math.max(1.4,r*0.07); g.lineCap="round";
+          for(const s of [-1,1]){ g.beginPath(); g.moveTo(eyx-hr*0.18,s*eyy-hr*0.52); g.lineTo(eyx+hr*0.42,s*eyy-hr*0.24); g.stroke(); }
+          g.lineCap="butt";
+          // 青筋（漫畫生氣符號）
+          g.strokeStyle="#e53935"; g.lineWidth=Math.max(1.3,r*0.06);
+          const vx=hx-hr*0.55, vy=-hr*1.05;
+          g.beginPath(); g.moveTo(vx-5,vy); g.lineTo(vx+3,vy+6); g.lineTo(vx-2,vy+5); g.lineTo(vx+6,vy+12); g.stroke();
+          if(mammal){ g.fillStyle="#fff"; for(const s of [-1,1]){ g.beginPath(); g.moveTo(hx+hr*0.2,s*hr*0.22); g.lineTo(hx+hr*0.42,s*hr*0.1); g.lineTo(hx+hr*0.42,s*hr*0.3); g.closePath(); g.fill(); } } // 齜牙
+        } else if(mammal||u.kind==="frog"){ g.strokeStyle=INK; g.lineWidth=Math.max(1.3,r*0.06); g.lineCap="round";
+          g.beginPath(); g.moveTo(hx+hr*0.6,-hr*0.14); g.quadraticCurveTo(hx+hr*0.82,0,hx+hr*0.6,hr*0.14); g.stroke(); g.lineCap="butt"; } } }
+    g.restore();
+    // 立體上色：頂光 + 底暗，只作用在角色剪影上（source-atop，跟大廳 drawCreature 同一套質感）
+    g.save(); g.globalCompositeOperation="source-atop";
+    const sg=g.createLinearGradient(0,-R2*0.85,0,R2*0.72);
+    sg.addColorStop(0,"rgba(255,255,255,0.30)"); sg.addColorStop(0.45,"rgba(255,255,255,0)"); sg.addColorStop(1,"rgba(0,0,0,0.32)");
+    g.fillStyle=sg; g.fillRect(-R2,-R2,R2*2,R2*2);
+    g.globalCompositeOperation="source-over"; g.restore();
+    // 合成到主畫布（旋轉貼上，跟隨移動方向）
+    ctx.save(); ctx.translate(u.x+Math.cos(f)*lunge,gy+Math.sin(f)*lunge*0.4); ctx.rotate(f); if(u.hitT>0) ctx.globalAlpha=0.9;
+    ctx.drawImage(oc,-R2,-R2,R2*2,R2*2);
     ctx.restore();
   }
   function drawUnit(u,r,isInv){ drawCreatureTop(u,r,isInv?"inv":"ally"); const R=r*kcfg(u.kind).sz;
@@ -432,12 +489,12 @@
       if(u.hp<u.maxhp) bar(u.x,u.y-R-8,u.elite?40:26,u.hp/u.maxhp,"#ff8a80");
       if(u.stun>0){ ctx.fillStyle="#ffe082"; for(let s=0;s<3;s++){ const a=clock*7+s*2.1; ctx.beginPath(); ctx.arc(u.x+Math.cos(a)*R*0.9,u.y-R-2+Math.sin(a)*3,2.4,0,7); ctx.fill(); } } } }
   function drawHero(h){ const r=h.r, R=r*kcfg(h.kind).sz; drawCreatureTop(h,r,"ally");
-    if(h.isPlayer){ ctx.strokeStyle="#ffd54f"; ctx.lineWidth=3; ctx.beginPath(); ctx.ellipse(h.x,h.y+r*0.5,R*1.2,R*0.5,0,0,7); ctx.stroke();
-      const bY=h.y-R*1.8-Math.sin(clock*4)*3; ctx.fillStyle="#ffd54f"; ctx.beginPath(); ctx.moveTo(h.x,bY+10); ctx.lineTo(h.x-7,bY); ctx.lineTo(h.x+7,bY); ctx.fill(); }
+    if(h.isPlayer){ const bY=h.y-R*1.8-Math.sin(clock*4)*3; ctx.fillStyle="#ffd54f"; ctx.beginPath(); ctx.moveTo(h.x,bY+10); ctx.lineTo(h.x-7,bY); ctx.lineTo(h.x+7,bY); ctx.fill(); }
     bar(h.x,h.y-R-14,42,h.hp/h.maxhp,"#66bb6a");
     ctx.font="bold 12px sans-serif"; ctx.textAlign="center"; ctx.fillStyle="#fff"; ctx.fillText(h.name,h.x-9,h.y-R-20);
     ctx.fillStyle="#ffd54f"; ctx.fillText(" Lv"+(h.level||1),h.x+h.name.length*6,h.y-R-20); }
   function bar(x,y,w,frac,col){ ctx.fillStyle="rgba(0,0,0,0.5)"; ctx.fillRect(x-w/2,y,w,5); ctx.fillStyle=col; ctx.fillRect(x-w/2,y,w*clamp(frac,0,1),5); }
+  function starG(g2,x,y,r){ g2.beginPath(); for(let i=0;i<4;i++){ const a=i*1.5708; g2.moveTo(x,y); g2.lineTo(x+Math.cos(a-0.32)*r,y+Math.sin(a-0.32)*r); g2.lineTo(x+Math.cos(a)*r*1.8,y+Math.sin(a)*r*1.8); g2.lineTo(x+Math.cos(a+0.32)*r,y+Math.sin(a+0.32)*r); } g2.closePath(); g2.fill(); }
 
   /* ---------- HUD ---------- */
   function updateHUD(){ setW("mhpAlly",shrine.hp/shrine.maxhp); txt("mhpAllyTxt",Math.ceil(shrine.hp));
