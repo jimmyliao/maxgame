@@ -13,9 +13,9 @@
 
   /* ---------- 物種資料 ---------- */
   const KCOL = { leopard:"#e8a13a", bear:"#3b332e", cicada:"#5f9a3c", dragonfly:"#1fa3a3", deer:"#cf9a5e", magpie:"#2f6fd0",
-                 snail:"#b6884a", iguana:"#54b24a", frog:"#82b24c", ibis:"#e3e9ec" };
+                 snail:"#b6884a", iguana:"#54b24a", frog:"#82b24c", ibis:"#e3e9ec", anole:"#8a6a3c" };
   const KNAME = { leopard:"石虎", bear:"黑熊", cicada:"爺蟬", dragonfly:"勾蜓", deer:"梅花鹿", magpie:"藍鵲",
-                  snail:"福壽螺", iguana:"綠鬣蜥", frog:"斑腿蛙", ibis:"聖䴉" };
+                  snail:"福壽螺", iguana:"綠鬣蜥", frog:"斑腿蛙", ibis:"聖䴉", anole:"沙氏變色蜥" };
   const GUARDIANS = ["leopard","bear","dragonfly","magpie","deer","cicada"];
   const INVADERS  = ["iguana","snail","frog","ibis"];
   // 各物種體型/身形（讓每隻一眼就不同：大小、身體長寬比）
@@ -24,12 +24,13 @@
     deer:{sz:1.16, long:1.10, wide:0.56},    dragonfly:{sz:0.82, long:1.35, wide:0.24},
     cicada:{sz:0.90, long:0.88, wide:0.52},   magpie:{sz:0.96, long:1.00, wide:0.60},
     iguana:{sz:1.14, long:1.30, wide:0.52},   snail:{sz:1.04, long:0.92, wide:0.74},
-    frog:{sz:1.08, long:0.82, wide:0.98},     ibis:{sz:1.10, long:1.04, wide:0.58}
+    frog:{sz:1.08, long:0.82, wide:0.98},     ibis:{sz:1.10, long:1.04, wide:0.58},
+    anole:{sz:0.68, long:1.15, wide:0.42}
   };
   const kcfg=(k)=>KCFG[k]||{sz:1,long:1,wide:0.74};
   // 圖檔優先：放 assets/top/<kind>.png(俯視角、面向右、去背)就自動改用寫實圖，沒有就用程式圖
   const SPRITES_TOP={};
-  ["leopard","bear","cicada","dragonfly","deer","magpie","snail","iguana","frog","ibis"].forEach(k=>{
+  ["leopard","bear","cicada","dragonfly","deer","magpie","snail","iguana","frog","ibis","anole"].forEach(k=>{
     try{ const im=new Image(); im.onload=()=>{ if(im.naturalWidth>0) SPRITES_TOP[k]=im; }; im.onerror=()=>{}; im.src="assets/top/"+k+".png"; }catch(e){} });
 
   /* ---------- 視窗 / 世界 ---------- */
@@ -55,6 +56,45 @@
   let pickMode="normal", timeAttack=false;
   let battleRegion="paddy", healthBonus=0;   // 復育↔對戰核心循環：戰場棲地健康度影響數值加成
   const REGION_LABEL={ paddy:"稻田", hill:"淺山", stream:"溪流", wetland:"濕地" };
+
+  /* ---------- 晝夜 / 氣候戰場系統：每場開戰隨機挑一種天候，疊加在既有屬性相剋之上 ---------- */
+  const WEATHER_KEYS=["sunny","night","cold","storm"];
+  const WEATHER_INFO={
+    sunny:{icon:"☀",name:"晴天"}, night:{icon:"🌙",name:"夜間"}, cold:{icon:"❄",name:"寒流"}, storm:{icon:"🌧",name:"暴雨"} };
+  let weatherBattle="sunny", weatherFx=[];   // weatherFx：雨滴/雪花等天候粒子（獨立於 fx，硬上限＋回收）
+  const COLD_BLOODED=["cicada","frog"];      // 變溫動物：寒流中行動遲緩
+  const FLYERS_KIND=["dragonfly","magpie","ibis"]; // 空中活動物種：暴雨中命中率下降
+  function pickWeather(){
+    // 可重現的隨機挑選，現實時段當偏好權重（不硬綁死，方便測試/好玩）
+    const hr=new Date().getHours(), weights=WEATHER_KEYS.map(k=>{
+      if(k==="night") return (hr>=19||hr<6)?2.2:0.7;
+      if(k==="sunny") return (hr>=9&&hr<17)?1.6:0.9;
+      return 1; });
+    const sum=weights.reduce((a,b)=>a+b,0); let roll=Math.random()*sum;
+    for(let i=0;i<WEATHER_KEYS.length;i++){ roll-=weights[i]; if(roll<=0) return WEATHER_KEYS[i]; }
+    return "sunny"; }
+  function weatherToast(){
+    if(weatherBattle==="night") toast("🌙 夜間戰場！石虎夜襲加成生效（攻擊+閃避 +20%）");
+    else if(weatherBattle==="cold") toast("❄ 寒流來襲！變溫動物（爺蟬／樹蛙）行動遲緩");
+    else if(weatherBattle==="storm") toast("🌧 暴雨戰場！空中守護者／入侵種命中率下降");
+    else toast("☀ 晴天戰場・一切如常"); }
+  function evadeRoll(u){ return u.kind==="leopard"&&weatherBattle==="night"&&Math.random()<0.20; } // 石虎夜間閃避
+  function weatherAtkMul(u){ return (u.kind==="leopard"&&weatherBattle==="night")?1.2:1; }
+  function weatherSpeedMul(k){ if(weatherBattle==="cold"&&COLD_BLOODED.indexOf(k)>=0) return 0.75; return 1; }
+  function weatherMissRoll(k){ return weatherBattle==="storm"&&FLYERS_KIND.indexOf(k)>=0&&Math.random()<0.18; }
+
+  /* ---------- 生物防治鏈：原生種剋制特定外來種的額外傷害倍率（疊加在大屬性相剋之上） ---------- */
+  // 石虎會捕食小型爬蟲類 → 對綠鬣蜥／沙氏變色蜥加成；藍鵲主動驅趕護巢、黑熊體型壓制 → 對埃及聖䴉加成
+  const ECO_CHAIN={ leopard:{iguana:1.25,anole:1.3}, magpie:{ibis:1.25}, bear:{ibis:1.2} };
+  function ecoChainMul(atkKind,defKind){ const m=ECO_CHAIN[atkKind]; return (m&&m[defKind])||1; }
+  const ECO_FACT={ leopard_iguana:"石虎會捕食小型爬蟲類，對綠鬣蜥有天敵壓制力！", leopard_anole:"石虎的掠食本能對沙氏變色蜥格外有效！",
+    magpie_ibis:"台灣藍鵲會主動驅趕護巢，克制外來的埃及聖䴉！", bear_ibis:"黑熊體型壓制，讓聖䴉不敢靠近！" };
+
+  /* ---------- PVE 限時外來種防衛戰：清除指定入侵種，時間到未達標即失敗 ---------- */
+  let pveEvent=null;   // {target, need, got, timeLeft, active}
+  const PVE_TARGETS=["iguana","ibis","anole"];
+  const PVE_DUR=90, PVE_NEED={iguana:14, ibis:10, anole:22};
+  let pvePickTarget="iguana";
   function fmtTime(s){ s=Math.max(0,Math.floor(s)); const m=Math.floor(s/60), ss=s%60; return m+":"+(ss<10?"0":"")+ss; }
   function getBest(size){ try{ const v=parseFloat(localStorage.getItem("shoutu_besttime_"+size)); return isNaN(v)?null:v; }catch(e){ return null; } }
   function setBest(size,t){ try{ localStorage.setItem("shoutu_besttime_"+size,String(t)); }catch(e){} }
@@ -75,14 +115,17 @@
     dmg:28, range:70, cd:0.6, t:0, spCd:0, speed:isPlayer?172:150, face:0, dead:false, respawn:0, name:KNAME[kind]||kind,
     hitT:0, anim:0, moving:false, phase:Math.random()*6.28, atkA:0, mood:"n", moodT:0 }; }
   function mkInvader(kind,elite){ const p=edgePoint(), scale=1+Math.min(1.3,clock/120)*0.6; // 隨時間越來越強
-    const hp=Math.round((elite?300:64)*scale);
-    return { kind, x:p.x, y:p.y, r:elite?30:16, hp, maxhp:hp, dmg:Math.round((elite?18:10)*scale), range:elite?44:32,
-      cd:0.9, t:0, speed:elite?62:82, face:0, dead:false, elite, hitT:0, tgt:null, anim:0, moving:false, phase:Math.random()*6.28, atkA:0, stun:0, mood:"n", moodT:0 }; }
+    const isAnole=kind==="anole"&&!elite; // 沙氏變色蜥：體型小、繁殖力強 → 個體弱小但速度快（呼應真實生態習性）
+    const hp=Math.round((elite?300:isAnole?40:64)*scale);
+    return { kind, x:p.x, y:p.y, r:elite?30:(isAnole?12:16), hp, maxhp:hp, dmg:Math.round((elite?18:isAnole?7:10)*scale), range:elite?44:30,
+      cd:0.9, t:0, speed:elite?62:(isAnole?104:82), face:0, dead:false, elite, hitT:0, tgt:null, anim:0, moving:false, phase:Math.random()*6.28, atkA:0, stun:0, mood:"n", moodT:0 }; }
   function edgePoint(){ const s=Math.floor(Math.random()*4), u=Math.random();
     if(s===0) return {x:u*MW,y:20}; if(s===1) return {x:u*MW,y:MH-20}; if(s===2) return {x:20,y:u*MH}; return {x:MW-20,y:u*MH}; }
 
   function setup(size){ teamSize=size; clock=0; ended=false; restore=0; killCount=0; spawnT=2; surgeT=42; finalAssault=false; directive=null; directiveCd=0; bubble=null; eliteFlash=0; timeAttack=(pickMode==="time");
-    fx=[]; floats=[]; invaders=[]; hprojs=[];
+    fx=[]; floats=[]; invaders=[]; hprojs=[]; weatherFx=[];
+    weatherBattle=pickWeather();
+    pveEvent=(pickMode==="pve")? { target:pvePickTarget, need:PVE_NEED[pvePickTarget]||12, got:0, timeLeft:PVE_DUR, active:true } : null;
     shrine={ x:SHX, y:SHY, r:76, hp:1400, maxhp:1400, kind:"shrine", hitT:0 };
     nurseries=NPOS.map(p=>({ x:p.x, y:p.y, r:34, hp:340, maxhp:340, growth:0.15, contested:false, kind:"nursery" }));
     const myKey=(window.__featuredKey&&window.__featuredKey())||"leopard";
@@ -91,9 +134,11 @@
     healthBonus=(window.__habitatHealth&&window.__habitatHealth(battleRegion))||0;   // 該地區棲地健康度 0~1
     heroes=kinds.map((k,i)=>{ const h=mkHero(k,i===0); const ang=-1.57+(i-(size-1)/2)*0.6; h.x=SHX+Math.cos(ang)*150; h.y=SHY+Math.sin(ang)*150;
       const lv=(window.__heroLevel&&window.__heroLevel(k))||1; h.level=lv; h.maxhp=Math.round(h.maxhp*(1+(lv-1)*0.03)); h.hp=h.maxhp; h.dmg=Math.round(h.dmg*(1+(lv-1)*0.02));
-      h.speed=Math.round(h.speed*(1+healthBonus*0.12)); h.spMax=((SKILL[k]&&SKILL[k].cd)||7)*(1-healthBonus*0.15); return h; });
+      h.speed=Math.round(h.speed*(1+healthBonus*0.12)*weatherSpeedMul(k)); h.spMax=((SKILL[k]&&SKILL[k].cd)||7)*(1-healthBonus*0.15); return h; });
     player=heroes[0];
     cam.x=clamp(player.x-VW/2,0,Math.max(0,MW-VW)); cam.y=clamp(player.y-VH/2,0,Math.max(0,MH-VH));
+    setTimeout(weatherToast,200);   // 讓進場動畫先跑，再顯示天候 toast
+    if(pveEvent) setTimeout(()=>toast("🎯 限時防衛戰！驅逐 "+(PVE_NEED[pvePickTarget]||12)+" 隻 "+KNAME[pvePickTarget]),1600);
   }
 
   /* ---------- 目標 ---------- */
@@ -108,7 +153,9 @@
 
   /* ---------- 傷害 ---------- */
   function knock(o,fromX,fromY,amt){ if(!('elite' in o)) return; const a=Math.atan2(o.y-fromY,o.x-fromX), k=o.elite?amt*0.3:amt; o.x+=Math.cos(a)*k; o.y+=Math.sin(a)*k; }
-  function hurt(o,amt,by){ if(o.hp<=0) return; o.hp-=amt; o.hitT=0.14; const big=amt>=40;
+  function hurt(o,amt,by){ if(o.hp<=0) return;
+    if(evadeRoll(o)){ floats.push({x:o.x,y:o.y-o.r-6,txt:"閃避！",col:"#fff59d",life:0.6}); return; } // 夜間石虎閃避加成
+    o.hp-=amt; o.hitT=0.14; const big=amt>=40;
     floats.push({x:o.x,y:o.y-o.r-6,txt:"-"+Math.round(amt),col:big?"#fff59d":"#fff",life:0.6,big}); sparks(o.x,o.y,big?9:5,big?"#fff59d":"#fff");
     if(o.hp<=0){ o.hp=0; onDeath(o,by); } }
   function onDeath(o,by){
@@ -124,27 +171,46 @@
     if(o.elite){ mshake=Math.max(mshake,10); ring(o.x,o.y,90,"#ffca28"); }
     restore=clamp(restore+(o.elite?0.05:0.012),0,1);
     floats.push({x:o.x,y:o.y-30,txt:(o.elite?"入侵種王 ":"")+KNAME[o.kind]+" 被驅逐  🌿復原+"+(o.elite?5:1)+"%",col:"#c5e1a5",life:1.1});
-    if(by && by.isPlayer!==undefined){ by.mood="proud"; by.moodT=1.6; } // 守護者擊退入侵種：得意
+    if(by && by.isPlayer!==undefined){ by.mood="proud"; by.moodT=1.6;
+      const fact=ECO_FACT[by.kind+"_"+o.kind]; if(fact && Math.random()<0.5) toast("🔗 "+fact); } // 守護者擊退入侵種：得意 + 生物防治鏈科普
+    if(pveEvent && pveEvent.active && o.kind===pveEvent.target){ pveEvent.got++;
+      if(pveEvent.got>=pveEvent.need){ pveEvent.active=false; toast("🎯 防衛戰成功！"+KNAME[pveEvent.target]+" 已清除足額！"); endGame(true); } }
   }
 
   /* ---------- 攻擊 ---------- */
-  function meleeHit(u,tgt,dmg){ u.t=u.cd; u.atkA=0.2; u.face=Math.atan2(tgt.y-u.y,tgt.x-u.x);
+  function meleeHit(u,tgt,dmg){
+    // 暴雨天候：空中守護者攻擊有機率落空（命中率下降）
+    if(u.isPlayer!==undefined && weatherMissRoll(u.kind)){ u.t=u.cd*0.6; floats.push({x:u.x,y:u.y-u.r-6,txt:"MISS",col:"#b3e5fc",life:0.5}); return; }
+    // 夜間石虎閃避：目標若正被石虎攻擊、且目標是入侵種攻擊石虎本體則另計，這裡處理「u 攻擊 tgt」一般情形不受影響；
+    // 閃避判定放在 tgt 端（見下方 hurt 呼叫前的 evadeRoll）
+    u.t=u.cd; u.atkA=0.2; u.face=Math.atan2(tgt.y-u.y,tgt.x-u.x);
     fx.push({type:"slash",x:u.x+Math.cos(u.face)*u.r,y:u.y+Math.sin(u.face)*u.r,a:u.face,life:0.16,max:0.16,col:"#fff59d"});
-    hurt(tgt,dmg,u); knock(tgt,u.x,u.y,u.isPlayer?15:11); if(u.isPlayer) mshake=Math.max(mshake,4); }
+    let mul=1;
+    if(u.isPlayer!==undefined) mul*=weatherAtkMul(u);           // 夜間石虎攻擊力 +20%
+    if(u.isPlayer!==undefined && tgt.kind) mul*=ecoChainMul(u.kind,tgt.kind); // 生物防治鏈：剋制加成
+    hurt(tgt,dmg*mul,u); knock(tgt,u.x,u.y,u.isPlayer?15:11); if(u.isPlayer) mshake=Math.max(mshake,4); }
 
   /* ---------- 更新 ---------- */
   function step(dt){
     if(ended) return; clock+=dt; if(mshake>0) mshake=Math.max(0,mshake-dt*38); if(eliteFlash>0) eliteFlash=Math.max(0,eliteFlash-dt*1.6);
     // 入侵浪潮：更兇、隨時間加速、精英「入侵種王」
-    const RK=()=>INVADERS[Math.floor(Math.random()*INVADERS.length)];
-    const pushInv=(el)=>{ if(invaders.length<80){ const v=mkInvader(RK(),el); invaders.push(v);
+    // PVE 防衛戰模式：入侵種池只出目標種（沙氏變色蜥另建入侵池，一般模式不會自然出現）
+    const pveInvPool=pveEvent?[pveEvent.target]:INVADERS;
+    const RK=()=>pveInvPool[Math.floor(Math.random()*pveInvPool.length)];
+    const pushInv=(el)=>{ if(invaders.length<80){ const v=mkInvader(RK(),el);
+      v.speed=Math.round(v.speed*weatherSpeedMul(v.kind));   // 寒流：變溫動物（如樹蛙）移動變慢
+      invaders.push(v);
       if(el){ eliteFlash=0.5; mshake=Math.max(mshake,7); toast("👑 "+KNAME[v.kind]+"王　降臨！"); } } };
     spawnT-=dt;
     if(spawnT<=0){ const ramp=Math.min(1,clock/110); spawnT=Math.max(0.8, 3.0-ramp*2.0);
       const n=2+(Math.random()<ramp?1:0); for(let i=0;i<n;i++) pushInv(false);
-      if(clock>15 && Math.random()<0.2+ramp*0.28) pushInv(true); }
-    surgeT-=dt; if(surgeT<=0){ surgeT=42; toast("⚠ 入侵潮來襲！"); const c=3+Math.floor(clock/45); for(let i=0;i<c;i++) pushInv(false); pushInv(true); }
-    if(restore>=0.75 && !finalAssault){ finalAssault=true; toast("⚠ 最終反撲・守住神木！"); for(let i=0;i<6;i++) pushInv(false); pushInv(true); pushInv(true); }
+      if(!pveEvent && clock>15 && Math.random()<0.2+ramp*0.28) pushInv(true); }   // PVE 防衛戰不出入侵種王，聚焦清剿目標種
+    surgeT-=dt; if(surgeT<=0){ surgeT=42; toast("⚠ 入侵潮來襲！"); const c=3+Math.floor(clock/45); for(let i=0;i<c;i++) pushInv(false); if(!pveEvent) pushInv(true); }
+    if(!pveEvent && restore>=0.75 && !finalAssault){ finalAssault=true; toast("⚠ 最終反撲・守住神木！"); for(let i=0;i<6;i++) pushInv(false); pushInv(true); pushInv(true); }
+
+    // PVE 限時外來種防衛戰：倒數計時，時間到未達標即失敗
+    if(pveEvent && pveEvent.active){ pveEvent.timeLeft-=dt;
+      if(pveEvent.timeLeft<=0){ pveEvent.active=false; pveEvent.timeLeft=0; toast("⏱ 時間到！未能清除足額 "+KNAME[pveEvent.target]); endGame(false); } }
 
     // 入侵種
     for(const v of invaders){ if(v.dead) continue; if(v.hitT>0) v.hitT-=dt; if(v.moodT>0) v.moodT-=dt;
@@ -200,13 +266,22 @@
     for(const e of fx){ e.life-=dt; if(e.type==="spark"){ e.x+=e.vx*dt; e.y+=e.vy*dt; } } fx=fx.filter(e=>e.life>0); if(fx.length>150) fx.splice(0,fx.length-150);
     for(const f of floats){ f.life-=dt; f.y-=26*dt; } floats=floats.filter(f=>f.life>0);
 
+    // 天候粒子：暴雨雨滴 / 寒流雪花，硬上限＋回收（獨立於 fx，畫在螢幕座標，不受鏡頭平移影響）
+    const WFX_MAX=140;
+    if(weatherBattle==="storm" && weatherFx.length<WFX_MAX){ for(let i=0;i<4 && weatherFx.length<WFX_MAX;i++)
+      weatherFx.push({type:"rain",x:Math.random()*VW,y:-10,vy:900+Math.random()*300,life:2}); }
+    else if(weatherBattle==="cold" && weatherFx.length<WFX_MAX*0.6){ for(let i=0;i<1 && weatherFx.length<WFX_MAX*0.6;i++)
+      weatherFx.push({type:"snow",x:Math.random()*VW,y:-10,vy:40+Math.random()*30,vx:(Math.random()-0.5)*20,life:6}); }
+    for(const w of weatherFx){ w.life-=dt; w.y+=w.vy*dt; if(w.vx) w.x+=w.vx*dt; }
+    weatherFx=weatherFx.filter(w=>w.life>0 && w.y<VH+20); if(weatherFx.length>WFX_MAX) weatherFx.splice(0,weatherFx.length-WFX_MAX);
+
     // 鏡頭（依縮放調整可視範圍）
     const vw=VW/zoom, vh=VH/zoom, focus=player.dead?shrine:player;
     cam.x += (clamp(focus.x-vw/2,0,Math.max(0,MW-vw))-cam.x)*Math.min(1,dt*6);
     cam.y += (clamp(focus.y-vh/2,0,Math.max(0,MH-vh))-cam.y)*Math.min(1,dt*6);
 
     updateHUD();
-    if(restore>=1) endGame(true);
+    if(!pveEvent && restore>=1) endGame(true);
   }
 
   function updatePlayer(h,dt){
@@ -294,6 +369,8 @@
     // 神木瀕危：紅色警示閃動
     if(shrine.hp/shrine.maxhp<0.3){ const pl=0.5+0.5*Math.sin(clock*6); const rv=ctx.createRadialGradient(VW/2,VH/2,VH*0.3,VW/2,VH/2,VH*0.78);
       rv.addColorStop(0,"rgba(255,0,0,0)"); rv.addColorStop(1,"rgba(255,0,0,"+(0.26*pl).toFixed(3)+")"); ctx.fillStyle=rv; ctx.fillRect(0,0,VW,VH); }
+    // 晝夜 / 氣候戰場：整體色調 + 天候粒子（畫在螢幕座標，不受鏡頭縮放/平移影響）
+    renderWeather();
     // 入侵種王登場：動漫式衝擊閃光 + 邊角速度線
     if(eliteFlash>0){ const a=eliteFlash/0.5;
       ctx.fillStyle="rgba(120,0,20,"+(0.5*a).toFixed(3)+")"; ctx.fillRect(0,0,VW,VH);
@@ -301,6 +378,17 @@
       for(let i=0;i<10;i++){ const ang=i/10*6.283, cx2=VW/2, cy2=VH/2, r0=Math.min(VW,VH)*0.15, r1=Math.max(VW,VH)*0.75*a+r0;
         ctx.beginPath(); ctx.moveTo(cx2+Math.cos(ang)*r0,cy2+Math.sin(ang)*r0); ctx.lineTo(cx2+Math.cos(ang)*r1,cy2+Math.sin(ang)*r1); ctx.stroke(); } }
     if(toastT>0){ toastT-=0.016; if(toastT<=0){ const el=document.getElementById("mtoast"); if(el) el.classList.remove("show"); } }
+  }
+
+  // 晝夜/氣候視覺呈現：夜間變暗＋藍紫色調、暴雨雨滴、寒流白霧+雪花（獨立於世界座標，畫在螢幕上）
+  function renderWeather(){
+    if(weatherBattle==="night"){ ctx.fillStyle="rgba(18,14,48,0.34)"; ctx.fillRect(0,0,VW,VH); }
+    else if(weatherBattle==="cold"){ ctx.fillStyle="rgba(200,225,240,0.14)"; ctx.fillRect(0,0,VW,VH); }
+    else if(weatherBattle==="storm"){ ctx.fillStyle="rgba(40,50,60,0.22)"; ctx.fillRect(0,0,VW,VH); }
+    if(weatherBattle==="storm"){ ctx.strokeStyle="rgba(200,225,255,0.5)"; ctx.lineWidth=1.4; ctx.lineCap="round";
+      for(const w of weatherFx){ if(w.type!=="rain") continue; ctx.beginPath(); ctx.moveTo(w.x,w.y); ctx.lineTo(w.x-4,w.y-18); ctx.stroke(); } ctx.lineCap="butt"; }
+    else if(weatherBattle==="cold"){ ctx.fillStyle="rgba(255,255,255,0.85)";
+      for(const w of weatherFx){ if(w.type!=="snow") continue; ctx.beginPath(); ctx.arc(w.x,w.y,2.2,0,7); ctx.fill(); } }
   }
 
   function drawField(){
@@ -412,7 +500,7 @@
     g.setTransform(1,0,0,1,R2,R2); g.clearRect(-R2,-R2,R2*2,R2*2);
     g.save(); g.scale(1,breath);
     // 尾巴（貓/鹿/鬣蜥各異，畫在最底層）
-    if(u.kind==="leopard"||u.kind==="deer"||u.kind==="iguana"){ const tw=Math.sin(gt*3+u.phase)*r*0.4, tl=u.kind==="iguana"?1.7:1.35;
+    if(u.kind==="leopard"||u.kind==="deer"||u.kind==="iguana"||u.kind==="anole"){ const tw=Math.sin(gt*3+u.phase)*r*0.4, tl=(u.kind==="iguana"||u.kind==="anole")?1.7:1.35;
       g.strokeStyle=INK; g.lineWidth=r*(u.kind==="deer"?0.12:0.2)+OUT*0.8; g.lineCap="round";
       g.beginPath(); g.moveTo(-bLen*0.8,0); g.quadraticCurveTo(-r*(tl*0.85),tw,-r*tl,tw*1.5); g.stroke();
       g.strokeStyle=col; g.lineWidth=r*(u.kind==="deer"?0.12:0.2);
@@ -446,6 +534,10 @@
     else if(u.kind==="snail"){ g.fillStyle=shade(col,-15); g.beginPath(); g.arc(-bLen*0.1,0,bW*0.95,0,7); g.fill();
       g.strokeStyle=dark; g.lineWidth=r*0.16; g.beginPath(); for(let a=0;a<16;a++){ const rr=bW*0.85*(1-a/19),px=-bLen*0.1+Math.cos(a*0.9)*rr,py=Math.sin(a*0.9)*rr; a?g.lineTo(px,py):g.moveTo(px,py); } g.stroke(); }
     else if(u.kind==="iguana"){ g.fillStyle=lite; for(let i=-3;i<=3;i++){ g.beginPath(); g.moveTo(i*bLen*0.16,-r*0.05); g.lineTo(i*bLen*0.16-r*0.07,-bW*0.9); g.lineTo(i*bLen*0.16+r*0.07,-bW*0.9); g.closePath(); g.fill(); } }
+    else if(u.kind==="anole"){ // 沙氏變色蜥：體側深色斑帶 + 攻擊時展開喉部紅色扇形肉垂（真實求偶/示威行為）
+      g.fillStyle="rgba(40,30,10,0.35)"; for(let i=-2;i<=2;i++){ g.beginPath(); g.ellipse(i*bLen*0.28,0,bLen*0.1,bW*0.85,0,0,7); g.fill(); }
+      if(angry||u.atkA>0){ g.fillStyle="#e05a3a"; g.beginPath(); g.moveTo(hx+hr*0.3,0); g.lineTo(hx+hr*1.0,hr*1.6); g.lineTo(hx-hr*0.3,hr*0.3); g.closePath(); g.fill();
+        g.strokeStyle="rgba(0,0,0,0.3)"; g.lineWidth=Math.max(1,r*0.03); g.stroke(); } }
     else if(u.kind==="frog"){ g.fillStyle="rgba(40,70,20,0.5)"; for(const o of [[-.2,-.3],[.1,.35],[.25,-.2]]){ g.beginPath(); g.arc(o[0]*bLen*1.1,o[1]*bW*1.1,r*0.13,0,7); g.fill(); } }
     // 耳：正色 + 粉內耳（外框已由底圖給了，這裡不再描邊）
     if(earKind) for(const s of [-1,1]){ g.fillStyle=shade(col,10); g.beginPath(); g.arc(hx-hr*0.15,s*hr*0.9,earR,0,7); g.fill();
@@ -546,7 +638,8 @@
   function updateHUD(){ setW("mhpAlly",shrine.hp/shrine.maxhp); txt("mhpAllyTxt",Math.ceil(shrine.hp));
     setW("mRestore",restore); txt("mRestoreTxt",Math.floor(restore*100)+"%");
     const mm=Math.floor(clock/60),ss=Math.floor(clock%60); txt("mclock",mm+":"+(ss<10?"0":"")+ss);
-    if(timeAttack){ const b=getBest(teamSize); txt("mBest", b?("🏆 最佳 "+fmtTime(b)):"⏱ 挑戰紀錄中"); } else txt("mBest","");
+    if(pveEvent){ txt("mBest","🎯 "+KNAME[pveEvent.target]+" "+pveEvent.got+"/"+pveEvent.need+"　⏱ "+fmtTime(pveEvent.timeLeft)); }
+    else if(timeAttack){ const b=getBest(teamSize); txt("mBest", b?("🏆 最佳 "+fmtTime(b)):"⏱ 挑戰紀錄中"); } else txt("mBest","");
     const sp=document.getElementById("mSp"); if(sp){ const mx=(player&&player.spMax)||8, cd=player&&player.spCd>0?player.spCd:0; sp.querySelector(".fill").style.height=(cd/mx*100)+"%"; sp.classList.toggle("ready",cd<=0); } }
   function setW(id,f){ const el=document.getElementById(id); if(el) el.style.width=(clamp(f,0,1)*100)+"%"; }
   function txt(id,v){ const el=document.getElementById(id); if(el) el.textContent=v; }
@@ -558,6 +651,7 @@
   function exitToLobby(){ stop(); root.classList.add("mhide"); hide("mover"); hide("mpick"); mv.x=mv.y=0; if(window.__lobbyRefresh) window.__lobbyRefresh(); }
   function endGame(win){ if(ended) return; ended=true; running=false; cancelAnimationFrame(raf);
     const key=(window.__featuredKey&&window.__featuredKey())||"leopard", before=(window.__heroLevel&&window.__heroLevel(key))||1;
+    if(pveEvent){ endGamePve(win,key,before); return; }
     if(win){ const eco=teamSize*20+killCount, xp=60+teamSize*10+killCount;
       window.__awardEco&&window.__awardEco(eco); window.__awardXP&&window.__awardXP(key,xp); window.__bumpWin&&window.__bumpWin();
       const boostN=6+Math.min(killCount,10);
@@ -570,6 +664,15 @@
         "<br>🌱 "+(REGION_LABEL[battleRegion]||battleRegion)+"棲地獲得復育核心資產，成長加速！"+timeLine); }
     else { const xp=8+killCount; window.__awardXP&&window.__awardXP(key,xp);  // 輸了也給少量經驗——等級只升不降
       showOver("神木倒下了…","棲地失守","別氣餒！多回防受威脅的苗圃、善用『守護爆發』與『回神木』補血，再守一次。<br>"+(KNAME[key]||"")+" 仍獲得 EXP +"+xp+"（等級永不下降・目前 Lv"+before+"）"); } }
+  // PVE 限時外來種防衛戰：獨立的結算文案（達標＝成功，時間到未達標＝失敗）
+  function endGamePve(win,key,before){
+    const tKind=pveEvent.target, got=pveEvent.got, need=pveEvent.need;
+    if(win){ const eco=teamSize*16+got*3, xp=50+teamSize*8+got*2;
+      window.__awardEco&&window.__awardEco(eco); window.__awardXP&&window.__awardXP(key,xp); window.__bumpWin&&window.__bumpWin();
+      const after=(window.__heroLevel&&window.__heroLevel(key))||before;
+      showOver("🎯 防衛戰成功！","外來種入侵已排除","你和守護者小隊在限時內清除了 "+got+"/"+need+" 隻 "+KNAME[tKind]+"，棲地危機解除！<br>🌿 保育值 +"+eco+"　"+(KNAME[key]||"")+" EXP +"+xp+"　Lv"+before+(after>before?(" → "+after+" ⬆升級！"):"")); }
+    else { const xp=6+got*2; window.__awardXP&&window.__awardXP(key,xp);
+      showOver("⏱ 時間到！","防衛戰未達標","限時內只清除了 "+got+"/"+need+" 隻 "+KNAME[tKind]+"，外來種仍在擴散……再挑戰一次！<br>"+(KNAME[key]||"")+" 仍獲得 EXP +"+xp); } }
   function showOver(t,s,b){ root.classList.add("mhide"); txt("moverT",t); txt("moverS",s); const el=document.getElementById("moverB"); if(el) el.innerHTML=b;
     document.getElementById("moverAgain").textContent="⚔ 再守一場"; show("mover"); }
   function show(id){ const e=document.getElementById(id); if(e) e.classList.remove("hide"); }
@@ -619,20 +722,28 @@
       +(pct<10?"（去棲地基地復育這一區可以更強！）":""); }
   document.querySelectorAll("#battleRegions .hregion").forEach(b=>b.addEventListener("pointerdown",(e)=>{ e.preventDefault(); setBattleRegion(b.dataset.r); },{passive:false}));
   function setPickMode(m){ pickMode=m;
-    const nT=document.getElementById("modeNormal"), tT=document.getElementById("modeTime");
-    if(nT) nT.classList.toggle("on",m==="normal"); if(tT) tT.classList.toggle("on",m==="time");
-    txt("mpickTitle", m==="time" ? "⏱ 限時復育挑戰" : "🌳 棲地復育保衛戰");
+    const nT=document.getElementById("modeNormal"), tT=document.getElementById("modeTime"), pT=document.getElementById("modePve");
+    if(nT) nT.classList.toggle("on",m==="normal"); if(tT) tT.classList.toggle("on",m==="time"); if(pT) pT.classList.toggle("on",m==="pve");
+    txt("mpickTitle", m==="time" ? "⏱ 限時復育挑戰" : m==="pve" ? "🎯 外來種防衛戰" : "🌳 棲地復育保衛戰");
     const descEl=document.getElementById("mpickDesc");
-    if(descEl) descEl.innerHTML = m==="time" ? "目標不是守住不倒，而是盡快把棲地復原到 100%！<br>擊退入侵種、守住苗圃，比比看你多快能讓棲地重新翠綠。" : "守護台灣神木與復育苗圃，擊退四面湧入的外來入侵種——讓枯黃的棲地一吋吋復原成翠綠，復原度滿 100% 就守護成功！";
+    if(descEl) descEl.innerHTML = m==="time" ? "目標不是守住不倒，而是盡快把棲地復原到 100%！<br>擊退入侵種、守住苗圃，比比看你多快能讓棲地重新翠綠。"
+      : m==="pve" ? "選一種外來入侵種當清除目標，限時內驅逐足額數量就成功！<br>善用原生種的生態優勢（生物防治鏈）能大幅提升效率。"
+      : "守護台灣神木與復育苗圃，擊退四面湧入的外來入侵種——讓枯黃的棲地一吋吋復原成翠綠，復原度滿 100% 就守護成功！";
     const info=document.getElementById("bestTimeInfo");
     if(info){ if(m==="time"){ const b3=getBest(3), b5=getBest(5);
         info.innerHTML="🏆 最佳紀錄　3守護者："+(b3?fmtTime(b3):"—")+"　5守護者："+(b5?fmtTime(b5):"—"); info.classList.remove("hide"); }
-      else info.classList.add("hide"); } }
-  tap("modeNormal",()=>setPickMode("normal")); tap("modeTime",()=>setPickMode("time"));
+      else info.classList.add("hide"); }
+    const pvR=document.getElementById("pveTargets"); if(pvR) pvR.classList.toggle("hide",m!=="pve"); }
+  tap("modeNormal",()=>setPickMode("normal")); tap("modeTime",()=>setPickMode("time")); tap("modePve",()=>setPickMode("pve"));
+  function setPveTarget(k){ pvePickTarget=k; document.querySelectorAll("#pveTargets .hregion").forEach(b=>b.classList.toggle("on",b.dataset.pv===k)); }
+  document.querySelectorAll("#pveTargets .hregion").forEach(b=>b.addEventListener("pointerdown",(e)=>{ e.preventDefault(); setPveTarget(b.dataset.pv); },{passive:false}));
   tap("pick3",()=>start(3)); tap("pick5",()=>start(5)); tap("pickBack",()=>hide("mpick"));
   tap("moverAgain",()=>start(teamSize)); tap("moverHome",exitToLobby);
   window.addEventListener("keydown",(e)=>{ if(!running) return; if(e.key==="ArrowLeft"||e.key==="a")mv.x=-1; else if(e.key==="ArrowRight"||e.key==="d")mv.x=1; else if(e.key==="ArrowUp"||e.key==="w")mv.y=-1; else if(e.key==="ArrowDown"||e.key==="s")mv.y=1; else if(e.key==="k"||e.key==="Shift")wantSp=true; else if(e.key==="b")wantBack=true; });
   window.addEventListener("keyup",(e)=>{ if(["ArrowLeft","a","ArrowRight","d"].includes(e.key))mv.x=0; if(["ArrowUp","w","ArrowDown","s"].includes(e.key))mv.y=0; });
 
-  window.MOBA={ start, exit:exitToLobby };
+  window.MOBA={ start, exit:exitToLobby,
+    // 除錯／QA 用內部狀態快照（不影響玩法，方便無頭瀏覽器驗收天候・PVE 數值是否真的生效）
+    debug:()=>({ weatherBattle, pveEvent, heroes:heroes.map(h=>({kind:h.kind,speed:h.speed,dmg:h.dmg})), weatherFxLen:weatherFx.length, invadersLen:invaders.length }),
+    forceWeather:(w)=>{ if(WEATHER_KEYS.indexOf(w)>=0){ weatherBattle=w; heroes.forEach(h=>{ h.speed=Math.round(h.speed*weatherSpeedMul(h.kind)); }); } } };
 })();
