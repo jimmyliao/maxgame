@@ -14,12 +14,19 @@
   /* ---------- 物種資料 ---------- */
   const KCOL = { leopard:"#e8a13a", bear:"#3b332e", cicada:"#5f9a3c", dragonfly:"#1fa3a3", deer:"#cf9a5e", magpie:"#2f6fd0",
                  snail:"#b6884a", iguana:"#54b24a", frog:"#82b24c", ibis:"#e3e9ec", anole:"#8a6a3c",
-                 muntjac:"#b8703f", macaque:"#b08f56", salmon:"#3a8a9e", pheasant:"#2a3a7a" };
+                 muntjac:"#b8703f", macaque:"#b08f56", salmon:"#3a8a9e", pheasant:"#2a3a7a",
+                 // 新增外來入侵種：海蟾蜍(棕疣毒腺)、緬甸蟒(黃棕網紋)、多線南蜥(古銅褐帶縱紋)
+                 canetoad:"#8a6a44", python:"#b79a54", skink:"#7a6a4a" };
   const KNAME = { leopard:"石虎", bear:"黑熊", cicada:"爺蟬", dragonfly:"勾蜓", deer:"梅花鹿", magpie:"藍鵲",
                   snail:"福壽螺", iguana:"綠鬣蜥", frog:"斑腿蛙", ibis:"聖䴉", anole:"沙氏變色蜥",
-                  muntjac:"山羌", macaque:"台灣獼猴", salmon:"櫻花鉤吻鮭", pheasant:"藍腹鷴" };
+                  muntjac:"山羌", macaque:"台灣獼猴", salmon:"櫻花鉤吻鮭", pheasant:"藍腹鷴",
+                  canetoad:"海蟾蜍", python:"緬甸蟒", skink:"多線南蜥" };
+  // 新增外來入侵種真實生態危害科普（擊殺 toast / 圖鑑用）
+  const KFACT = { canetoad:"海蟾蜍全身毒腺，2021 年在台中爆發，毒液會毒死捕食牠的原生蛇類與犬貓！",
+                  python:"緬甸蟒是世界最大蛇類之一，纏繞絞殺獵物，會吞食鳥類與哺乳類，破壞在地食物鏈！",
+                  skink:"多線南蜥繁殖力驚人、與原生蜥蜴競爭棲地與食物，已在南台灣大量擴散！" };
   const GUARDIANS = ["leopard","bear","dragonfly","magpie","deer","cicada","muntjac","macaque","salmon","pheasant"];
-  const INVADERS  = ["iguana","snail","frog","ibis"];
+  const INVADERS  = ["iguana","snail","frog","ibis","canetoad","python","skink"];
   // 各物種體型/身形（讓每隻一眼就不同：大小、身體長寬比）
   const KCFG = {
     leopard:{sz:1.02, long:1.16, wide:0.60}, bear:{sz:1.34, long:0.94, wide:1.02},
@@ -29,19 +36,23 @@
     frog:{sz:1.08, long:0.80, wide:1.02},     ibis:{sz:1.12, long:1.02, wide:0.60},
     anole:{sz:0.70, long:1.22, wide:0.38},
     muntjac:{sz:0.88, long:1.02, wide:0.46},   macaque:{sz:0.96, long:0.92, wide:0.62},
-    salmon:{sz:1.0, long:1.5, wide:0.36},     pheasant:{sz:1.02, long:1.06, wide:0.58}
+    salmon:{sz:1.0, long:1.5, wide:0.36},     pheasant:{sz:1.02, long:1.06, wide:0.58},
+    // 海蟾蜍：矮胖蹲姿；緬甸蟒：極細長蛇身；多線南蜥：細長蜥蜴（比沙氏稍大）
+    canetoad:{sz:1.18, long:0.82, wide:1.06},  python:{sz:1.05, long:2.6, wide:0.30}, skink:{sz:0.84, long:1.32, wide:0.36}
   };
   const kcfg=(k)=>KCFG[k]||{sz:1,long:1,wide:0.74};
   // 腹部/次要色（胸腹、臉、內側較淺或另一色，讓每隻更接近真實）
   const KBELLY = { leopard:"#f4ecdc", bear:"#efe8df", deer:"#f0e2ca", muntjac:"#e6d3ba",
                    macaque:"#e8b3a2", magpie:"#f5f7fb", pheasant:"#e2e8f4", salmon:"#eef3f4",
                    iguana:"#bde486", frog:"#e8e8b6", ibis:"#ffffff", anole:"#cfbb8c",
-                   snail:"#d9c288", cicada:"#cbe0af", dragonfly:"#c3f0f0" };
+                   snail:"#d9c288", cicada:"#cbe0af", dragonfly:"#c3f0f0",
+                   canetoad:"#d8c39a", python:"#e6d49a", skink:"#c8b48c" };
   // 花紋 / 斑點色（清楚可讀、真實物種）
   const KPAT = { leopard:"#2a1808", bear:"#f2ece3", deer:"#fcf5e8", muntjac:"#38220f",
                  macaque:"#6b5334", magpie:"#c0392b", pheasant:"#f2f5fb", salmon:"#ec7386",
                  iguana:"#2d6822", frog:"#233815", ibis:"#161616", anole:"#382810",
-                 snail:"#78521f", cicada:"#38581f" };
+                 snail:"#78521f", cicada:"#38581f",
+                 canetoad:"#4a3620", python:"#5a3d1a", skink:"#3a2c18" };
   const kbelly=(k)=>KBELLY[k]||"#eadfce", kpat=(k)=>KPAT[k]||"#2c1c0c";
   // 圖檔優先：放 assets/top/<kind>.png(俯視角、面向右、去背)就自動改用寫實圖，沒有就用程式圖
   const SPRITES_TOP={};
@@ -119,10 +130,30 @@
     magpie_ibis:"台灣藍鵲會主動驅趕護巢，克制外來的埃及聖䴉！", bear_ibis:"黑熊體型壓制，讓聖䴉不敢靠近！" };
 
   /* ---------- PVE 限時外來種防衛戰：清除指定入侵種，時間到未達標即失敗 ---------- */
-  let pveEvent=null;   // {target, need, got, timeLeft, active}
-  const PVE_TARGETS=["iguana","ibis","anole"];
-  const PVE_DUR=90, PVE_NEED={iguana:14, ibis:10, anole:22};
+  let pveEvent=null;   // {target, need, got, timeLeft, active, level}
+  const PVE_TARGETS=["iguana","ibis","anole","canetoad","python"];
+  const PVE_DUR=90, PVE_NEED={iguana:14, ibis:10, anole:22, canetoad:12, python:8};
   let pvePickTarget="iguana";
+  // 入侵種強度倍率（PVE 關卡遞增用；一般/限時模式恆為 1）——mkInvader 讀取套用到 hp/dmg
+  let invHpMul=1, invDmgMul=1, invSpawnMul=1;
+  // pveNextLevel：非 null 時結算畫面提供「下一關（更難）」按鈕；失敗維持 null（moverAgain 重打同關）
+  let pveNextLevel=null;
+  // 關卡等級（每個 target 各自記錄，離線也正確）：localStorage 鍵 shoutu_pve_level（存 JSON map）
+  function pveLevelKey(){ return "shoutu_pve_level"; }
+  function getPveLevel(target){ try{ const raw=localStorage.getItem(pveLevelKey()); if(!raw) return 1; const m=JSON.parse(raw); const v=parseInt(m&&m[target],10); return (isNaN(v)||v<1)?1:v; }catch(e){ return 1; } }
+  function setPveLevel(target,lv){ try{ let m={}; const raw=localStorage.getItem(pveLevelKey()); if(raw){ try{ m=JSON.parse(raw)||{}; }catch(e){ m={}; } } m[target]=Math.max(1,lv|0); localStorage.setItem(pveLevelKey(),JSON.stringify(m)); }catch(e){} }
+  // 純函數：依 target 與 level 算出該關的 need / 秒數 / 敵人強度倍率（離線也一致、不依賴任何執行期狀態）
+  //  第 1 關 = 基準；每關 need +3、時限 -6 秒(下限 40)、血量/傷害/生成速度隨關數線性↑
+  function pveLevelParams(target, level){
+    const lv=Math.max(1,level|0), step=lv-1;
+    const baseNeed=PVE_NEED[target]||12;
+    const need=baseNeed+step*3;
+    const dur=Math.max(40, PVE_DUR-step*6);
+    const hpMul=1+step*0.22;      // 入侵種血量隨關遞增
+    const dmgMul=1+step*0.12;     // 入侵種攻擊隨關遞增
+    const spawnMul=1+step*0.18;   // 生成更快（縮短 spawnT）
+    return { need, dur, hpMul, dmgMul, spawnMul };
+  }
   function fmtTime(s){ s=Math.max(0,Math.floor(s)); const m=Math.floor(s/60), ss=s%60; return m+":"+(ss<10?"0":"")+ss; }
   function getBest(size){ try{ const v=parseFloat(localStorage.getItem("shoutu_besttime_"+size)); return isNaN(v)?null:v; }catch(e){ return null; } }
   function setBest(size,t){ try{ localStorage.setItem("shoutu_besttime_"+size,String(t)); }catch(e){} }
@@ -143,14 +174,23 @@
     dmg:28, range:70, cd:0.6, t:0, spCd:0, speed:isPlayer?172:150, face:0, dead:false, respawn:0, name:KNAME[kind]||kind,
     hitT:0, anim:0, moving:false, phase:Math.random()*6.28, atkA:0, mood:"n", moodT:0,
     dr:0, invulnT:0, stealthT:0, shieldT:0, talent:null, blessT:0, ult:false, ultCd:0 }; }   // dr=天賦減傷 0~1；talent=第3級主動技能旗標；blessT=山羌祝福加速剩餘時間；ult=手上是否握有撿到的必殺；ultCd=施放後長冷卻
-  const CHARGERS=["iguana","anole"];   // 體型較大/敏捷的入侵種會蓄力衝撞，逼玩家主動走位閃避，不是站樁對打
+  const CHARGERS=["iguana","anole","skink"];   // 體型較大/敏捷的入侵種會蓄力衝撞，逼玩家主動走位閃避，不是站樁對打
+  // 各外來種相對於基準(64hp)的差異倍率：緬甸蟒血厚移動慢、海蟾蜍略胖、多線南蜥小而快
+  const INV_STATS={
+    anole:{hp:0.62, dmg:0.7, r:12, speed:104},                    // 沙氏變色蜥：小而快
+    skink:{hp:0.7, dmg:0.75, r:12, speed:112},                    // 多線南蜥：更小更快
+    canetoad:{hp:1.1, dmg:1.05, r:17, speed:70},                  // 海蟾蜍：略胖略慢、跳躍毒液
+    python:{hp:3.2, dmg:1.6, r:22, speed:44, range:40} };         // 緬甸蟒：細長高血量慢速纏繞
   function mkInvader(kind,elite){ const p=edgePoint(), scale=1+Math.min(1.3,clock/120)*0.6; // 隨時間越來越強
-    const isAnole=kind==="anole"&&!elite; // 沙氏變色蜥：體型小、繁殖力強 → 個體弱小但速度快（呼應真實生態習性）
-    const hp=Math.round((elite?300:isAnole?40:64)*scale);
-    const canCharge=CHARGERS.indexOf(kind)>=0;
-    return { kind, x:p.x, y:p.y, r:elite?30:(isAnole?12:16), hp, maxhp:hp, dmg:Math.round((elite?18:isAnole?7:10)*scale), range:elite?44:30,
-      cd:0.9, t:0, speed:elite?62:(isAnole?104:82), face:0, dead:false, elite, hitT:0, tgt:null, anim:0, moving:false, phase:Math.random()*6.28, atkA:0, stun:0, mood:"n", moodT:0,
-      canCharge, chargeCd:canCharge?(1.5+Math.random()*2):0, chargeT:0, chargeDashT:0, chargeDir:0, chargeHit:false }; }
+    const st=(!elite&&INV_STATS[kind])||null;
+    const baseHp=elite?300:(st?64*st.hp:64), baseDmg=elite?18:(st?10*st.dmg:10);
+    const hp=Math.round(baseHp*scale*(invHpMul||1));
+    const canCharge=CHARGERS.indexOf(kind)>=0 && !elite;
+    return { kind, x:p.x, y:p.y, r:elite?30:(st?st.r:16), hp, maxhp:hp, dmg:Math.round(baseDmg*scale*(invDmgMul||1)), range:elite?44:(st&&st.range?st.range:30),
+      cd:0.9, t:0, speed:elite?62:(st?st.speed:82), face:0, dead:false, elite, hitT:0, tgt:null, anim:0, moving:false, phase:Math.random()*6.28, atkA:0, stun:0, mood:"n", moodT:0,
+      canCharge, chargeCd:canCharge?(1.5+Math.random()*2):0, chargeT:0, chargeDashT:0, chargeDir:0, chargeHit:false,
+      // 海蟾蜍跳躍：定時朝目標蛙跳一小段（moving 動畫可讀），到位後噴毒液範圍傷害
+      hopCd:kind==="canetoad"?(0.8+Math.random()):0 }; }
   function edgePoint(){ const s=Math.floor(Math.random()*4), u=Math.random();
     if(s===0) return {x:u*MW,y:20}; if(s===1) return {x:u*MW,y:MH-20}; if(s===2) return {x:20,y:u*MH}; return {x:MW-20,y:u*MH}; }
 
@@ -160,7 +200,12 @@
     if(window.__shopReset) window.__shopReset();
     fx=[]; floats=[]; invaders=[]; hprojs=[]; weatherFx=[];
     weatherBattle=pickWeather();
-    pveEvent=(pickMode==="pve")? { target:pvePickTarget, need:PVE_NEED[pvePickTarget]||12, got:0, timeLeft:PVE_DUR, active:true } : null;
+    // PVE 關卡遞增：讀取該 target 目前關卡，用純函數算出本關 need/時限/難度倍率（離線也正確）
+    invHpMul=1; invDmgMul=1; invSpawnMul=1;
+    if(pickMode==="pve"){ const lv=getPveLevel(pvePickTarget), pp=pveLevelParams(pvePickTarget,lv);
+      invHpMul=pp.hpMul; invDmgMul=pp.dmgMul; invSpawnMul=pp.spawnMul;
+      pveEvent={ target:pvePickTarget, need:pp.need, got:0, timeLeft:pp.dur, active:true, level:lv };
+    } else pveEvent=null;
     shrine={ x:SHX, y:SHY, r:76, hp:1400, maxhp:1400, kind:"shrine", hitT:0 };
     nurseries=NPOS.map(p=>({ x:p.x, y:p.y, r:34, hp:340, maxhp:340, growth:0.15, contested:false, kind:"nursery" }));
     const myKey=window.__netHostKeyOverride||(window.__featuredKey&&window.__featuredKey())||"leopard";
@@ -193,7 +238,7 @@
       netPendingGuests.forEach((g,i)=>{ const h=heroes[1+i]; if(h && g.kind && h.kind===g.kind){ h.ctrl=g.uid; netGuestByUid[g.uid]=h; } }); }
     cam.x=clamp(player.x-VW/2,0,Math.max(0,MW-VW)); cam.y=clamp(player.y-VH/2,0,Math.max(0,MH-VH));
     setTimeout(weatherToast,200);   // 讓進場動畫先跑，再顯示天候 toast
-    if(pveEvent) setTimeout(()=>toast("🎯 限時防衛戰！驅逐 "+(PVE_NEED[pvePickTarget]||12)+" 隻 "+KNAME[pvePickTarget]),1600);
+    if(pveEvent) setTimeout(()=>toast("🎯 第 "+pveEvent.level+" 關防衛戰！驅逐 "+pveEvent.need+" 隻 "+KNAME[pvePickTarget]),1600);
   }
 
   /* ---------- 目標 ---------- */
@@ -237,7 +282,8 @@
     floats.push({x:o.x,y:o.y-30,txt:(o.elite?"入侵種王 ":"")+KNAME[o.kind]+" 被驅逐  🌿復原+"+Math.round((o.elite?5:1)*comboBonus)+"%",col:"#c5e1a5",life:1.1});
     if(combo>=2) floats.push({x:o.x,y:o.y-50,txt:combo+" 連擊",col:combo%5===0?"#ffd54f":"#fff59d",life:0.9,big:combo%5===0});
     if(by && by.isPlayer!==undefined){ by.mood="proud"; by.moodT=1.6;
-      const fact=ECO_FACT[by.kind+"_"+o.kind]; if(fact && Math.random()<0.5) toast("🔗 "+fact); } // 守護者擊退入侵種：得意 + 生物防治鏈科普
+      const fact=ECO_FACT[by.kind+"_"+o.kind]; if(fact && Math.random()<0.5) toast("🔗 "+fact); // 守護者擊退入侵種：得意 + 生物防治鏈科普
+      else if(KFACT[o.kind] && Math.random()<0.35) toast("📖 "+KFACT[o.kind]); }   // 新外來種真實生態危害科普
     if(pveEvent && pveEvent.active && o.kind===pveEvent.target){ pveEvent.got++;
       if(pveEvent.got>=pveEvent.need){ pveEvent.active=false; toast("🎯 防衛戰成功！"+KNAME[pveEvent.target]+" 已清除足額！"); endGame(true); } }
     if(window.__shopAddGold) window.__shopAddGold(o.elite?15:3);   // 擊殺額外進帳，主動打怪比純等時間更划算
@@ -276,8 +322,8 @@
       invaders.push(v);
       if(el){ eliteFlash=0.5; mshake=Math.max(mshake,3); toast("👑 "+KNAME[v.kind]+"王　降臨！"); } } };
     spawnT-=dt;
-    if(spawnT<=0){ const ramp=Math.min(1,clock/110); spawnT=Math.max(0.8, 3.0-ramp*2.0);
-      const n=2+(Math.random()<ramp?1:0); for(let i=0;i<n;i++) pushInv(false);
+    if(spawnT<=0){ const ramp=Math.min(1,clock/110); spawnT=Math.max(0.55, (3.0-ramp*2.0)/(invSpawnMul||1));   // PVE 高關卡：生成更快
+      const n=2+(Math.random()<ramp?1:0)+(invSpawnMul>1.3?1:0); for(let i=0;i<n;i++) pushInv(false);
       if(!pveEvent && clock>15 && Math.random()<0.2+ramp*0.28) pushInv(true); }   // PVE 防衛戰不出入侵種王，聚焦清剿目標種
     surgeT-=dt; if(surgeT<=0){ surgeT=42; toast("⚠ 入侵潮來襲！"); const c=3+Math.floor(clock/45); for(let i=0;i<c;i++) pushInv(false); if(!pveEvent) pushInv(true); }
     if(!pveEvent && restore>=0.75 && !finalAssault){ finalAssault=true; toast("⚠ 最終反撲・守住神木！"); for(let i=0;i<6;i++) pushInv(false); pushInv(true); pushInv(true); }
@@ -301,11 +347,20 @@
         if(v.chargeDashT<=0){ v.chargeCd=4+Math.random()*2.5; } continue; }
       if(v.chargeT>0){ v.moving=false; v.chargeT-=dt;
         if(v.chargeT<=0){ v.chargeDashT=0.32; v.chargeHit=false; ring(v.x,v.y,v.r*2.2,"#ff5252"); } continue; }
-      if(v.t>0) v.t-=dt; if(v.atkA>0) v.atkA-=dt; v.moving=false;
+      if(v.t>0) v.t-=dt; if(v.atkA>0) v.atkA-=dt; if(v.hopCd>0) v.hopCd-=dt; v.moving=false;
       const tg=invaderTarget(v); v.tgt=tg; const reach=v.range+(tg.r||0); const dd=dist(v,tg);
+      // 海蟾蜍：跳躍逼近，落地時噴灑毒液範圍傷害（辨識度行為），呼應真實毒腺生態
+      if(v.kind==="canetoad" && !v.elite && v.hopCd<=0 && dd>reach && dd<260){
+        v.hopCd=1.4+Math.random()*0.8; const ang=Math.atan2(tg.y-v.y,tg.x-v.x); v.face=ang;
+        const hopD=Math.min(dd-reach+8,90); v.x=clamp(v.x+Math.cos(ang)*hopD,20,MW-20); v.y=clamp(v.y+Math.sin(ang)*hopD,20,MH-20);
+        v.moving=true; v.anim+=0.5; ring(v.x,v.y,v.r*1.6,"#9ccc65");
+        for(const cand of [player,...heroes,shrine,...nurseries]){ if(!cand||cand.hp<=0||cand.dead) continue; if(dist(v,cand)<v.r+22+(cand.r||0)*0.3){ hurt(cand,v.dmg*0.8,v); } }
+        continue; }
       if(v.canCharge && !v.elite && v.chargeCd<=0 && v.t<=0 && dd>reach+30 && dd<280){
         v.chargeT=0.55; v.chargeDir=Math.atan2(tg.y-v.y,tg.x-v.x); v.face=v.chargeDir; continue; }   // 進入蓄力預警
-      if(dd<=reach){ if(v.t<=0){ v.t=v.cd; v.face=Math.atan2(tg.y-v.y,tg.x-v.x); v.atkA=0.2; hurt(tg,v.dmg,v); } }
+      if(dd<=reach){ if(v.t<=0){ v.t=v.cd; v.face=Math.atan2(tg.y-v.y,tg.x-v.x); v.atkA=0.2; hurt(tg,v.dmg,v);
+        // 緬甸蟒：纏繞絞殺——命中守護者時額外定身/延遲對手行動（stun 靠 v 端不適用，改讓守護者 hitT 延長 + 擊退小）
+        if(v.kind==="python" && tg.isPlayer!==undefined){ tg.hitT=Math.max(tg.hitT,0.4); ring(tg.x,tg.y,tg.r*1.8,"#8d6e63"); } } }
       else { const ang=Math.atan2(tg.y-v.y,tg.x-v.x); v.face=ang; v.x+=Math.cos(ang)*v.speed*dt; v.y+=Math.sin(ang)*v.speed*dt; v.moving=true; v.anim+=dt; } }
     invaders=invaders.filter(v=>!v.dead);
 
@@ -713,7 +768,13 @@
   function bodyPathTop(g,kind,bLen,bW,pad){
     const L=bLen+pad, W=bW+pad, P=g;
     P.beginPath();
-    if(kind==="salmon"||kind==="iguana"||kind==="anole"){ // 紡錘 / 細長：前後皆收尖
+    if(kind==="python"){ // 蛇：極細長、頭頸略寬、尾端尖細（近乎等寬的長條）
+      P.moveTo(L*1.02,0);
+      P.bezierCurveTo(L*0.7,-W*1.2, L*0.2,-W*1.0, -L*0.4,-W*0.7);
+      P.bezierCurveTo(-L*0.85,-W*0.5, -L*1.05,-W*0.18, -L*1.05,0);
+      P.bezierCurveTo(-L*1.05,W*0.18, -L*0.85,W*0.5, -L*0.4,W*0.7);
+      P.bezierCurveTo(L*0.2,W*1.0, L*0.7,W*1.2, L*1.02,0);
+    } else if(kind==="salmon"||kind==="iguana"||kind==="anole"||kind==="skink"){ // 紡錘 / 細長：前後皆收尖
       const nose=kind==="salmon"?1.0:1.12;
       P.moveTo(L*nose,0);
       P.bezierCurveTo(L*0.5,-W, -L*0.2,-W, -L*0.9,-W*0.28);
@@ -784,9 +845,9 @@
     g.setTransform(1,0,0,1,R2,R2); g.clearRect(-R2,-R2,R2*2,R2*2);
     g.save(); g.scale(1,breath);
     // 尾巴（貓/鹿/鬣蜥各異，畫在最底層）
-    if(u.kind==="leopard"||u.kind==="deer"||u.kind==="iguana"||u.kind==="anole"||u.kind==="muntjac"||u.kind==="macaque"){
-      const tw=Math.sin(gt*3+u.phase)*r*0.4, tl=(u.kind==="iguana"||u.kind==="anole")?1.7:(u.kind==="macaque"?1.5:u.kind==="muntjac"?1.05:1.35);
-      const tlw=(u.kind==="deer"||u.kind==="muntjac")?0.12:(u.kind==="macaque"?0.1:0.2);
+    if(u.kind==="leopard"||u.kind==="deer"||u.kind==="iguana"||u.kind==="anole"||u.kind==="skink"||u.kind==="muntjac"||u.kind==="macaque"){
+      const tw=Math.sin(gt*3+u.phase)*r*0.4, tl=(u.kind==="iguana"||u.kind==="anole"||u.kind==="skink")?1.7:(u.kind==="macaque"?1.5:u.kind==="muntjac"?1.05:1.35);
+      const tlw=(u.kind==="deer"||u.kind==="muntjac")?0.12:(u.kind==="macaque"?0.1:u.kind==="skink"?0.14:0.2);
       g.strokeStyle=INK; g.lineWidth=r*tlw+OUT*0.8; g.lineCap="round";
       g.beginPath(); g.moveTo(-bLen*0.8,0); g.quadraticCurveTo(-r*(tl*0.85),tw,-r*tl,tw*1.5); g.stroke();
       g.strokeStyle=col; g.lineWidth=r*tlw;
@@ -803,7 +864,7 @@
     const sw=walk*r*0.38, lr=r*(u.kind==="bear"?0.19:(u.kind==="deer"||u.kind==="muntjac")?0.1:0.15);
     // 四肢：每條腿有 [附著x, 附著y, 腳掌x, 腳掌y, 步態相位]，前肢朝前外、後肢朝後外，
     // 爬蟲/青蛙外張更誇張；鳥為雙腿。有明確前後之分＋站姿，不再是身體下塞四顆蛋。
-    const reptile=(u.kind==="iguana"||u.kind==="anole"), ungulate=(u.kind==="deer"||u.kind==="muntjac"), frogK=(u.kind==="frog");
+    const reptile=(u.kind==="iguana"||u.kind==="anole"||u.kind==="skink"), ungulate=(u.kind==="deer"||u.kind==="muntjac"), frogK=(u.kind==="frog"||u.kind==="canetoad");
     const lizardSplay=reptile?1.5:ungulate?1.3:1.0;
     const lyA=bW*0.72, lyF=bW*(reptile?1.5:ungulate?1.55:1.02), lxf=bLen*0.5, lxb=bLen*0.52;
     const footFx=reptile?bLen*0.28:ungulate?bLen*0.6:bLen*0.66, footBx=reptile?-bLen*0.72:ungulate?-bLen*0.64:-bLen*0.7;
@@ -821,7 +882,7 @@
       :[[lxf,-lyA, footFx,-lyF*lizardSplay, 1,1],[lxf,lyA, footFx,lyF*lizardSplay, -1,1],
         [-lxb,-lyA, footBx,-lyF*lizardSplay, -1,1],[-lxb,lyA, footBx,lyF*lizardSplay, 1,1]];
     const earR=hr*(u.kind==="bear"?0.5:u.kind==="macaque"?0.4:0.44);
-    const noLegs=flyer||fish||u.kind==="snail";
+    const noLegs=flyer||fish||u.kind==="snail"||u.kind==="python";
     const limbW=r*(u.kind==="bear"?0.2:u.kind==="deer"||u.kind==="muntjac"?0.13:u.kind==="macaque"?0.11:reptile?0.09:0.15);
     // 一條腿：大腿骨（描邊）+ 腳掌（橢圓），可帶步態擺動
     function drawLimb(L,wOut,limbCol,footCol2){ const ph=L[4]*sw, sc=L[5]||1, flr=lr*sc;
@@ -852,7 +913,7 @@
     g.beginPath(); g.arc(hx,0,hr+OUT,0,7); g.fill();
     if(snouted){ g.beginPath(); g.ellipse(hx+hr*0.62,0,snoutL+OUT*0.7,snoutW+OUT*0.7,0,0,7); g.fill(); }
     else if(mammal){ g.beginPath(); g.ellipse(hx+hr*0.58,0,hr*0.5+OUT*0.7,hr*0.4+OUT*0.7,0,0,7); g.fill(); }
-    if(u.kind==="frog"){ g.beginPath(); g.arc(hx,-hr*0.8,hr*0.5+OUT*0.6,0,7); g.arc(hx,hr*0.8,hr*0.5+OUT*0.6,0,7); g.fill(); }
+    if(u.kind==="frog"||u.kind==="canetoad"){ g.beginPath(); g.arc(hx,-hr*0.8,hr*0.5+OUT*0.6,0,7); g.arc(hx,hr*0.8,hr*0.5+OUT*0.6,0,7); g.fill(); }
     // 蝸牛肌肉腹足（伸長超出殼、前端圓、拖尾尖）
     if(u.kind==="snail"){ g.beginPath(); g.moveTo(hx+hr*1.1+OUT,0); g.bezierCurveTo(hx+hr*0.6,-bW*0.62-OUT,-bLen*0.4,-bW*0.5-OUT,-bLen*1.2-OUT,0);
       g.bezierCurveTo(-bLen*0.4,bW*0.5+OUT,hx+hr*0.6,bW*0.62+OUT,hx+hr*1.1+OUT,0); g.closePath(); g.fill(); }
@@ -865,7 +926,7 @@
     bodyPathTop(g,u.kind,bLen,bW,0); g.fillStyle=u.hitT>0?"#fff":col; g.fill();
     const BELLY=kbelly(u.kind), PAT=kpat(u.kind);
     // 腹部/次要色：在身體剪影內畫一塊較淺的腹面（用 clip 保證不出框）
-    if(!(u.hitT>0) && (mammal||fish||bird||u.kind==="iguana"||u.kind==="anole"||u.kind==="frog")){
+    if(!(u.hitT>0) && (mammal||fish||bird||u.kind==="iguana"||u.kind==="anole"||u.kind==="skink"||u.kind==="frog"||u.kind==="canetoad")){
       g.save(); bodyPathTop(g,u.kind,bLen,bW,0); g.clip(); g.fillStyle=BELLY;
       if(fish){ g.beginPath(); g.ellipse(-bLen*0.05,bW*0.42,bLen*0.95,bW*0.62,0,0,7); g.fill(); } // 鮭魚銀白腹
       else if(bird){ g.beginPath(); g.ellipse(bLen*0.35,0,bLen*0.55,bW*0.7,0,0,7); g.fill(); }   // 鳥胸腹淺色
@@ -902,6 +963,30 @@
     else if(u.kind==="frog"){ // 斑腿樹蛙：褐綠底深色不規則斑（腿部條紋於腳）
       g.save(); bodyPathTop(g,u.kind,bLen,bW,0); g.clip(); g.fillStyle=PAT;
       for(const o of [[-.28,-.32],[.14,.36],[.3,-.22],[-.1,.05],[.02,-.4]]){ g.beginPath(); g.ellipse(o[0]*bLen*1.1,o[1]*bW,r*0.14,r*0.1,0.5,0,7); g.fill(); } g.restore(); }
+    else if(u.kind==="canetoad"){ // 海蟾蜍：粗糙疣粒 + 耳後大型毒腺（招牌特徵）
+      g.save(); bodyPathTop(g,u.kind,bLen,bW,0); g.clip();
+      g.fillStyle=shade(col,-24); // 全身褐色疣粒
+      for(const o of [[-.4,-.4],[-.15,.42],[.2,-.35],[.1,.15],[-.3,.05],[.35,.28],[-.05,-.15],[.28,-.1]]){ g.beginPath(); g.arc(o[0]*bLen,o[1]*bW,r*0.09,0,7); g.fill(); }
+      g.restore();
+      // 耳後毒腺（parotoid gland）：頭部兩側鼓起的大橢圓，深褐帶高光
+      g.fillStyle=shade(col,-30); for(const s of [-1,1]){ g.beginPath(); g.ellipse(hx-hr*0.55,s*hr*0.95,hr*0.6,hr*0.42,s*0.3,0,7); g.fill(); }
+      g.fillStyle="rgba(255,255,255,0.18)"; for(const s of [-1,1]){ g.beginPath(); g.ellipse(hx-hr*0.65,s*hr*0.85,hr*0.28,hr*0.18,s*0.3,0,7); g.fill(); } }
+    else if(u.kind==="python"){ // 緬甸蟒：黃棕底 + 深褐網狀鞍斑（沿背脊成列）
+      g.save(); bodyPathTop(g,u.kind,bLen,bW,0); g.clip();
+      g.fillStyle=PAT; for(let i=-4;i<=4;i++){ const px=i*bLen*0.22;
+        g.beginPath(); g.moveTo(px-bLen*0.06,-bW*0.9); g.quadraticCurveTo(px+bLen*0.04,0,px-bLen*0.06,bW*0.9);
+        g.quadraticCurveTo(px+bLen*0.12,0,px-bLen*0.06,-bW*0.9); g.closePath(); g.fill(); }
+      // 網紋淺色鑲邊
+      g.strokeStyle="rgba(240,225,170,0.5)"; g.lineWidth=Math.max(1,r*0.03);
+      for(let i=-4;i<=4;i++){ const px=i*bLen*0.22; g.beginPath(); g.ellipse(px,0,bLen*0.09,bW*0.85,0,0,7); g.stroke(); }
+      g.restore(); }
+    else if(u.kind==="skink"){ // 多線南蜥：古銅褐底 + 數條深色縱紋（招牌「多線」特徵）
+      g.save(); bodyPathTop(g,u.kind,bLen,bW,0); g.clip();
+      g.strokeStyle=PAT; g.lineWidth=Math.max(1.2,r*0.05);
+      for(const yy of [-0.55,-0.2,0.2,0.55]){ g.beginPath(); g.moveTo(bLen*0.9,yy*bW); g.lineTo(-bLen*0.95,yy*bW*0.6); g.stroke(); }
+      g.strokeStyle="rgba(240,230,200,0.45)"; g.lineWidth=Math.max(1,r*0.03);
+      for(const yy of [-0.38,0.38]){ g.beginPath(); g.moveTo(bLen*0.85,yy*bW); g.lineTo(-bLen*0.9,yy*bW*0.6); g.stroke(); }
+      g.restore(); }
     else if(u.kind==="muntjac"){ // 山羌暗紅褐、背中線深
       g.strokeStyle=PAT; g.lineWidth=r*0.06; g.beginPath(); g.moveTo(bLen*0.4,0); g.lineTo(-bLen*0.6,0); g.stroke(); }
     else if(u.kind==="macaque"){ // 台灣獼猴：背灰褐 + 腹淺，臀部白斑
@@ -928,8 +1013,13 @@
     // 鮭魚鉤吻（成熟雄魚下顎上鉤，招牌特徵）
     if(fish){ g.fillStyle=u.hitT>0?"#fff":shade(col,-28); g.beginPath();
       g.moveTo(hx+hr*0.4,hr*0.1); g.quadraticCurveTo(hx+hr*1.35,hr*0.55,hx+hr*1.05,-hr*0.15); g.quadraticCurveTo(hx+hr*0.9,-hr*0.05,hx+hr*0.4,-hr*0.05); g.closePath(); g.fill(); }
-    // 青蛙凸眼底座
-    if(u.kind==="frog"){ g.fillStyle=shade(col,25); g.beginPath(); g.arc(hx,-hr*0.8,hr*0.5,0,7); g.arc(hx,hr*0.8,hr*0.5,0,7); g.fill(); }
+    // 青蛙/海蟾蜍凸眼底座
+    if(u.kind==="frog"||u.kind==="canetoad"){ g.fillStyle=shade(col,25); g.beginPath(); g.arc(hx,-hr*0.8,hr*0.5,0,7); g.arc(hx,hr*0.8,hr*0.5,0,7); g.fill(); }
+    // 緬甸蟒：吐信（分岔紅舌，招牌蛇類特徵，攻擊時更長）
+    if(u.kind==="python"){ const tl2=hr*(1+(u.atkA>0?1.2:0.5)*(0.6+0.4*Math.sin(gt*9+u.phase)));
+      g.strokeStyle="#d81b60"; g.lineWidth=Math.max(1,r*0.04); g.lineCap="round";
+      g.beginPath(); g.moveTo(hx+hr*0.7,0); g.lineTo(hx+hr*0.7+tl2,0); g.stroke();
+      g.beginPath(); g.moveTo(hx+hr*0.7+tl2,0); g.lineTo(hx+hr*0.7+tl2*1.35,-hr*0.22); g.moveTo(hx+hr*0.7+tl2,0); g.lineTo(hx+hr*0.7+tl2*1.35,hr*0.22); g.stroke(); g.lineCap="butt"; }
     // 鹿角
     if(u.kind==="deer"){ g.strokeStyle="#6d4c2f"; g.lineWidth=r*0.08+2; g.lineCap="round";
       for(const s of [-1,1]){ g.beginPath(); g.moveTo(hx,s*hr*0.6); g.lineTo(hx+r*0.4,s*hr*1.3); g.moveTo(hx+r*0.22,s*hr*1.0); g.lineTo(hx+r*0.45,s*hr*0.6); g.stroke(); }
@@ -984,7 +1074,7 @@
         g.strokeStyle="rgba(120,160,170,0.4)"; g.lineWidth=Math.max(0.8,r*0.02); g.beginPath(); g.moveTo(w[0]-r*w[1]*0.7,bW*2.1); g.lineTo(w[0]+r*w[1]*0.7,bW*2.1); g.stroke(); g.restore(); } }
 
     // ===== 表情：眼睛 + 嘴巴 + 生氣/得意 特效 =====
-    if(u.kind!=="snail"){ const eyx=u.kind==="frog"?hx:hx+hr*0.32, eyy=u.kind==="frog"?hr*0.82:hr*0.4, er=hr*0.3;
+    if(u.kind!=="snail"){ const froglike=(u.kind==="frog"||u.kind==="canetoad"); const eyx=froglike?hx:hx+hr*0.32, eyy=froglike?hr*0.82:hr*0.4, er=hr*0.3;
       if(flyer){ for(const s of [-1,1]){ g.fillStyle=shade(col,-22); g.beginPath(); g.arc(hx+hr*0.15,s*hr*0.55,hr*0.5,0,7); g.fill(); g.fillStyle="rgba(255,255,255,0.45)"; g.beginPath(); g.arc(hx+hr*0.3,s*hr*0.42,hr*0.16,0,7); g.fill(); } }
       else if(proud){ // 得意：瞇眼笑 + 腮紅 + 得意嘴 + 頭上星星
         g.strokeStyle=INK; g.lineWidth=Math.max(1.8,r*0.1); g.lineCap="round";
@@ -1011,7 +1101,7 @@
           const vx=hx-hr*0.55, vy=-hr*1.05;
           g.beginPath(); g.moveTo(vx-5,vy); g.lineTo(vx+3,vy+6); g.lineTo(vx-2,vy+5); g.lineTo(vx+6,vy+12); g.stroke();
           if(mammal){ g.fillStyle="#fff"; for(const s of [-1,1]){ g.beginPath(); g.moveTo(hx+hr*0.2,s*hr*0.22); g.lineTo(hx+hr*0.42,s*hr*0.1); g.lineTo(hx+hr*0.42,s*hr*0.3); g.closePath(); g.fill(); } } // 齜牙
-        } else if(mammal||u.kind==="frog"){ g.strokeStyle=INK; g.lineWidth=Math.max(1.3,r*0.06); g.lineCap="round";
+        } else if(mammal||u.kind==="frog"||u.kind==="canetoad"){ g.strokeStyle=INK; g.lineWidth=Math.max(1.3,r*0.06); g.lineCap="round";
           g.beginPath(); g.moveTo(hx+hr*0.6,-hr*0.14); g.quadraticCurveTo(hx+hr*0.82,0,hx+hr*0.6,hr*0.14); g.stroke(); g.lineCap="butt"; } } }
     g.restore();
     // 立體上色：頂光 + 底暗，只作用在角色剪影上（source-atop，跟大廳 drawCreature 同一套質感）
@@ -1076,7 +1166,7 @@
   function updateHUD(){ setW("mhpAlly",shrine.hp/shrine.maxhp); txt("mhpAllyTxt",Math.ceil(shrine.hp));
     setW("mRestore",restore); txt("mRestoreTxt",Math.floor(restore*100)+"%");
     const mm=Math.floor(clock/60),ss=Math.floor(clock%60); txt("mclock",mm+":"+(ss<10?"0":"")+ss);
-    if(pveEvent){ txt("mBest","🎯 "+KNAME[pveEvent.target]+" "+pveEvent.got+"/"+pveEvent.need+"　⏱ "+fmtTime(pveEvent.timeLeft)); }
+    if(pveEvent){ txt("mBest","🎯 第"+(pveEvent.level||1)+"關 "+KNAME[pveEvent.target]+" "+pveEvent.got+"/"+pveEvent.need+"　⏱ "+fmtTime(pveEvent.timeLeft)); }
     else if(timeAttack){ const b=getBest(teamSize); txt("mBest", b?("🏆 最佳 "+fmtTime(b)):"⏱ 挑戰紀錄中"); } else txt("mBest","");
     const sp=document.getElementById("mSp"); if(sp){ const mx=(player&&player.spMax)||8, cd=player&&player.spCd>0?player.spCd:0; sp.querySelector(".fill").style.height=(cd/mx*100)+"%"; sp.classList.toggle("ready",cd<=0); }
     // 必殺鈕：握有守護之力＝金色可施放（ready）；冷卻中＝倒數遮罩由下往上退；空手＝上鎖(locked)提示去撿
@@ -1106,6 +1196,7 @@
     if(wasNet && window.__netOnExit) window.__netOnExit();   // 好友連線對戰結束/離開：讓 net.js 收尾房間與監聽器
     if(window.__lobbyRefresh) window.__lobbyRefresh(); }
   function endGame(win){ if(ended) return; ended=true; running=false; cancelAnimationFrame(raf);
+    pveNextLevel=null;   // 預設清掉「下一關」旗標；只有 PVE 過關時 endGamePve 會重新設定
     const key=(window.__featuredKey&&window.__featuredKey())||"leopard", before=(window.__heroLevel&&window.__heroLevel(key))||1;
     if(pveEvent){ endGamePve(win,key,before); return; }
     if(win){ const eco=teamSize*20+killCount, xp=60+teamSize*10+killCount;
@@ -1121,17 +1212,26 @@
         "<br>🌱 "+(REGION_LABEL[battleRegion]||battleRegion)+"棲地獲得復育核心資產，成長加速！"+timeLine); }
     else { const xp=8+killCount; window.__awardXP&&window.__awardXP(key,xp);  // 輸了也給少量經驗——等級只升不降
       showOver("神木倒下了…","棲地失守","別氣餒！多回防受威脅的苗圃、善用『守護爆發』與『回神木』補血，再守一次。<br>"+(KNAME[key]||"")+" 仍獲得 EXP +"+xp+"（等級永不下降・目前 Lv"+before+"）"); } }
-  // PVE 限時外來種防衛戰：獨立的結算文案（達標＝成功，時間到未達標＝失敗）
+  // PVE 限時外來種防衛戰：獨立的結算文案（達標＝成功→過關升級，時間到未達標＝失敗→可重打同關）
   function endGamePve(win,key,before){
-    const tKind=pveEvent.target, got=pveEvent.got, need=pveEvent.need;
-    if(win){ const eco=teamSize*16+got*3, xp=50+teamSize*8+got*2;
+    const tKind=pveEvent.target, got=pveEvent.got, need=pveEvent.need, lv=pveEvent.level||1;
+    pveNextLevel=null;
+    if(win){ const eco=teamSize*16+got*3+lv*4, xp=50+teamSize*8+got*2+lv*3;   // 越後面的關卡獎勵越多
       window.__awardEco&&window.__awardEco(eco); window.__awardXP&&window.__awardXP(key,xp); window.__bumpWin&&window.__bumpWin();
       const after=(window.__heroLevel&&window.__heroLevel(key))||before;
-      showOver("🎯 防衛戰成功！","外來種入侵已排除","你和守護者小隊在限時內清除了 "+got+"/"+need+" 隻 "+KNAME[tKind]+"，棲地危機解除！<br>🌿 保育值 +"+eco+"　"+(KNAME[key]||"")+" EXP +"+xp+"　Lv"+before+(after>before?(" → "+after+" ⬆升級！"):"")); }
+      const nextLv=lv+1; setPveLevel(tKind,nextLv); pveNextLevel=nextLv;   // 過關→永久解鎖下一關（離線保存）
+      const np=pveLevelParams(tKind,nextLv);
+      showOver("🎯 第 "+lv+" 關過關！","外來種入侵已排除","你和守護者小隊在限時內清除了 "+got+"/"+need+" 隻 "+KNAME[tKind]+"，棲地危機解除！<br>🌿 保育值 +"+eco+"　"+(KNAME[key]||"")+" EXP +"+xp+"　Lv"+before+(after>before?(" → "+after+" ⬆升級！"):"")+
+        "<br><br>⚠ 下一關（第 "+nextLv+" 關）更難：需驅逐 "+np.need+" 隻・限時 "+np.dur+" 秒・入侵種更強更多！"); }
     else { const xp=6+got*2; window.__awardXP&&window.__awardXP(key,xp);
-      showOver("⏱ 時間到！","防衛戰未達標","限時內只清除了 "+got+"/"+need+" 隻 "+KNAME[tKind]+"，外來種仍在擴散……再挑戰一次！<br>"+(KNAME[key]||"")+" 仍獲得 EXP +"+xp); } }
+      showOver("⏱ 第 "+lv+" 關失敗","防衛戰未達標","限時內只清除了 "+got+"/"+need+" 隻 "+KNAME[tKind]+"，外來種仍在擴散……可以重打這一關！<br>"+(KNAME[key]||"")+" 仍獲得 EXP +"+xp); } }
   function showOver(t,s,b){ root.classList.add("mhide"); txt("moverT",t); txt("moverS",s); const el=document.getElementById("moverB"); if(el) el.innerHTML=b;
-    document.getElementById("moverAgain").textContent="⚔ 再守一場"; show("mover"); }
+    const again=document.getElementById("moverAgain"); const next=document.getElementById("moverNext");
+    // PVE 過關（pveNextLevel!=null）：主按鈕改成「下一關（更難）」，再守一場保留為重打（同樣讀已推進的關卡）
+    if(pveNextLevel){ if(again) again.classList.add("hide");
+      if(next){ next.textContent="➡ 挑戰下一關（第 "+pveNextLevel+" 關・更難）"; next.classList.remove("hide"); } }
+    else { if(again){ again.textContent="⚔ 再守一場"; again.classList.remove("hide"); } if(next) next.classList.add("hide"); }
+    show("mover"); }
   function show(id){ const e=document.getElementById(id); if(e) e.classList.remove("hide"); }
   function hide(id){ const e=document.getElementById(id); if(e) e.classList.add("hide"); }
 
@@ -1195,13 +1295,22 @@
     if(info){ if(m==="time"){ const b3=getBest(3), b5=getBest(5);
         info.innerHTML="🏆 最佳紀錄　3守護者："+(b3?fmtTime(b3):"—")+"　5守護者："+(b5?fmtTime(b5):"—"); info.classList.remove("hide"); }
       else info.classList.add("hide"); }
-    const pvR=document.getElementById("pveTargets"); if(pvR) pvR.classList.toggle("hide",m!=="pve"); }
+    const pvR=document.getElementById("pveTargets"); if(pvR) pvR.classList.toggle("hide",m!=="pve");
+    updatePveLevelInfo(); }
   tap("modeNormal",()=>setPickMode("normal")); tap("modeTime",()=>setPickMode("time")); tap("modePve",()=>setPickMode("pve"));
   window.__mobaSetPickMode=(m)=>{ if(["normal","time","pve","siege"].indexOf(m)>=0) setPickMode(m); };   // 好友房間房主選的模式帶進對戰
-  function setPveTarget(k){ pvePickTarget=k; document.querySelectorAll("#pveTargets .hregion").forEach(b=>b.classList.toggle("on",b.dataset.pv===k)); }
+  function setPveTarget(k){ pvePickTarget=k; document.querySelectorAll("#pveTargets .hregion").forEach(b=>b.classList.toggle("on",b.dataset.pv===k)); updatePveLevelInfo(); }
+  // PVE 關卡進度提示：顯示目前選定目標已解鎖到第幾關、該關需求
+  function updatePveLevelInfo(){ const el=document.getElementById("pveLevelInfo"); if(!el) return;
+    if(pickMode!=="pve"){ el.classList.add("hide"); return; }
+    const lv=getPveLevel(pvePickTarget), pp=pveLevelParams(pvePickTarget,lv);
+    el.textContent="🎯 "+(KNAME[pvePickTarget]||pvePickTarget)+"　第 "+lv+" 關　需驅逐 "+pp.need+" 隻・限時 "+pp.dur+" 秒"+(lv>1?"（越後面越難！）":"");
+    el.classList.remove("hide"); }
   document.querySelectorAll("#pveTargets .hregion").forEach(b=>b.addEventListener("pointerdown",(e)=>{ e.preventDefault(); setPveTarget(b.dataset.pv); },{passive:false}));
   tap("pick3",()=>start(3)); tap("pick5",()=>start(5)); tap("pickBack",()=>hide("mpick"));
   tap("moverAgain",()=>start(teamSize)); tap("moverHome",exitToLobby);
+  // PVE 過關「下一關」：關卡已在 endGamePve 推進並存進 localStorage，start() 會自動載入更難的那關
+  tap("moverNext",()=>start(teamSize));
   window.addEventListener("keydown",(e)=>{ if(!running) return; if(e.key==="ArrowLeft"||e.key==="a")mv.x=-1; else if(e.key==="ArrowRight"||e.key==="d")mv.x=1; else if(e.key==="ArrowUp"||e.key==="w")mv.y=-1; else if(e.key==="ArrowDown"||e.key==="s")mv.y=1; else if(e.key==="k"||e.key==="Shift")wantSp=true; else if(e.key==="b")wantBack=true; else if(e.key==="j"||e.key===" "){ wantAtk=true; wantAtkT=0.28; } else if(e.key==="l"){ if(player&&player.ult) wantUlt=true; } });
   window.addEventListener("keyup",(e)=>{ if(["ArrowLeft","a","ArrowRight","d"].includes(e.key))mv.x=0; if(["ArrowUp","w","ArrowDown","s"].includes(e.key))mv.y=0; });
 
@@ -1214,7 +1323,14 @@
     dbgRelicAt:()=>{ if(player) relics.push({x:player.x+10,y:player.y,phase:0}); return relics.length; },
     dbgPick:()=>{ if(player) tryPickRelic(player); return !!(player&&player.ult); },
     dbgUlt:()=>{ const n=invaders.length; if(player&&player.ult) castUlt(player); return { firedCd:player?player.ultCd:0, invBefore:n, invAfter:invaders.length }; },
-    forceWeather:(w)=>{ if(WEATHER_KEYS.indexOf(w)>=0){ weatherBattle=w; heroes.forEach(h=>{ h.speed=Math.round(h.speed*weatherSpeedMul(h.kind)); }); } } };
+    forceWeather:(w)=>{ if(WEATHER_KEYS.indexOf(w)>=0){ weatherBattle=w; heroes.forEach(h=>{ h.speed=Math.round(h.speed*weatherSpeedMul(h.kind)); }); } },
+    // 除錯／QA 用：PVE 關卡遞增——查目前關卡、強制生指定新敵人、強制達標過關驗證下一關流程
+    dbgPveLevel:(t)=>getPveLevel(t||pvePickTarget),
+    dbgPveParams:(t,lv)=>pveLevelParams(t||pvePickTarget,lv||getPveLevel(t||pvePickTarget)),
+    dbgSpawnKind:(kind)=>{ if(invaders.length<80){ const v=mkInvader(kind,false); invaders.push(v); return {kind:v.kind,r:v.r,hp:v.hp,speed:v.speed}; } return null; },
+    dbgInvaderKinds:()=>invaders.map(v=>v.kind),
+    dbgPveWin:()=>{ if(pveEvent&&pveEvent.active){ pveEvent.got=pveEvent.need; pveEvent.active=false; endGame(true); return {level:pveEvent.level, next:pveNextLevel}; } return null; },
+    dbgSetPveTarget:(t)=>{ if(PVE_TARGETS.indexOf(t)>=0) setPveTarget(t); return pvePickTarget; } };
 
   // 給獨立模組 src/battleshop.js 用的橋接（玩家物件/提示文字/購買特效），不直接暴露內部狀態
   window.__mobaPlayer=()=>player;
