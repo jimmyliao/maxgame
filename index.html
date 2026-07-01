@@ -93,6 +93,17 @@
     font-size:16px; padding:7px 12px 7px 9px; box-shadow:0 2px 0 rgba(0,0,0,.4); cursor:pointer; white-space:nowrap; }
   .qmsg span{ font-size:12px; font-weight:800; }
   .qmsg:active{ transform:translateY(1px) scale(0.97); filter:brightness(1.2); }
+  /* 戰鬥中強化選擇：擊殺累積到門檻跳出，遊戲不暫停，玩家自行找空檔點選，build 感讓戰鬥有成長曲線 */
+  #mUpgrade{ position:absolute; left:50%; top:14%; transform:translateX(-50%); z-index:8; display:flex; flex-direction:column; align-items:center; gap:8px; pointer-events:none; }
+  #mUpgrade.hide{ display:none; }
+  #mUpgrade .mu-title{ font-size:15px; font-weight:900; color:#ffd54f; text-shadow:0 2px 6px #000; animation:muPop .4s cubic-bezier(.2,1.6,.4,1); }
+  #mUpgrade .mu-cards{ display:flex; gap:8px; pointer-events:auto; }
+  .mu-card{ width:112px; border:none; border-radius:14px; background:linear-gradient(#2e7d32,#1b5e20); color:#fff; padding:10px 8px;
+    box-shadow:0 4px 0 #0d3d12, 0 6px 16px rgba(0,0,0,.5); cursor:pointer; text-align:center; animation:muPop .4s cubic-bezier(.2,1.6,.4,1); }
+  .mu-card:active{ transform:translateY(3px); box-shadow:0 1px 0 #0d3d12; }
+  .mu-card .mu-icon{ font-size:26px; } .mu-card .mu-name{ font-size:12.5px; font-weight:900; margin-top:2px; }
+  .mu-card .mu-desc{ font-size:10px; color:#c8e6c9; margin-top:3px; line-height:1.4; }
+  @keyframes muPop{ 0%{ transform:scale(.5); opacity:0;} 70%{ transform:scale(1.08); opacity:1;} 100%{ transform:scale(1);} }
   #mtoast{ position:absolute; left:50%; top:24%; transform:translateX(-50%); font-size:20px; font-weight:900; color:#fff;
     text-shadow:0 2px 6px #000; pointer-events:none; opacity:0; transition:opacity .3s; text-align:center; white-space:nowrap; }
   #mtoast.show{ opacity:1; }
@@ -427,6 +438,10 @@
     <button class="qmsg" data-q="cheer">💪<span>加油</span></button>
   </div>
   <div id="mtoast"></div>
+  <div id="mUpgrade" class="hide">
+    <div class="mu-title">🌟 選擇一項強化</div>
+    <div class="mu-cards" id="mUpgradeCards"></div>
+  </div>
 </div></div>
 <div id="mpick" class="scr hide">
   <h1 id="mpickTitle">🌳 棲地復育保衛戰</h1>

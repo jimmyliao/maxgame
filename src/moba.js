@@ -58,6 +58,7 @@
   let shrine=null, nurseries=[], heroes=[], invaders=[], fx=[], floats=[], hprojs=[];
   let player=null, spawnT=0, restore=0, killCount=0, surgeT=45, finalAssault=false, mshake=0, eliteFlash=0;
   let combo=0, comboT=0, comboBest=0, comboPop=0;   // 連擊系統：短時間內連續驅逐入侵種會疊加，逾時歸零
+  let nextUpgradeAt=6, upgradePending=false, upgradesTaken=[];   // 戰鬥中強化：每擊殺累積到門檻，選一項本場永久生效的強化，build 感讓每場都不一樣
   let pickMode="normal", timeAttack=false;
   let battleRegion="paddy", healthBonus=0;   // 復育↔對戰核心循環：戰場棲地健康度影響數值加成
   // 好友連線（選用）：netRole=null 純單機（預設，行為完全不變）；"host" 本機模擬+定期廣播；"guest" 不跑模擬，只接收快照渲染+送出操控
@@ -98,6 +99,35 @@
   const ECO_FACT={ leopard_iguana:"石虎會捕食小型爬蟲類，對綠鬣蜥有天敵壓制力！", leopard_anole:"石虎的掠食本能對沙氏變色蜥格外有效！",
     magpie_ibis:"台灣藍鵲會主動驅趕護巢，克制外來的埃及聖䴉！", bear_ibis:"黑熊體型壓制，讓聖䴉不敢靠近！" };
 
+  /* ---------- 戰鬥中強化：每擊殺累積到門檻跳 3 選 1，本場永久生效、不重複，讓每場戰鬥有自己的成長路線 ---------- */
+  const UPGRADE_POOL=[
+    { key:"dmg", icon:"⚔️", name:"猛擊", desc:"攻擊力 +18%", apply:h=>{ h.dmg=Math.round(h.dmg*1.18); } },
+    { key:"speed", icon:"💨", name:"疾風", desc:"移動速度 +15%", apply:h=>{ h.speed=Math.round(h.speed*1.15); h.baseSpeed=h.speed; } },
+    { key:"range", icon:"🎯", name:"廣域", desc:"攻擊距離 +20%", apply:h=>{ h.range=Math.round(h.range*1.2); } },
+    { key:"cdr", icon:"⏱️", name:"敏捷", desc:"技能冷卻 -15%", apply:h=>{ h.spMax=Math.max(1.5,h.spMax*0.85); } },
+    { key:"hp", icon:"❤️", name:"強韌", desc:"最大生命 +20%，立即回滿", apply:h=>{ const add=Math.round(h.maxhp*0.2); h.maxhp+=add; h.hp=h.maxhp; } },
+    { key:"lifesteal", icon:"🩸", name:"活力", desc:"攻擊附加 12% 生命偷取", apply:h=>{ h.lifesteal=(h.lifesteal||0)+0.12; } },
+    { key:"dr", icon:"🛡️", name:"堅甲", desc:"受到傷害 -10%", apply:h=>{ h.dr=Math.min(0.6,(h.dr||0)+0.1); } },
+    { key:"knock", icon:"🌀", name:"重擊", desc:"擊退幅度大幅提升", apply:h=>{ h.knockMul=(h.knockMul||1)+0.7; } },
+  ];
+  function rollUpgrades(){ const pool=UPGRADE_POOL.filter(u=>upgradesTaken.indexOf(u.key)<0);
+    const src=pool.length>=3?pool:UPGRADE_POOL; const picks=[];
+    const copy=src.slice(); while(picks.length<3 && copy.length){ picks.push(copy.splice(Math.floor(Math.random()*copy.length),1)[0]); }
+    return picks; }
+  function checkUpgradeTrigger(){ if(upgradePending || pveEvent) return;   // PVE 限時模式聚焦清剿，不中斷節奏
+    if(killCount>=nextUpgradeAt){ nextUpgradeAt+=6+Math.floor(Math.random()*3); openUpgradeChoice(); } }
+  function openUpgradeChoice(){ upgradePending=true; const picks=rollUpgrades();
+    const box=document.getElementById("mUpgradeCards"); if(!box) return; box.innerHTML="";
+    picks.forEach(u=>{ const b=document.createElement("button"); b.className="mu-card";
+      b.innerHTML='<div class="mu-icon">'+u.icon+'</div><div class="mu-name">'+u.name+'</div><div class="mu-desc">'+u.desc+'</div>';
+      b.addEventListener("pointerdown",(e)=>{ e.preventDefault(); pickUpgrade(u); },{passive:false});
+      box.appendChild(b); });
+    const panel=document.getElementById("mUpgrade"); if(panel) panel.classList.remove("hide"); }
+  function pickUpgrade(u){ upgradePending=false; upgradesTaken.push(u.key);
+    const panel=document.getElementById("mUpgrade"); if(panel) panel.classList.add("hide");
+    if(player){ u.apply(player); ring(player.x,player.y,60,"#ffd54f"); sparks(player.x,player.y,18,"#ffd54f"); mshake=Math.max(mshake,5); }
+    toast("🌟 獲得強化：「"+u.name+"」"+u.desc); }
+
   /* ---------- PVE 限時外來種防衛戰：清除指定入侵種，時間到未達標即失敗 ---------- */
   let pveEvent=null;   // {target, need, got, timeLeft, active}
   const PVE_TARGETS=["iguana","ibis","anole"];
@@ -136,6 +166,7 @@
 
   function setup(size){ teamSize=size; clock=0; ended=false; restore=0; killCount=0; spawnT=2; surgeT=42; finalAssault=false; directive=null; directiveCd=0; bubble=null; eliteFlash=0; timeAttack=(pickMode==="time");
     combo=0; comboT=0; comboBest=0; comboPop=0;
+    nextUpgradeAt=6; upgradePending=false; upgradesTaken=[]; const upEl=document.getElementById("mUpgrade"); if(upEl) upEl.classList.add("hide");
     fx=[]; floats=[]; invaders=[]; hprojs=[]; weatherFx=[];
     weatherBattle=pickWeather();
     pveEvent=(pickMode==="pve")? { target:pvePickTarget, need:PVE_NEED[pvePickTarget]||12, got:0, timeLeft:PVE_DUR, active:true } : null;
@@ -208,6 +239,7 @@
       const fact=ECO_FACT[by.kind+"_"+o.kind]; if(fact && Math.random()<0.5) toast("🔗 "+fact); } // 守護者擊退入侵種：得意 + 生物防治鏈科普
     if(pveEvent && pveEvent.active && o.kind===pveEvent.target){ pveEvent.got++;
       if(pveEvent.got>=pveEvent.need){ pveEvent.active=false; toast("🎯 防衛戰成功！"+KNAME[pveEvent.target]+" 已清除足額！"); endGame(true); } }
+    checkUpgradeTrigger();
   }
 
   /* ---------- 攻擊 ---------- */
@@ -221,7 +253,9 @@
     let mul=1;
     if(u.isPlayer!==undefined) mul*=weatherAtkMul(u);           // 夜間石虎攻擊力 +20%
     if(u.isPlayer!==undefined && tgt.kind) mul*=ecoChainMul(u.kind,tgt.kind); // 生物防治鏈：剋制加成
-    hurt(tgt,dmg*mul,u); knock(tgt,u.x,u.y,u.isPlayer?15:11); if(u.isPlayer) mshake=Math.max(mshake,4); }
+    const dealt=dmg*mul;
+    hurt(tgt,dealt,u); knock(tgt,u.x,u.y,(u.isPlayer?15:11)*(u.knockMul||1)); if(u.isPlayer) mshake=Math.max(mshake,4);
+    if(u.lifesteal && u.hp>0){ u.hp=Math.min(u.maxhp,u.hp+dealt*u.lifesteal); } }   // 戰鬥中強化「活力」：攻擊附加生命偷取
 
   /* ---------- 更新 ---------- */
   function step(dt){
