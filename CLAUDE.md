@@ -31,7 +31,7 @@
 - **棲地基地**（`src/habitat.js`）：種真實台灣植物、離線成長收成、每區種子不同、野生動物訪客、生態走廊、**保育站等級/過關系統(10 關)**。
 - **待做**：攻守對決新模式(設計見 `docs/SIEGE-MODE.md`，第一版打 AI；**情報道具品項待玩家定案**才能完成核心循環)。
 - **保留**：舊側視 1v1 對戰(`legacy.js` 內程式仍在)；舊恐龍遊戲在 `dino.html`。
-- **PWA 版本**：`sw.js` CACHE 目前 `shoutu-v94`。
+- **PWA 版本**：`sw.js` CACHE 目前 `shoutu-v95`。
 
 ## 分支與部署（重要）
 - 開發分支：**`claude/dinosaur-game-infinite-levels-kpfmbm`**
