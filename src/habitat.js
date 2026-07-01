@@ -239,65 +239,79 @@
       ctx.beginPath(); ctx.ellipse(3*s,-9*s,4*s,2.2*s,0.5,0,7); ctx.fill(); }
     ctx.restore(); }
 
-  function drawSpecies(kind,x,y,s,sway,ripe,pop){
-    const S=s*(1+pop*0.18);
+  // stage：同一格反覆收成後的「歲月感」——0=初熟 1=盛開茂盛（收成3次+） 2=老欉（收成7次+），越養越壯觀，不是每次都長一樣
+  function harvestStage(tile){ const n=tile.harvestCount||0; return n>=7?2:n>=3?1:0; }
+  function drawSpecies(kind,x,y,s,sway,ripe,pop,stage){
+    stage=stage||0;
+    const S=s*(1+pop*0.18)*(1+stage*0.1);
     ctx.save(); ctx.translate(x,y); ctx.rotate(Math.sin(sway)*0.03);
+    if(stage>=2){ ctx.save(); ctx.globalAlpha=0.35; ctx.fillStyle="#ffe082"; ctx.beginPath(); ctx.ellipse(0,3*S,16*S,4.4*S,0,0,7); ctx.fill(); ctx.restore(); } // 老欉金環底座
     if(kind==="lily"){ // 台灣萍蓬草：扁平浮葉 + 黃花，貼近水面
       ctx.fillStyle="rgba(0,0,0,0.18)"; ctx.beginPath(); ctx.ellipse(0,2*S,15*S,4*S,0,0,7); ctx.fill();
-      for(const o of [[-8,1,1],[7,2,0.85],[0,-2,1.1]]){ ctx.fillStyle=mix("#3f7a3f","#5a9a4a",0.5); ctx.beginPath(); ctx.ellipse(o[0]*S,o[1]*S,7*S*o[2],4.6*S*o[2],0.2,0,7); ctx.fill();
+      const pads=stage>=1? [[-8,1,1],[7,2,0.85],[0,-2,1.1],[-4,-4,0.7]] : [[-8,1,1],[7,2,0.85],[0,-2,1.1]];
+      for(const o of pads){ ctx.fillStyle=mix("#3f7a3f","#5a9a4a",0.5); ctx.beginPath(); ctx.ellipse(o[0]*S,o[1]*S,7*S*o[2],4.6*S*o[2],0.2,0,7); ctx.fill();
         ctx.strokeStyle="rgba(255,255,255,0.35)"; ctx.lineWidth=0.8; ctx.beginPath(); ctx.moveTo(o[0]*S,o[1]*S); ctx.lineTo(o[0]*S+4*S*o[2],o[1]*S); ctx.stroke(); }
+      const flowerN=4+stage*2;
       ctx.fillStyle="#ffd54f"; ctx.beginPath(); ctx.arc(0,-4*S,3.2*S,0,7); ctx.fill();
-      for(let k=0;k<6;k++){ const a=k/6*6.283; ctx.beginPath(); ctx.ellipse(Math.cos(a)*3.6*S,-4*S+Math.sin(a)*3.6*S,2*S,1*S,a,0,7); ctx.fillStyle="#ffe082"; ctx.fill(); } }
-    else if(kind==="round"){ // 台灣欒樹：圓冠喬木，成熟時有金紅色蒴果點綴
+      for(let k=0;k<flowerN;k++){ const a=k/flowerN*6.283; ctx.beginPath(); ctx.ellipse(Math.cos(a)*3.6*S,-4*S+Math.sin(a)*3.6*S,2*S,1*S,a,0,7); ctx.fillStyle="#ffe082"; ctx.fill(); }
+      if(stage>=1){ ctx.fillStyle="#ffd54f"; ctx.beginPath(); ctx.arc(6*S,3*S,2*S,0,7); ctx.fill(); } } // 老株旁多開一朵
+    else if(kind==="round"){ // 台灣欒樹：圓冠喬木，成熟時有金紅色蒴果點綴，越老欉冠幅越大、果實越多
       ctx.fillStyle="rgba(0,0,0,0.22)"; ctx.beginPath(); ctx.ellipse(0,2*S,10*S,3*S,0,0,7); ctx.fill();
       ctx.fillStyle="#6d4c2f"; ctx.fillRect(-1.4*S,-14*S,2.8*S,14*S);
       const cols=[mix("#2e7d32","#245c28",0.3),mix("#43a047","#2e7d32",0.2),mix("#66bb6a","#43a047",0.1)];
       for(let k=0;k<3;k++){ ctx.fillStyle=cols[k]; const rr=(10-k*2)*S; ctx.beginPath(); ctx.arc(-rr*0.35,-16*S-k*2*S,rr*0.62,0,7); ctx.arc(rr*0.35,-16*S-k*2*S,rr*0.62,0,7); ctx.arc(0,-19*S-k*2*S,rr*0.7,0,7); ctx.fill(); }
-      if(ripe){ ctx.fillStyle="#e8734a"; for(let k=0;k<5;k++){ const a=k*1.4+sway; ctx.beginPath(); ctx.arc(Math.cos(a)*7*S,-18*S+Math.sin(a)*6*S,1.6*S,0,7); ctx.fill(); } } }
-    else if(kind==="conifer"){ // 台灣杉：高聳三角形針葉巨木
+      if(ripe){ const fn=5+stage*3; ctx.fillStyle=stage>=2?"#ff8a50":"#e8734a"; for(let k=0;k<fn;k++){ const a=k*(6.283/fn)+sway; ctx.beginPath(); ctx.arc(Math.cos(a)*7*S,-18*S+Math.sin(a)*6*S,1.6*S,0,7); ctx.fill(); } } }
+    else if(kind==="conifer"){ // 台灣杉：高聳三角形針葉巨木，越老欉越高聳
       ctx.fillStyle="rgba(0,0,0,0.22)"; ctx.beginPath(); ctx.ellipse(0,2*S,8*S,2.6*S,0,0,7); ctx.fill();
       ctx.fillStyle="#5a4632"; ctx.fillRect(-1.2*S,-24*S,2.4*S,24*S);
       ctx.fillStyle=mix("#1b4d2e","#2e6b3e",0.3);
-      for(let k=0;k<4;k++){ const yy=-8*S-k*7*S, w=(9-k*1.6)*S; ctx.beginPath(); ctx.moveTo(0,yy-9*S); ctx.lineTo(-w,yy); ctx.lineTo(w,yy); ctx.closePath(); ctx.fill(); } }
-    else if(kind==="mangrove"){ // 水筆仔：露出支柱根的紅樹林灌叢
+      const layers=4+stage;
+      for(let k=0;k<layers;k++){ const yy=-8*S-k*7*S, w=(9-k*1.6)*S; if(w<=0) continue; ctx.beginPath(); ctx.moveTo(0,yy-9*S); ctx.lineTo(-w,yy); ctx.lineTo(w,yy); ctx.closePath(); ctx.fill(); }
+      if(stage>=2){ ctx.fillStyle="rgba(200,220,200,0.35)"; for(let k=0;k<3;k++){ const yy=-10*S-k*8*S; ctx.beginPath(); ctx.ellipse(4*S,yy,2*S,1*S,0.3,0,7); ctx.fill(); } } } // 老欉樹皮附生苔蘚斑點
+    else if(kind==="mangrove"){ // 水筆仔：露出支柱根的紅樹林灌叢，越老欉支柱根與樹冠越茂密
       ctx.fillStyle="rgba(0,0,0,0.2)"; ctx.beginPath(); ctx.ellipse(0,2*S,11*S,3.2*S,0,0,7); ctx.fill();
       ctx.strokeStyle="#5a4030"; ctx.lineWidth=1.6*S; ctx.lineCap="round";
-      for(const dx of [-5,-1.5,2,5.5]){ ctx.beginPath(); ctx.moveTo(dx*S,-2*S); ctx.quadraticCurveTo(dx*1.4*S,4*S,dx*1.8*S,7*S); ctx.stroke(); }
-      const cols=["#3f6b3f","#548a52"]; for(let k=0;k<2;k++){ ctx.fillStyle=cols[k]; ctx.beginPath(); ctx.ellipse(-3*S+k*6*S,-9*S-k*2*S,7*S,6*S,0,0,7); ctx.fill(); } }
-    else if(kind==="juniper"){ // 玉山圓柏：被強風吹成匍匐狀的風衝矮林，橫向盤根
+      const roots=stage>=1? [-6,-3,0,2.5,5.5,8] : [-5,-1.5,2,5.5];
+      for(const dx of roots){ ctx.beginPath(); ctx.moveTo(dx*S,-2*S); ctx.quadraticCurveTo(dx*1.4*S,4*S,dx*1.8*S,7*S); ctx.stroke(); }
+      const cols=["#3f6b3f","#548a52"]; for(let k=0;k<2;k++){ ctx.fillStyle=cols[k]; ctx.beginPath(); ctx.ellipse((-3+stage)*S+k*6*S,-9*S-k*2*S,(7+stage)*S,(6+stage*0.5)*S,0,0,7); ctx.fill(); } }
+    else if(kind==="juniper"){ // 玉山圓柏：被強風吹成匍匐狀的風衝矮林，越老欉盤根越粗、匍匐範圍越廣
       ctx.fillStyle="rgba(0,0,0,0.22)"; ctx.beginPath(); ctx.ellipse(0,2*S,13*S,3.4*S,0,0,7); ctx.fill();
-      ctx.strokeStyle="#6b5842"; ctx.lineWidth=2.2*S; ctx.lineCap="round";
-      ctx.beginPath(); ctx.moveTo(-8*S,1*S); ctx.quadraticCurveTo(-2*S,-3*S,4*S,-4*S); ctx.stroke();
+      ctx.strokeStyle="#6b5842"; ctx.lineWidth=(2.2+stage*0.5)*S; ctx.lineCap="round";
+      ctx.beginPath(); ctx.moveTo(-(8+stage*2)*S,1*S); ctx.quadraticCurveTo(-2*S,-3*S,(4+stage*2)*S,-4*S); ctx.stroke();
       const cols=[mix("#4a6b4f","#5f7f5a",0.4),mix("#5f7f5a","#7a9a70",0.3)];
-      for(const o of [[-6,-5,1],[0,-7,1.15],[5,-4.5,0.9]]){ ctx.fillStyle=cols[o[2]>1?1:0]; ctx.beginPath(); ctx.ellipse(o[0]*S,o[1]*S,7*S*o[2],3.4*S*o[2],0.15,0,7); ctx.fill(); }
-      if(ripe){ ctx.fillStyle="#8ea9d8"; for(let k=0;k<4;k++){ const a=k*1.6+sway; ctx.beginPath(); ctx.arc(Math.cos(a)*5*S,-6*S+Math.sin(a)*3*S,1.3*S,0,7); ctx.fill(); } } }
-    else if(kind==="heron"){ // 欖李叢＋佇立黑面琵鷺剪影：河口泥灘的招牌畫面
+      const clumps=stage>=1? [[-6,-5,1],[0,-7,1.15],[5,-4.5,0.9],[8,-3,0.75]] : [[-6,-5,1],[0,-7,1.15],[5,-4.5,0.9]];
+      for(const o of clumps){ ctx.fillStyle=cols[o[2]>1?1:0]; ctx.beginPath(); ctx.ellipse(o[0]*S,o[1]*S,7*S*o[2],3.4*S*o[2],0.15,0,7); ctx.fill(); }
+      if(ripe){ ctx.fillStyle="#8ea9d8"; const bn=4+stage*2; for(let k=0;k<bn;k++){ const a=k*(6.283/bn)+sway; ctx.beginPath(); ctx.arc(Math.cos(a)*5*S,-6*S+Math.sin(a)*3*S,1.3*S,0,7); ctx.fill(); } } }
+    else if(kind==="heron"){ // 欖李叢＋佇立黑面琵鷺剪影：越老欉樹叢越密，甚至多來一隻水鳥
       ctx.fillStyle="rgba(0,0,0,0.2)"; ctx.beginPath(); ctx.ellipse(-2*S,2*S,10*S,3*S,0,0,7); ctx.fill();
       ctx.fillStyle="#5c6b3f"; for(const o of [[-6,-6,1],[-1,-8,1.05]]){ ctx.beginPath(); ctx.ellipse(o[0]*S,o[1]*S,6*S*o[2],4.6*S*o[2],0,0,7); ctx.fill(); }
-      ctx.save(); ctx.translate(6*S,-1*S);
-      ctx.strokeStyle="#e8e8e8"; ctx.lineWidth=1.3*S; ctx.lineCap="round";
-      ctx.beginPath(); ctx.moveTo(-1.4*S,0); ctx.lineTo(-1.4*S,-8*S); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(1.4*S,0); ctx.lineTo(1.4*S,-8*S); ctx.stroke();
-      ctx.fillStyle="#f2f2f2"; ctx.beginPath(); ctx.ellipse(0,-10*S,4*S,3.2*S,0,0,7); ctx.fill();
-      ctx.fillStyle="#2c2c2c"; ctx.beginPath(); ctx.moveTo(3.6*S,-10*S); ctx.lineTo(8*S,-9.4*S); ctx.lineTo(3.6*S,-8.8*S); ctx.fill();
-      ctx.restore(); }
+      function bird(bx,by,sc){ ctx.save(); ctx.translate(bx,by);
+        ctx.strokeStyle="#e8e8e8"; ctx.lineWidth=1.3*S*sc; ctx.lineCap="round";
+        ctx.beginPath(); ctx.moveTo(-1.4*S*sc,0); ctx.lineTo(-1.4*S*sc,-8*S*sc); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(1.4*S*sc,0); ctx.lineTo(1.4*S*sc,-8*S*sc); ctx.stroke();
+        ctx.fillStyle="#f2f2f2"; ctx.beginPath(); ctx.ellipse(0,-10*S*sc,4*S*sc,3.2*S*sc,0,0,7); ctx.fill();
+        ctx.fillStyle="#2c2c2c"; ctx.beginPath(); ctx.moveTo(3.6*S*sc,-10*S*sc); ctx.lineTo(8*S*sc,-9.4*S*sc); ctx.lineTo(3.6*S*sc,-8.8*S*sc); ctx.fill();
+        ctx.restore(); }
+      bird(6*S,-1*S,1);
+      if(stage>=2) bird(-9*S,0.5*S,0.72); }
     ctx.restore();
   }
 
   function drawSapling(kind,x,y,s,sway,pop){ drawSpecies(kind,x,y,s*0.6,sway,false,pop); }
 
+  const STAGE_TAG=["","🌼盛開","🌟老欉"];
   function drawSpot(sp){ const tile=curTiles()[sp.i], st=stageOf(tile), pos=spotPos(sp.i), s=pos.scale*18, sway=sp.sway+performance.now()/1000;
-    const ripe = st==="mature" && storedOf(tile)>0;
+    const ripe = st==="mature" && storedOf(tile)>0, stage=harvestStage(tile);
     if(sp.popT>0) sp.popT=Math.max(0,sp.popT-0.05);
     if(st==="invasive") drawInvasive(pos.x,pos.y,pos.scale,sway);
     else if(st==="empty") drawEmpty(pos.x,pos.y,pos.scale);
     else if(st==="sprout") drawSprout(REGION_INFO[data.current].shape,pos.x,pos.y,pos.scale,sway);
     else if(st==="sapling") drawSapling(REGION_INFO[data.current].shape,pos.x,pos.y,pos.scale,sway,sp.popT);
-    else { drawSpecies(REGION_INFO[data.current].shape,pos.x,pos.y,pos.scale,sway,ripe,sp.popT);
+    else { drawSpecies(REGION_INFO[data.current].shape,pos.x,pos.y,pos.scale,sway,ripe,sp.popT,stage);
       if(ripe){ const pl=0.5+0.5*Math.sin(performance.now()/300); ctx.save(); ctx.globalAlpha=0.5+0.4*pl; ctx.fillStyle="#fff59d";
         ctx.beginPath(); ctx.arc(pos.x,pos.y-18*pos.scale,3*pos.scale,0,7); ctx.fill(); ctx.restore();
-        const stv=storedOf(tile); ctx.font="bold "+Math.round(11*pos.scale)+"px sans-serif"; ctx.textAlign="center"; ctx.fillStyle="#ffd54f"; ctx.strokeStyle="rgba(0,0,0,.6)"; ctx.lineWidth=3;
-        ctx.strokeText("+"+stv,pos.x,pos.y-24*pos.scale); ctx.fillText("+"+stv,pos.x,pos.y-24*pos.scale); } }
+        const stv=storedOf(tile), tag=STAGE_TAG[stage]?(" "+STAGE_TAG[stage]):""; ctx.font="bold "+Math.round(11*pos.scale)+"px sans-serif"; ctx.textAlign="center"; ctx.fillStyle="#ffd54f"; ctx.strokeStyle="rgba(0,0,0,.6)"; ctx.lineWidth=3;
+        ctx.strokeText("+"+stv+tag,pos.x,pos.y-24*pos.scale); ctx.fillText("+"+stv+tag,pos.x,pos.y-24*pos.scale); } }
   }
 
   /* ---------- 粒子 / 橫幅 ---------- */
@@ -356,11 +370,12 @@
     else if(st==="empty"){ tile.state="planted"; tile.plantedAt=now(); tile.lastCollect=now(); delete tile.emptySince; }
     else if(st==="mature"){ const s=storedOf(tile); if(s>0) harvestTile(i,tile,s); }
     const sp=spots[i]; if(sp) sp.popT=1; save(data); updateHUD(); }
-  function harvestTile(i,tile,s){ window.__awardEco && window.__awardEco(s); tile.lastCollect=now();
+  function harvestTile(i,tile,s){ window.__awardEco && window.__awardEco(s); tile.lastCollect=now(); tile.harvestCount=(tile.harvestCount||0)+1;
     const pos=spotPos(i); burstAt(pos.x,pos.y-16*pos.scale);
-    const info=REGION_INFO[data.current]||REGION_INFO.paddy; banner("🧺 收成 "+info.plant+" +"+s+" 保育值！"); }
+    const info=REGION_INFO[data.current]||REGION_INFO.paddy, tag=STAGE_TAG[harvestStage(tile)]?("　"+STAGE_TAG[harvestStage(tile)]+"！"):"";
+    banner("🧺 收成 "+info.plant+" +"+s+" 保育值！"+tag); }
   function collectAll(){ let total=0, n=0;
-    for(let i=0;i<N;i++){ const tile=curTiles()[i]; if(stageOf(tile)==="mature"){ const s=storedOf(tile); if(s>0){ total+=s; n++; tile.lastCollect=now();
+    for(let i=0;i<N;i++){ const tile=curTiles()[i]; if(stageOf(tile)==="mature"){ const s=storedOf(tile); if(s>0){ total+=s; n++; tile.lastCollect=now(); tile.harvestCount=(tile.harvestCount||0)+1;
       const pos=spotPos(i); burstAt(pos.x,pos.y-16*pos.scale); const sp=spots[i]; if(sp) sp.popT=1; } } }
     if(total>0){ window.__awardEco && window.__awardEco(total); banner("🧺 一次收成 "+n+" 棵，共 +"+total+" 保育值！"); } else banner("目前還沒有成熟可收成的植物");
     save(data); updateHUD(); }
