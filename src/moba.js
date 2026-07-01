@@ -88,6 +88,9 @@
   let running=false, raf=0, lastT=0, clock=0, teamSize=3, ended=false;
   let shrine=null, nurseries=[], heroes=[], invaders=[], fx=[], floats=[], hprojs=[];
   let player=null, spawnT=0, restore=0, killCount=0, surgeT=45, finalAssault=false, mshake=0, eliteFlash=0;
+  // 「大作」打擊感：hitStop=命中瞬間短暫凍結模擬(freeze frame)增加重量感；bossIntro=首領登場電影運鏡橫幅
+  let hitStop=0, bossIntro=null;
+  function freeze(t){ hitStop=Math.max(hitStop,t); }   // 命中定格：暫停模擬幾十毫秒，畫面照渲染
   let combo=0, comboT=0, comboBest=0, comboPop=0;   // 連擊系統：短時間內連續驅逐入侵種會疊加，逾時歸零
   // 撿拾式必殺技：地圖四周散落「守護之力」能量球，玩家走過去撿起後才能施放超強範圍必殺，用完冷卻很久（要再撿一顆）
   let relics=[], relicSpawnT=0;
@@ -143,7 +146,7 @@
   let pvePickTarget="iguana";
   // 單挑首領戰：只有玩家自己 vs 一隻超強首領，不出一般波次，擊敗首領即勝、時限到或神木倒則敗
   let duelEvent=null;   // {timeLeft, active}
-  const DUEL_DUR=100, DUEL_BOSSES=["python","iguana","canetoad","ibis"], BOSS_NOVA_R=210;
+  const DUEL_DUR=100, DUEL_BOSSES=["python","iguana","canetoad","ibis"], BOSS_NOVA_R=210, BOSS_INTRO_DUR=2.9;
   // 首領挑戰難度晉級：每打贏一場自動升一級，首領越來越強；最高「大師」級（全域共用一個進度，離線保存）
   const DUEL_TIERS=["見習","初階","中階","高階","大師"];
   function getDuelLevel(){ try{ const v=parseInt(localStorage.getItem("shoutu_duel_level")||"1",10); return Math.min(DUEL_TIERS.length,Math.max(1,isNaN(v)?1:v)); }catch(e){ return 1; } }
@@ -237,7 +240,7 @@
     if(s===0) return {x:u*MW,y:20}; if(s===1) return {x:u*MW,y:MH-20}; if(s===2) return {x:20,y:u*MH}; return {x:MW-20,y:u*MH}; }
 
   function setup(size){ teamSize=size; clock=0; ended=false; restore=0; killCount=0; spawnT=2; surgeT=42; finalAssault=false; directive=null; directiveCd=0; bubble=null; eliteFlash=0; timeAttack=(pickMode==="time");
-    combo=0; comboT=0; comboBest=0; comboPop=0;
+    combo=0; comboT=0; comboBest=0; comboPop=0; hitStop=0; bossIntro=null;
     relics=[]; relicSpawnT=5;   // 開場 5 秒後第一顆守護之力才降臨，避免一開場就有必殺
     if(window.__shopReset) window.__shopReset();
     fx=[]; floats=[]; invaders=[]; hprojs=[]; weatherFx=[];
@@ -288,6 +291,8 @@
       boss.bossSpCd=Math.max(2.6,4-(lv-1)*0.32); boss.bossSpT=0; boss.bossRingT=0; boss.enraged=false;   // 首領專屬：範圍震波冷卻(等級越高越密)/預警、暴走旗標
       boss.x=SHX; boss.y=SHY-320; invaders.push(boss);
       duelEvent={ timeLeft:DUEL_DUR, active:true, bossKind:bk, size:size, level:lv };
+      bossIntro={ t:0, name:KNAME[bk]+"王", tier:duelTierName(lv), kind:bk };   // 首領登場電影運鏡
+      if(window.__sfx) window.__sfx.play("boss");
       // 首領挑戰玩法/技能跟一般不同：技能冷卻大幅縮短、守護之力更快降臨，逼你用技能與走位打首領、不是站樁清波
       heroes.forEach(h=>{ h.spMax=Math.max(1.5,(h.spMax||8)*0.55); });
       relicSpawnT=3;
@@ -329,6 +334,10 @@
     // 入侵種
     o.dead=true; killCount++; ring(o.x,o.y,o.elite?60:26,"#cddc39"); sparks(o.x,o.y,o.elite?26:12,o.elite?"#ffca28":"#cddc39");
     if(o.elite){ mshake=Math.max(mshake,10); ring(o.x,o.y,90,"#ffca28"); }
+    // 首領被擊敗：電影級爆發（大爆炸粒子＋雙層衝擊環＋強震＋定格），把最爽的一刻放大
+    if(o.isBoss){ mshake=Math.max(mshake,18); eliteFlash=0.6; freeze(0.14);
+      ring(o.x,o.y,140,"#fff59d"); ring(o.x,o.y,220,"#ffca28"); ring(o.x,o.y,300,"#ff8a65"); sparks(o.x,o.y,60,"#ffe082"); sparks(o.x,o.y,40,"#fff");
+      floats.push({x:o.x,y:o.y-o.r-14,txt:"首領擊破！",col:"#ffd54f",life:1.4,big:true}); }
     // 連擊：3.2 秒內連續驅逐會疊加，每 5 連擊多一次爆發回饋（震動/粒子/復原度都加碼），逾時歸零重來
     combo++; comboT=3.2; comboPop=0.5; comboBest=Math.max(comboBest,combo);
     const comboTier=Math.floor(combo/5), comboBonus=1+comboTier*0.35;
@@ -358,12 +367,13 @@
     if(u.isPlayer!==undefined) mul*=weatherAtkMul(u);           // 夜間石虎攻擊力 +20%
     if(u.isPlayer!==undefined && tgt.kind) mul*=ecoChainMul(u.kind,tgt.kind); // 生物防治鏈：剋制加成
     const dealt=dmg*mul;
-    hurt(tgt,dealt,u); knock(tgt,u.x,u.y,(u.isPlayer?15:11)*(u.knockMul||1)); if(u.isPlayer){ mshake=Math.max(mshake,4); if(window.__sfx) window.__sfx.play(dealt>=40?"bighit":"hit"); }
+    hurt(tgt,dealt,u); knock(tgt,u.x,u.y,(u.isPlayer?15:11)*(u.knockMul||1)); if(u.isPlayer){ mshake=Math.max(mshake,4); if(dealt>=40) freeze(0.035); if(window.__sfx) window.__sfx.play(dealt>=40?"bighit":"hit"); }
     if(u.lifesteal && u.hp>0){ u.hp=Math.min(u.maxhp,u.hp+dealt*u.lifesteal); } }   // 戰鬥中強化「活力」：攻擊附加生命偷取
 
   /* ---------- 更新 ---------- */
   function step(dt){
     if(ended) return; clock+=dt; if(mshake>0) mshake=Math.max(0,mshake-dt*38); if(eliteFlash>0) eliteFlash=Math.max(0,eliteFlash-dt*1.6);
+    if(bossIntro){ bossIntro.t+=dt; if(bossIntro.t>BOSS_INTRO_DUR) bossIntro=null; }
     if(comboPop>0) comboPop=Math.max(0,comboPop-dt*1.8);
     if(comboT>0){ comboT-=dt; if(comboT<=0) combo=0; }
     if(wantAtkT>0){ wantAtkT-=dt; if(wantAtkT<=0) wantAtk=false; }
@@ -405,7 +415,7 @@
         if(!v.enraged && v.hp < v.maxhp*0.3){ v.enraged=true; v.dmg=Math.round(v.dmg*1.4); v.speed=Math.round(v.speed*1.3); eliteFlash=0.6; mshake=Math.max(mshake,8); toast("😤 "+KNAME[v.kind]+"王 暴走！攻擊與速度大幅提升"); }
         if(v.bossSpT>0){ v.moving=false; v.atkA=0.2; v.bossSpT-=dt;
           v.bossRingT-=dt; if(v.bossRingT<=0){ v.bossRingT=0.28; ring(v.x,v.y,BOSS_NOVA_R,"#ff5252"); }   // 擴散紅環預警危險範圍
-          if(v.bossSpT<=0){ ring(v.x,v.y,BOSS_NOVA_R,"#ff5252"); ring(v.x,v.y,BOSS_NOVA_R*0.6,"#ff8a80"); sparks(v.x,v.y,26,"#ff8a80"); mshake=Math.max(mshake,11);
+          if(v.bossSpT<=0){ ring(v.x,v.y,BOSS_NOVA_R,"#ff5252"); ring(v.x,v.y,BOSS_NOVA_R*0.6,"#ff8a80"); sparks(v.x,v.y,26,"#ff8a80"); mshake=Math.max(mshake,11); freeze(0.06);
             for(const cand of [player,...heroes]){ if(!cand||cand.dead) continue; if(dist(v,cand)<BOSS_NOVA_R){ hurt(cand,Math.round(v.dmg*1.6),v); knock(cand,v.x,v.y,42); } }
             v.bossSpCd=(v.enraged?3:4.5)+Math.random()*2; }
           continue; }
@@ -536,7 +546,9 @@
       if(netMyUid && d.ctrl===netMyUid) myHero=base; return base; });
     if(Array.isArray(s.invaders)) invaders=s.invaders.map(d=>{ const v=mkInvader(d.kind,d.elite); v.x=d.x; v.y=d.y; v.face=d.face||0; v.hp=d.hp; v.maxhp=d.max||v.maxhp; v.moving=!!d.moving; v.isBoss=!!d.boss; return v; });
     // 首領挑戰：從快照還原 duelEvent，讓 guest 端顯示雙方血條 HUD（首領血量/計時/難度）
+    const hadDuel=!!duelEvent;
     duelEvent = s.duel ? { timeLeft:s.duel.tl||0, active:true, bossKind:s.duel.bk, size:s.duel.sz||teamSize, level:s.duel.lv||1 } : (s.duel===null? null : duelEvent);
+    if(duelEvent && !hadDuel && !bossIntro){ bossIntro={ t:0, name:(KNAME[duelEvent.bossKind]||"大首領")+"王", tier:duelTierName(duelEvent.level||1), kind:duelEvent.bossKind }; if(window.__sfx) window.__sfx.play("boss"); }   // guest 端也放首領登場運鏡
     relics=Array.isArray(s.relics)? s.relics.map(r=>({x:r.x, y:r.y, phase:r.phase||0})) : [];
     // guest 端鏡頭/HUD 一定要跟著「我自己操控的守護者」（快照裡 ctrl===我的 uid 那隻），不能落到 isPlayer（那是房主的角色）——
     // 這是造成朋友端「看起來大家都是同一隻」的根因：舊版一律抓 isPlayer，guest 端因此鏡頭黏在房主身上
@@ -693,7 +705,7 @@
   // 必殺：以自身為中心的巨大守護怒濤，重創範圍內所有入侵種（大傷害＋擊退＋震暈），並額外推進棲地復原；用完長冷卻、要再撿一顆
   function castUlt(h){ if(!h.ult) return; h.ult=false; h.ultCd=ULT_CD; h.atkA=0.4;
     const R=340, dmg=130;
-    ring(h.x,h.y,R,"#ffd54f"); ring(h.x,h.y,R*0.6,"#fff59d"); sparks(h.x,h.y,40,"#ffe082"); mshake=Math.max(mshake,14); eliteFlash=0.5;
+    ring(h.x,h.y,R,"#ffd54f"); ring(h.x,h.y,R*0.6,"#fff59d"); sparks(h.x,h.y,40,"#ffe082"); mshake=Math.max(mshake,14); eliteFlash=0.5; freeze(0.09);
     let hitN=0;
     for(const v of invaders){ if(v.dead) continue; if(dist(h,v)<R+v.r){ hurt(v,dmg,{isPlayer:true,kind:h.kind}); knock(v,h.x,h.y,60); v.stun=Math.max(v.stun,1.3); hitN++; } }
     restore=clamp(restore+0.03,0,1);
@@ -778,7 +790,35 @@
       ctx.restore();
       if(comboT<1){ ctx.save(); ctx.strokeStyle="rgba(255,213,79,"+(comboT*0.7).toFixed(3)+")"; ctx.lineWidth=3;
         ctx.beginPath(); ctx.arc(cx,cy,26,-1.5708,-1.5708+comboT*6.283); ctx.stroke(); ctx.restore(); } }
+    if(bossIntro) drawBossIntro();
     if(toastT>0){ toastT-=0.016; if(toastT<=0){ const el=document.getElementById("mtoast"); if(el) el.classList.remove("show"); } }
+  }
+  // 首領登場電影運鏡：上下黑幕 letterbox + 首領名號/難度等級 大字滑入 + 紅色掃光，把「大作」開場感做出來
+  function drawBossIntro(){ const p=Math.min(1,bossIntro.t/BOSS_INTRO_DUR);
+    // 黑幕：前 0.3 拉入、後 0.15 收起
+    const barIn=Math.min(1,p/0.22), barOut=p>0.85?(1-(p-0.85)/0.15):1, bar=Math.max(0,Math.min(barIn,barOut))*VH*0.15;
+    ctx.fillStyle="rgba(0,0,0,0.82)"; ctx.fillRect(0,0,VW,bar); ctx.fillRect(0,VH-bar,VW,bar);
+    // 中央整體壓暗
+    const dim=Math.max(0,Math.min(barIn,barOut))*0.42; ctx.fillStyle="rgba(0,0,0,"+dim.toFixed(3)+")"; ctx.fillRect(0,bar,VW,VH-bar*2);
+    // 文字滑入/滑出
+    const app=p<0.75?Math.min(1,(p-0.12)/0.22):(1-(p-0.75)/0.25), a=Math.max(0,Math.min(1,app));
+    if(a>0){ const cx=VW/2, cy=VH*0.5, slide=(1-a)*60;
+      ctx.save(); ctx.textAlign="center"; ctx.globalAlpha=a;
+      // 難度等級小標
+      ctx.font="bold 17px sans-serif"; ctx.fillStyle="#ff8a80";
+      ctx.fillText("⚔ 首領挑戰 · "+bossIntro.tier+"級", cx, cy-46+slide);
+      // 首領名號（紅色光暈大字）
+      ctx.font="900 46px 'Noto Sans TC',sans-serif"; ctx.shadowColor="rgba(255,40,40,0.9)"; ctx.shadowBlur=24;
+      ctx.fillStyle="#fff"; ctx.fillText(bossIntro.name, cx, cy+6-slide);
+      ctx.shadowBlur=0; ctx.strokeStyle="rgba(255,60,60,0.85)"; ctx.lineWidth=2; ctx.strokeText(bossIntro.name, cx, cy+6-slide);
+      // 副標
+      ctx.font="bold 14px sans-serif"; ctx.fillStyle="rgba(255,255,255,0.82)";
+      ctx.fillText("擊敗牠　守護台灣特有種的家園", cx, cy+42+slide);
+      ctx.restore(); ctx.globalAlpha=1; }
+    // 紅色掃光（一次橫掃）
+    if(p<0.6){ const sx=(p/0.6)*VW*1.4-VW*0.2, gw=140;
+      const lg=ctx.createLinearGradient(sx-gw,0,sx+gw,0); lg.addColorStop(0,"rgba(255,60,60,0)"); lg.addColorStop(0.5,"rgba(255,90,90,0.28)"); lg.addColorStop(1,"rgba(255,60,60,0)");
+      ctx.fillStyle=lg; ctx.fillRect(0,bar,VW,VH-bar*2); }
   }
 
   // 晝夜/氣候視覺呈現：夜間變暗＋藍紫色調、暴雨雨滴、寒流白霧+雪花（獨立於世界座標，畫在螢幕上）
@@ -1326,7 +1366,8 @@
 
   /* ---------- 迴圈 / 流程 ---------- */
   function loop(ts){ if(!running) return; const dt=Math.min(0.04,(ts-lastT)/1000||0); lastT=ts;
-    if(netRole==="guest"){ if(window.__netCheckStale&&window.__netCheckStale()) toast("⚠ 對方已離線…"); render(); }
+    if(netRole==="guest"){ if(window.__netCheckStale&&window.__netCheckStale()) toast("⚠ 對方已離線…"); if(bossIntro) bossIntro.t+=dt; render(); }
+    else if(hitStop>0){ hitStop=Math.max(0,hitStop-dt); if(bossIntro) bossIntro.t+=dt; render(); }   // 命中定格：只推進登場運鏡與畫面，不推進模擬
     else { step(dt); render(); }
     raf=requestAnimationFrame(loop); }
   // 共用進場：先把 netRole/netPendingGuests 設好「再」跑 setup()，這樣 setup() 才能正確把每隻守護者對應回操控者 uid

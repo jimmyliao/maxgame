@@ -53,6 +53,7 @@
     harvest:  ()=>{ tone(587,0.1,"sine",0.11,784); tone(880,0.1,"sine",0.07,1047,0.05); },
     levelup:  ()=>{ arp([523,659,784,1047,1319],0.1,"triangle",0.15); },
     combo:    ()=>{ tone(784,0.08,"sine",0.1,988); },
+    boss:     ()=>{ tone(90,0.8,"sine",0.18,60); tone(135,0.8,"triangle",0.10,110,0.04); noise(0.55,0.09,260); tone(220,0.5,"sine",0.06,175,0.18); }, // 首領登場：低沉威壓悶鳴（不刺耳）
   };
 
   function play(name){ if(muted) return; if(!ensure()) return;
