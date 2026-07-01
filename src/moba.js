@@ -272,10 +272,13 @@
     // 尾巴
     if(u.kind==="leopard"||u.kind==="deer"){ const tw=Math.sin(gt*3+u.phase)*r*0.4; ctx.strokeStyle=col; ctx.lineWidth=r*0.2; ctx.lineCap="round";
       ctx.beginPath(); ctx.moveTo(-r*0.75,0); ctx.quadraticCurveTo(-r*1.15,tw,-r*1.35,tw*1.5); ctx.stroke(); ctx.lineCap="butt"; }
-    // 腳（走路擺動）
-    if(!flyer){ ctx.fillStyle=dark; const sw=walk*r*0.4, lr=r*0.17;
-      const legs=bird?[[-r*0.1,-r*0.3,1],[-r*0.1,r*0.3,-1]]:[[r*0.4,-r*0.42,1],[r*0.4,r*0.42,-1],[-r*0.42,-r*0.42,-1],[-r*0.42,r*0.42,1]];
-      for(const L of legs){ ctx.beginPath(); ctx.ellipse(L[0]+L[2]*sw,L[1],lr,lr*1.15,0,0,7); ctx.fill(); } }
+    // 腳（走路擺動）— 露出身體外緣、深色毛用對比亮腳，確保看得到
+    if(!flyer){ const c=hex(col), lum=c[0]*0.299+c[1]*0.587+c[2]*0.114; const footCol=lum<95?shade(col,58):shade(col,-38);
+      const sw=walk*r*0.38, lr=r*0.19;
+      const legs=bird?[[-r*0.05,-r*0.44,1],[-r*0.05,r*0.44,-1]]
+        :[[r*0.4,-r*0.72,1],[r*0.4,r*0.72,-1],[-r*0.46,-r*0.72,-1],[-r*0.46,r*0.72,1]];
+      ctx.fillStyle=footCol; ctx.strokeStyle="rgba(0,0,0,0.28)"; ctx.lineWidth=1.2;
+      for(const L of legs){ ctx.beginPath(); ctx.ellipse(L[0]+L[2]*sw,L[1],lr,lr*1.2,0,0,7); ctx.fill(); ctx.stroke(); } }
     // 身體（3D 漸層）
     const bLen=flyer?r*1.05:(bird?r*0.9:r*0.98), bW=flyer?r*0.3:r*0.74;
     const bg=ctx.createRadialGradient(r*0.15,-r*0.3,r*0.1,0,0,bLen*1.1); bg.addColorStop(0,lite); bg.addColorStop(0.55,col); bg.addColorStop(1,dark);
