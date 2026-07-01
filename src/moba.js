@@ -64,7 +64,7 @@
   let pickMode="normal", timeAttack=false;
   let battleRegion="paddy", healthBonus=0;   // 復育↔對戰核心循環：戰場棲地健康度影響數值加成
   // 好友連線（選用）：netRole=null 純單機（預設，行為完全不變）；"host" 本機模擬+定期廣播；"guest" 不跑模擬，只接收快照渲染+送出操控
-  let netRole=null, netGuestHero=null, netBroadcastT=0, netLastRecvT=0, netStale=false;
+  let netRole=null, netGuestHero=null, netBroadcastT=0, netLastRecvT=0, netStale=false, netPendingGuestKind=null;
   const NET_BROADCAST_MS=130, NET_TIMEOUT_MS=6000;
   const REGION_LABEL={ paddy:"稻田", hill:"淺山", stream:"溪流", wetland:"濕地" };
 
@@ -146,7 +146,9 @@
     shrine={ x:SHX, y:SHY, r:76, hp:1400, maxhp:1400, kind:"shrine", hitT:0 };
     nurseries=NPOS.map(p=>({ x:p.x, y:p.y, r:34, hp:340, maxhp:340, growth:0.15, contested:false, kind:"nursery" }));
     const myKey=window.__netHostKeyOverride||(window.__featuredKey&&window.__featuredKey())||"leopard";
-    const kinds=[myKey]; for(const k of GUARDIANS){ if(kinds.length>=size) break; if(k!==myKey) kinds.push(k); }
+    // 好友連線：房間裡朋友實際選的角色一定要排進隊伍名單，不能被下面的固定順序填充蓋掉（這是造成「兩人角色變成同一隻」的根因）
+    const kinds=[myKey]; if(netPendingGuestKind && netPendingGuestKind!==myKey) kinds.push(netPendingGuestKind);
+    for(const k of GUARDIANS){ if(kinds.length>=size) break; if(kinds.indexOf(k)<0) kinds.push(k); }
     while(kinds.length<size) kinds.push(GUARDIANS[kinds.length%GUARDIANS.length]);
     healthBonus=(window.__habitatHealth&&window.__habitatHealth(battleRegion))||0;   // 該地區棲地健康度 0~1
     heroes=kinds.map((k,i)=>{ const h=mkHero(k,i===0); const ang=-1.57+(i-(size-1)/2)*0.6; h.x=SHX+Math.cos(ang)*150; h.y=SHY+Math.sin(ang)*150;
@@ -365,11 +367,14 @@
     clock=s.t||0; restore=clamp(s.restore||0,0,1); killCount=s.kills||0;
     if(shrine){ shrine.hp=s.shrineHp||0; shrine.maxhp=s.shrineMax||shrine.maxhp; }
     if(Array.isArray(s.nurseries)) nurseries.forEach((n,i)=>{ const d=s.nurseries[i]; if(!d) return; n.hp=d.hp||0; n.maxhp=d.max||n.maxhp; n.growth=d.growth||0; });
+    netGuestHero=null;
     if(Array.isArray(s.heroes)) heroes=s.heroes.map(d=>{ const base=mkHero(d.kind,d.isPlayer); base.x=d.x; base.y=d.y; base.face=d.face||0;
       base.hp=d.hp; base.maxhp=d.max||base.maxhp; base.dead=!!d.dead; base.level=d.lv||1; base.name=d.name||base.name; base.moving=!!d.moving;
       if(d.isGuest) netGuestHero=base; return base; });
     if(Array.isArray(s.invaders)) invaders=s.invaders.map(d=>{ const v=mkInvader(d.kind,d.elite); v.x=d.x; v.y=d.y; v.face=d.face||0; v.hp=d.hp; v.maxhp=d.max||v.maxhp; v.moving=!!d.moving; return v; });
-    player=heroes.find(h=>h.isPlayer)||heroes[0]||null;
+    // guest 端鏡頭/HUD 一定要跟著「我自己選的角色」（isGuest 那隻），不能落到 isPlayer（那是房主的角色）——
+    // 這是造成朋友端「看起來兩人是同一隻」的根因：舊版一律抓 isPlayer，guest 端因此鏡頭黏在房主身上
+    player=netGuestHero||heroes.find(h=>h.isPlayer)||heroes[0]||null;
     if(player){ const vw=VW/zoom, vh=VH/zoom, focus=player.dead?shrine:player;
       cam.x=clamp(focus.x-vw/2,0,Math.max(0,MW-vw)); cam.y=clamp(focus.y-vh/2,0,Math.max(0,MH-vh)); }
     updateHUD();
@@ -824,7 +829,7 @@
     if(h.shieldT>0){ ctx.strokeStyle="rgba(77,208,225,0.85)"; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(h.x,h.y,R*1.25,0,7); ctx.stroke(); }
     if(h.invulnT>0){ ctx.strokeStyle="rgba(128,222,234,0.7)"; ctx.lineWidth=2; ctx.setLineDash([4,4]); ctx.beginPath(); ctx.arc(h.x,h.y,R*1.15,0,7); ctx.stroke(); ctx.setLineDash([]); }
     ctx.globalAlpha=1;
-    if(h.isPlayer){ const bY=h.y-R*1.8-Math.sin(clock*4)*3; ctx.fillStyle="#ffd54f"; ctx.beginPath(); ctx.moveTo(h.x,bY+10); ctx.lineTo(h.x-7,bY); ctx.lineTo(h.x+7,bY); ctx.fill();
+    if(h===player){ const bY=h.y-R*1.8-Math.sin(clock*4)*3; ctx.fillStyle="#ffd54f"; ctx.beginPath(); ctx.moveTo(h.x,bY+10); ctx.lineTo(h.x-7,bY); ctx.lineTo(h.x+7,bY); ctx.fill();
       if(bubble && bubble.t>0){ const a=Math.min(1,bubble.t*2.4), by=bY-30, bw=Math.max(58,bubble.txt.length*13+34);
         ctx.globalAlpha=a; ctx.fillStyle="#fff"; ctx.strokeStyle="rgba(0,0,0,0.5)"; ctx.lineWidth=2;
         ctx.beginPath(); ctx.moveTo(h.x-10,by+16); ctx.lineTo(h.x,by+28); ctx.lineTo(h.x+6,by+15);
@@ -856,7 +861,7 @@
     raf=requestAnimationFrame(loop); }
   function start(size){ netRole=null; netGuestHero=null; root.classList.remove("mhide"); hide("mpick"); hide("mover"); zoom=1; resize(); setup(size); running=true; ended=false; lastT=0; raf=requestAnimationFrame(loop); }
   // 好友連線：host 端跟 start() 幾乎一樣（照舊本機模擬），但額外標記 netRole 以便定期廣播 + 收朋友輸入；guestKind 指定哪個位置是朋友操控
-  function startNetHost(size,guestKind){ start(size); netRole="host"; netBroadcastT=0;
+  function startNetHost(size,guestKind){ netPendingGuestKind=guestKind||null; start(size); netPendingGuestKind=null; netRole="host"; netBroadcastT=0;
     netGuestHero=heroes.find(h=>!h.isPlayer && h.kind===guestKind) || heroes.find(h=>!h.isPlayer) || null; }
   // 好友連線：guest 端不跑本機模擬，畫面完全來自 host 廣播的快照；先用一個佔位場景渲染，等第一份快照送達再覆蓋
   function startNetGuest(size){ netRole="guest"; netGuestHero=null; root.classList.remove("mhide"); hide("mpick"); hide("mover"); zoom=1; resize(); setup(size); running=true; ended=false; lastT=0; netLastRecvT=performance.now(); netStale=false; raf=requestAnimationFrame(loop); }
@@ -964,7 +969,8 @@
 
   window.MOBA={ start, exit:exitToLobby, startNetHost, startNetGuest,
     // 除錯／QA 用內部狀態快照（不影響玩法，方便無頭瀏覽器驗收天候・PVE 數值是否真的生效）
-    debug:()=>({ weatherBattle, pveEvent, heroes:heroes.map(h=>({kind:h.kind,speed:h.speed,dmg:h.dmg})), weatherFxLen:weatherFx.length, invadersLen:invaders.length }),
+    debug:()=>({ weatherBattle, pveEvent, netRole, heroes:heroes.map(h=>({kind:h.kind,speed:h.speed,dmg:h.dmg,isPlayer:!!h.isPlayer,isGuest:h===netGuestHero})), playerKind:player&&player.kind, weatherFxLen:weatherFx.length, invadersLen:invaders.length }),
+    snapshot:()=>snapshot(), applySnapshot:(s)=>applySnapshot(s),   // 除錯／QA 用：無頭瀏覽器模擬「host 廣播 → guest 套用」全流程驗證好友連線鏡頭是否正確
     forceWeather:(w)=>{ if(WEATHER_KEYS.indexOf(w)>=0){ weatherBattle=w; heroes.forEach(h=>{ h.speed=Math.round(h.speed*weatherSpeedMul(h.kind)); }); } } };
 
   // 給獨立模組 src/battleshop.js 用的橋接（玩家物件/提示文字/購買特效），不直接暴露內部狀態
