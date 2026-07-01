@@ -56,7 +56,8 @@
   let wantSp=false, wantBack=false;
   let zoom=1, ZMIN=0.62; const ZMAX=1.8;
   // 快捷訊息：指揮 AI 隊友（集合/攻擊/撤退/小心/讚），有實際行為、不只是裝飾文字
-  const QMSG={ rally:{icon:"📣",txt:"集合！",dur:5}, focus:{icon:"⚔",txt:"攻擊！",dur:5}, retreat:{icon:"🛡",txt:"撤退！",dur:5}, careful:{icon:"⚠",txt:"小心！",dur:3}, gg:{icon:"👍",txt:"做得好！",dur:2} };
+  const QMSG={ rally:{icon:"📣",txt:"集合！",dur:5}, focus:{icon:"⚔",txt:"攻擊！",dur:5}, retreat:{icon:"🛡",txt:"撤退！",dur:5}, careful:{icon:"⚠",txt:"小心！",dur:3},
+    heal:{icon:"🌿",txt:"治療！",dur:2}, push:{icon:"🔥",txt:"衝了！",dur:5}, thanks:{icon:"🙏",txt:"謝謝！",dur:2}, sorry:{icon:"🙇",txt:"抱歉！",dur:2}, gg:{icon:"👍",txt:"做得好！",dur:2}, cheer:{icon:"💪",txt:"加油！",dur:2} };
   let directive=null, directiveCd=0, bubble=null;
   function setZoom(z){ zoom=clamp(z,ZMIN,ZMAX); }
 
@@ -169,7 +170,7 @@
       if(dirOn && directive.type==="retreat"){
         if(tg && tg.d<=h.range+tg.e.r){ if(h.t<=0) meleeHit(h,tg.e,h.dmg); }
         const ang=Math.atan2(shrine.y-h.y,shrine.x-h.x); if(dist(h,shrine)>150){ h.face=ang; h.x+=Math.cos(ang)*h.speed*dt; h.y+=Math.sin(ang)*h.speed*dt; h.moving=true; h.anim+=dt; }
-      } else if(dirOn && directive.type==="rally"){
+      } else if(dirOn && (directive.type==="rally"||directive.type==="push")){
         if(tg && tg.d<=h.range+tg.e.r){ if(h.t<=0) meleeHit(h,tg.e,h.dmg); if(h.spCd<=0 && invaders.filter(v=>!v.dead&&dist(v,h)<150).length>=2) castSp(h); }
         const ang=Math.atan2(directive.y-h.y,directive.x-h.x); if(dist(h,directive)>100){ h.face=ang; h.x+=Math.cos(ang)*h.speed*dt; h.y+=Math.sin(ang)*h.speed*dt; h.moving=true; h.anim+=dt; }
       } else if(tg){ const reach=h.range+tg.e.r;
@@ -565,7 +566,9 @@
     directiveCd=4;
     if(key==="rally") directive={type:"rally",x:player.x,y:player.y,t:q.dur};
     else if(key==="retreat") directive={type:"retreat",t:q.dur};
+    else if(key==="push") directive={type:"push",x:clamp(player.x+Math.cos(player.face)*420,40,MW-40),y:clamp(player.y+Math.sin(player.face)*420,40,MH-40),t:q.dur};
     else if(key==="focus"){ const tg=nearestInvader(player,260); if(tg) directive={type:"focus",target:tg.e,t:q.dur}; }
+    else if(key==="heal"){ const dr=heroes.find(h=>h.kind==="deer"&&!h.dead&&h.spCd<=0); if(dr) castSp(dr); }
     bubble={icon:q.icon,txt:q.txt,t:1.8}; toast(q.icon+" "+q.txt);
     const w=document.getElementById("mChatWheel"); if(w) w.classList.add("hide"); }
   tap("mChatBtn",()=>{ const w=document.getElementById("mChatWheel"); if(w) w.classList.toggle("hide"); });
