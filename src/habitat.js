@@ -64,9 +64,13 @@
   /* ---------- 畫布場景 ---------- */
   const cv=$("habCanvas");
   const ctx=cv && cv.getContext("2d");
-  let VW=0, VH=0, dpr=1, running=false, raf=0;
-  function resize(){ if(!cv) return; const r=cv.getBoundingClientRect(); VW=r.width||300; VH=r.height||225;
+  let VW=0, VH=0, dpr=1, running=false, raf=0, rot=false;
+  function resize(){ if(!cv) return; const iw=window.innerWidth, ih=window.innerHeight;
+    rot = ih>iw;                               // 直握手機 → 旋轉成橫向填滿螢幕（跟 MOBA 同一套做法）
+    const root=$("habitat"); if(root) root.classList.toggle("rot", rot);
+    VW = rot? ih : iw; VH = rot? iw : ih;
     dpr=Math.min(window.devicePixelRatio||1,2); cv.width=Math.round(VW*dpr); cv.height=Math.round(VH*dpr); ctx.setTransform(dpr,0,0,dpr,0,0); }
+  window.addEventListener("orientationchange",()=>{ if(running) setTimeout(resize,60); });
   window.addEventListener("resize",()=>{ if(running) resize(); });
 
   // 自然散佈的種植點（非棋盤格）：決定式偽亂數，位置固定但看起來自然
@@ -251,7 +255,10 @@
     if(total>0){ window.__awardEco && window.__awardEco(total); banner("🧺 一次收成 "+n+" 棵，共 +"+total+" 保育值！"); } else banner("目前還沒有成熟可收成的植物");
     save(data); updateHUD(); }
 
-  function toLocal(e){ const r=cv.getBoundingClientRect(); return { x:(e.clientX-r.left)*(VW/r.width), y:(e.clientY-r.top)*(VH/r.height) }; }
+  function toLocal(e){ const r=cv.getBoundingClientRect();
+    const dsx=e.clientX-(r.left+r.width/2), dsy=e.clientY-(r.top+r.height/2);   // 相對畫面中心的螢幕位移
+    const dx = rot? dsy : dsx, dy = rot? -dsx : dsy;                            // 直握旋轉時把螢幕座標轉回世界座標
+    return { x: VW/2+dx, y: VH/2+dy }; }
   if(cv) cv.addEventListener("pointerdown",(e)=>{ e.preventDefault(); const p=toLocal(e); const i=hitTest(p.x,p.y); if(i>=0) tap(i); },{passive:false});
 
   function setRegion(r){ if(!REGION_INFO[r]) return; data.region=r; save(data); applyTheme(); banner("🌏 已切換到"+REGION_INFO[r].label+"棲地——培育"+REGION_INFO[r].plant); }
@@ -262,10 +269,11 @@
     if(ctx){ paintBackground(ts/1000); const ordered=spots.slice().sort((a,b)=>spotPos(a.i).depth-spotPos(b.i).depth); for(const sp of ordered) drawSpot(sp); drawParts(dt); }
     updateHUD(); raf=requestAnimationFrame(loop); }
 
-  function openHabitat(){ data=load(); applyTheme(); resize(); running=true; last=0; raf=requestAnimationFrame(loop);
-    if(window.__tx) window.__tx(()=>show()); else show(); }
+  function openHabitat(){ data=load(); applyTheme();
+    const doOpen=()=>{ show(); resize(); running=true; last=0; raf=requestAnimationFrame(loop); };
+    if(window.__tx) window.__tx(doOpen); else doOpen(); }
   function show(){ const e=$("habitat"); if(e) e.classList.remove("hide"); }
-  function closeHabitat(){ const e=$("habitat"); if(e) e.classList.add("hide"); running=false; cancelAnimationFrame(raf); save(data); }
+  function closeHabitat(){ const e=$("habitat"); if(e) e.classList.add("hide"); running=false; cancelAnimationFrame(raf); save(data); window.__lobbyRefresh && window.__lobbyRefresh(); }
 
   const tap2=(id,fn)=>{ const e=$(id); if(e) e.addEventListener("pointerdown",(ev)=>{ ev.preventDefault(); fn(); },{passive:false}); };
   tap2("navHabitat",openHabitat);
