@@ -31,7 +31,15 @@
 - **棲地基地**（`src/habitat.js`）：種真實台灣植物、離線成長收成、每區種子不同、野生動物訪客、生態走廊、**保育站等級/過關系統(10 關)**。
 - **待做**：攻守對決新模式(設計見 `docs/SIEGE-MODE.md`，第一版打 AI；**情報道具品項待玩家定案**才能完成核心循環)。
 - **保留**：舊側視 1v1 對戰(`legacy.js` 內程式仍在)；舊恐龍遊戲在 `dino.html`。
-- **PWA 版本**：`sw.js` CACHE 目前 `shoutu-v98`。
+- **PWA 版本**：`sw.js` CACHE 目前 `shoutu-v99`。
+- **Beta 1.0 定版**：commit `8c53e28` / sw `shoutu-v98`。（遠端 tag 因 sandbox 權限 403 無法推送，版本以本文件與 `docs/` 為準。）架構總覽見 `docs/ARCHITECTURE.md`、系統詳規見 `docs/SYSTEMS.md`、協作流程見 `docs/PROCESS.md`。
+
+## 協作合約 / 溝通流程（每個 session 開場都讀）
+> 完整合約見 `docs/PROCESS.md`；架構與存檔見 `docs/ARCHITECTURE.md`；系統公式見 `docs/SYSTEMS.md`。
+- **快速釐清意圖**：使用者說一句話後，最多問 **1~2 個關鍵問題**（會影響方向或驗收的），**能推斷就別問**，把推斷寫進需求單讓使用者一眼確認。
+- **對應需求單（ticket）**：架構師把需求對應到系統（等級/對戰/棲地/連線/大廳/美術/PWA），依 `docs/PROCESS.md §3` 模板開單，寫明驗收條件（含一票否決項）。
+- **分工交棒**：架構師（只寫 .md）開單 → PM 排序/確認範圍 → **整合 Lead（主 Claude）**實作＋無頭實機驗收＋部署 → 在地化 agent 顧台灣用語與生態正確性。
+- **每次完成更新 spec**：回填 ticket 狀態/commit/sw 版本，同步更新本檔 §目前狀態、`docs/SPEC.md §決策紀錄`、必要時 `docs/ARCHITECTURE.md`／`docs/SYSTEMS.md`。
 
 ## 分支與部署（重要）
 - 開發分支：**`claude/dinosaur-game-infinite-levels-kpfmbm`**
