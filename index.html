@@ -75,6 +75,13 @@
   #mDuelHud .dh-bar i{ display:block; height:100%; width:100%; background:linear-gradient(90deg,#43a047,#a5d6a7); transition:width .18s ease; }
   #mDuelHud .dh-bar.boss i{ background:linear-gradient(90deg,#ef5350,#ff8a80); margin-left:auto; transition:width .18s ease; }
   #mDuelHud .dh-vs{ font-size:14px; font-weight:900; color:#ffd54f; text-shadow:0 1px 3px #000; white-space:nowrap; padding-top:14px; }
+  #duelBox .duel-sz{ min-width:64px; font-size:14px; padding:8px 12px; }
+  #duelRecords{ max-width:380px; margin:8px auto 0; font-size:12.5px; }
+  #duelRecords .dr-row{ display:flex; justify-content:space-between; gap:8px; padding:4px 10px; border-radius:8px; background:rgba(0,0,0,.28); margin:3px 0; }
+  #duelRecords .dr-row .dr-sz{ color:#ffd54f; font-weight:800; }
+  #duelRecords .dr-row .dr-name{ flex:1; text-align:center; color:#e8f5e0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #duelRecords .dr-row .dr-time{ color:#80deea; font-weight:800; }
+  #duelRecords .dr-empty{ color:#90a4ae; }
   #mclock{ font-size:13px; font-weight:800; color:#ffd54f; text-shadow:0 1px 2px #000; padding-top:2px; }
   #mBest{ font-size:11px; font-weight:800; color:#80deea; text-shadow:0 1px 2px #000; text-align:center; }
   #mGoldHud{ font-size:13px; font-weight:900; color:#ffd54f; text-shadow:0 1px 3px #000; text-align:center; margin-top:2px;
@@ -606,7 +613,7 @@
     <button class="btn sec mode-tab on" id="modeNormal">🌳 一般模式</button>
     <button class="btn sec mode-tab" id="modeTime">⏱ 限時復育挑戰</button>
     <button class="btn sec mode-tab" id="modePve">🎯 外來種防衛戰</button>
-    <button class="btn sec mode-tab" id="modeDuel">⚔ 單挑首領戰</button>
+    <button class="btn sec mode-tab" id="modeDuel">⚔ 首領挑戰</button>
   </div>
   <p id="bestTimeInfo" class="hide" style="color:#ffd54f;font-weight:800;"></p>
   <div class="row hide" id="pveTargets">
@@ -633,7 +640,18 @@
     <button class="btn" id="pick3">3 守護者小隊</button>
     <button class="btn" id="pick5">5 守護者大隊</button>
   </div>
-  <button class="btn hide" id="pickDuel">⚔ 開始單挑（你 vs 首領）</button>
+  <!-- 首領挑戰：選 1~5 人一起打大首領（首領血量隨人數變強），下方顯示各人數的通關紀錄 -->
+  <div id="duelBox" class="hide">
+    <p style="font-size:12.5px;color:#a5d6a7;max-width:360px;margin:2px auto;">選擇一起挑戰大首領的人數——人越多首領越強！</p>
+    <div class="row" id="duelSizeRow">
+      <button class="btn duel-sz" data-n="1">單人</button>
+      <button class="btn duel-sz" data-n="2">雙人</button>
+      <button class="btn duel-sz" data-n="3">三人</button>
+      <button class="btn duel-sz" data-n="4">四人</button>
+      <button class="btn duel-sz" data-n="5">五人</button>
+    </div>
+    <div id="duelRecords"></div>
+  </div>
   <button class="btn sec" id="pickBack">返回大廳</button>
 </div>
 <div id="mover" class="scr hide">
