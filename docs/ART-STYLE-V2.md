@@ -83,10 +83,40 @@ above, facing right」，其餘描述細節與風格套用同一套規則即可�
 其餘 9 隻依此類推替換主體描述（可直接沿用 `docs/ART-PROMPTS-TOP.md` 每隻的主體描述文字，只把風格結尾換成
 本文件的共用風格描述）。
 
-## 尚未加入遊戲、但你已經提過的角色（生成時可以一起做，先備著）
+## 第二批角色（山羌／台灣獼猴／櫻花鉤吻鮭／藍腹鷴）— 已在開發中，kind 命名已定案
 
-- 山羌、台灣獼猴、櫻花鉤吻鮭、藍腹鷴（`docs/ART-PROMPTS-2.md`）——尚未寫入 `HEROES`/`GUARDIANS`，等資料與程式繪製上場後再補俯視/側視雙版本路徑。
-- 沙氏變色蜥（`anole`，生態相剋任務新增中的入侵種）——等該功能整合上線、確認實際 kind 命名後補上。
+這 4 隻已經在背景開發中加入 `HEROES`/`GUARDIANS`（資料設計＋程式繪製版本），kind 鍵名已確定，圖檔路徑可以先照這個對照表準備：
+
+```
+assets/heroes/muntjac.png   山羌（側視，大廳/圖鑑/1v1戰鬥）
+assets/heroes/macaque.png   台灣獼猴
+assets/heroes/salmon.png    台灣櫻花鉤吻鮭
+assets/heroes/pheasant.png  藍腹鷴
+assets/top/muntjac.png      山羌（俯視，MOBA戰鬥）
+assets/top/macaque.png      台灣獼猴
+assets/top/salmon.png       台灣櫻花鉤吻鮭
+assets/top/pheasant.png     藍腹鷴
+```
+
+側視版提示詞（3/4 側面、面向右，套用文件最上方的「共用風格描述」＋「守護者加註」）：
+
+11. **山羌** → `assets/heroes/muntjac.png`（🌲山林・輔助治療型）
+> A semi-realistic painterly Reeve's muntjac (Formosan barking deer), small and gentle, 3/4 side view facing right, soft tan-brown fur with fine strand texture, short velvet antlers on males, alert large dark eyes, warm healing-green magic circle glowing beneath, misty forest floor backdrop hinted. [+共用風格描述][+守護者加註]
+
+12. **台灣獼猴** → `assets/heroes/macaque.png`（🌲山林・敏捷刺客型）
+> A semi-realistic painterly Formosan rock macaque, 3/4 side view facing right, dynamic agile crouching pose ready to leap, expressive face, brownish-grey fur with fine texture on limbs, rocky forest edge backdrop hinted, golden-green magic circle glowing beneath. [+共用風格描述][+守護者加註]
+
+13. **台灣櫻花鉤吻鮭** → `assets/heroes/salmon.png`（💧水域・傳奇稀有）
+> A semi-realistic painterly Formosan landlocked salmon (Oncorhynchus masou formosanus), shown leaping upstream in a dynamic pose, iridescent silver-blue scales with fine detail and pink-red spawning coloration along the flank, glowing sapphire-blue magic circle and swirling water motes beneath, clean mountain stream backdrop hinted, legendary aura. [+共用風格描述][+守護者加註，水系用藍色調魔法圈]
+
+14. **藍腹鷴** → `assets/heroes/pheasant.png`（🌪天空・高階遠程）
+> A semi-realistic painterly Swinhoe's pheasant (male), 3/4 side view facing right, elegant proud standing pose, deep metallic blue-black plumage with fine iridescent feather strand detail, striking red facial wattles, long dark tail feathers, misty forest backdrop hinted, sky-blue magic circle glowing beneath. [+共用風格描述][+守護者加註]
+
+俯視版提示詞：比照 `assets/top/` 既有 10 隻的規則（top-down bird's-eye view, full body from directly above, facing right），主體描述沿用上面 4 段，只需把視角改成正上方俯視即可，風格結尾同樣套共用風格描述。
+
+## 尚未加入遊戲的角色 / 入侵種（生成時可以一起做，先備著）
+
+- 沙氏變色蜥（`anole`，生態相剋任務新增中的入侵種，體型小、速度快）——`assets/bosses/anole.png` 與 `assets/top/anole.png`，風格比照入侵種加註（威脅感、冷色調、無魔法圈）。
 
 ## 怎麼加圖上線
 
