@@ -88,6 +88,14 @@
   .mode-tab{ font-size:15px; padding:9px 16px; opacity:.55; }
   .mode-tab.on{ opacity:1; background:#2e7d32; box-shadow:0 4px 0 #1b5e20; }
   #coopJoinRow.hide{ display:none; }
+  #habitat{ overflow:hidden; }
+  #habBg{ position:absolute; inset:0; z-index:0; transition:background 1.2s ease; }
+  #habitat > *:not(#habBg){ position:relative; z-index:1; }
+  #habRegions{ display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; justify-content:center; }
+  .hregion{ border:none; border-radius:16px; padding:6px 12px; font-size:12px; font-weight:800; background:rgba(255,255,255,.14); color:#fff; cursor:pointer; }
+  .hregion.on{ background:#2e7d32; box-shadow:0 3px 0 #1b5e20; }
+  #habWeather{ font-size:12px; font-weight:800; color:#b3e5fc; margin-top:6px; text-shadow:0 1px 2px #000; }
+  #habSpecies{ font-size:11px; color:#c5e1a5; margin-top:4px; max-width:340px; line-height:1.5; }
   #habHeader{ display:flex; justify-content:space-between; width:100%; max-width:340px; font-size:13px; font-weight:800; color:#ffd54f; margin-top:6px; }
   .hbar{ width:100%; max-width:340px; height:12px; border-radius:6px; background:rgba(0,0,0,.4); overflow:hidden; border:1px solid rgba(255,255,255,.25); margin-top:4px; }
   .hbar i{ display:block; height:100%; width:0%; background:linear-gradient(90deg,#66bb6a,#a5d6a7); transition:width .4s; }
@@ -101,6 +109,11 @@
   .htile.mature{ background:#1f6b2c; border-color:rgba(255,213,79,.6); }
   .htile.mature.ripe{ animation:glow 1s infinite; }
   .htile:active{ transform:scale(0.94); }
+  .htile.harvest{ animation:harvestPop .5s ease; }
+  @keyframes harvestPop{ 0%{ transform:scale(1);} 40%{ transform:scale(1.35) rotate(-6deg);} 100%{ transform:scale(1);} }
+  #habBanner{ position:fixed; left:50%; top:30%; transform:translate(-50%,-20px); background:rgba(20,40,20,.94); border:2px solid #ffd54f;
+    border-radius:18px; padding:14px 26px; font-size:18px; font-weight:900; color:#ffd54f; z-index:50; opacity:0; pointer-events:none; transition:opacity .3s, transform .3s; text-align:center; white-space:nowrap; }
+  #habBanner.show{ opacity:1; transform:translate(-50%,0); }
   .htile .hpip{ position:absolute; top:2px; right:4px; font-size:9px; color:#ffd54f; font-weight:800; }
   #moba, #mpick, #mover{ z-index:40; } #mpick, #mover{ z-index:41; }
   .scr{ position:absolute; inset:0; z-index:10; display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -370,17 +383,28 @@
 
 <!-- ===== 棲地基地：經營/養成（離線也會成長，回來收成） ===== -->
 <div id="habitat" class="scr hide">
+  <div id="habBg"></div>
   <h1>🏡 棲地基地</h1>
   <h2>清除入侵種、種下原生植物——植物會隨時間成長，離線也在長大，回來收成保育值！</h2>
+  <div id="habRegions">
+    <button class="hregion" data-r="paddy">🌾 稻田</button>
+    <button class="hregion" data-r="hill">⛰ 淺山</button>
+    <button class="hregion" data-r="stream">💧 溪流</button>
+    <button class="hregion" data-r="wetland">🌫 濕地</button>
+  </div>
+  <div id="habWeather"></div>
+  <div id="habSpecies"></div>
   <div id="habHeader">
     <span id="habRestoreTxt">復原度 0%</span>
     <span id="habEcoTxt">🌿 可收成 0</span>
   </div>
   <div class="hbar"><i id="habRestoreBar"></i></div>
   <div id="habGrid"></div>
-  <p id="habHint" style="font-size:12px;color:#a5d6a7;margin-top:8px;">🥀 入侵種：點掉它　🟫 空地：點下去種植　🌱🌿🌳 依時間長大，點成熟的收成</p>
-  <button class="btn sec" id="habBack" style="margin-top:10px;">返回大廳</button>
+  <button class="btn" id="habCollectAll" style="margin-top:12px;">🧺 全部收成</button>
+  <p id="habHint" style="font-size:12px;color:#a5d6a7;margin-top:6px;">🥀 入侵種：點掉它　🟫 空地：點下去種植　🌱🌿🌳 依時間長大，點成熟的收成</p>
+  <button class="btn sec" id="habBack" style="margin-top:8px;">返回大廳</button>
 </div>
+<div id="habBanner"></div>
 
 <!-- ===== 好友連線（需要網路；單機部分完全不受影響） ===== -->
 <div id="coop" class="scr hide">
