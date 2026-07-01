@@ -123,11 +123,14 @@
     dmg:28, range:70, cd:0.6, t:0, spCd:0, speed:isPlayer?172:150, face:0, dead:false, respawn:0, name:KNAME[kind]||kind,
     hitT:0, anim:0, moving:false, phase:Math.random()*6.28, atkA:0, mood:"n", moodT:0,
     dr:0, invulnT:0, stealthT:0, shieldT:0, talent:null, blessT:0 }; }   // dr=天賦減傷 0~1；talent=第3級主動技能旗標；blessT=山羌祝福加速剩餘時間
+  const CHARGERS=["iguana","anole"];   // 體型較大/敏捷的入侵種會蓄力衝撞，逼玩家主動走位閃避，不是站樁對打
   function mkInvader(kind,elite){ const p=edgePoint(), scale=1+Math.min(1.3,clock/120)*0.6; // 隨時間越來越強
     const isAnole=kind==="anole"&&!elite; // 沙氏變色蜥：體型小、繁殖力強 → 個體弱小但速度快（呼應真實生態習性）
     const hp=Math.round((elite?300:isAnole?40:64)*scale);
+    const canCharge=CHARGERS.indexOf(kind)>=0;
     return { kind, x:p.x, y:p.y, r:elite?30:(isAnole?12:16), hp, maxhp:hp, dmg:Math.round((elite?18:isAnole?7:10)*scale), range:elite?44:30,
-      cd:0.9, t:0, speed:elite?62:(isAnole?104:82), face:0, dead:false, elite, hitT:0, tgt:null, anim:0, moving:false, phase:Math.random()*6.28, atkA:0, stun:0, mood:"n", moodT:0 }; }
+      cd:0.9, t:0, speed:elite?62:(isAnole?104:82), face:0, dead:false, elite, hitT:0, tgt:null, anim:0, moving:false, phase:Math.random()*6.28, atkA:0, stun:0, mood:"n", moodT:0,
+      canCharge, chargeCd:canCharge?(1.5+Math.random()*2):0, chargeT:0, chargeDashT:0, chargeDir:0, chargeHit:false }; }
   function edgePoint(){ const s=Math.floor(Math.random()*4), u=Math.random();
     if(s===0) return {x:u*MW,y:20}; if(s===1) return {x:u*MW,y:MH-20}; if(s===2) return {x:20,y:u*MH}; return {x:MW-20,y:u*MH}; }
 
@@ -248,9 +251,23 @@
     // 入侵種
     for(const v of invaders){ if(v.dead) continue; if(v.hitT>0) v.hitT-=dt; if(v.moodT>0) v.moodT-=dt;
       if(v.stun>0){ v.stun-=dt; v.moving=false; continue; }   // 被震暈：不動不攻
+      if(v.chargeCd>0) v.chargeCd-=dt;
+      // 蓄力衝撞：先原地預警蓄力，再朝當時鎖定的方向高速衝出，撞到目標會造成大傷害+擊退，逼玩家主動走位閃避
+      if(v.chargeDashT>0){ v.moving=true; v.anim+=dt; v.chargeDashT-=dt;
+        const px=v.x,py=v.y;
+        v.x+=Math.cos(v.chargeDir)*v.speed*3.1*dt; v.y+=Math.sin(v.chargeDir)*v.speed*3.1*dt; v.x=clamp(v.x,20,MW-20); v.y=clamp(v.y,20,MH-20);
+        fx.push({type:"streak",x:px,y:py,x2:v.x,y2:v.y,life:0.18,max:0.18,col:"#ff8a65"});
+        if(!v.chargeHit){ for(const cand of [player,...heroes,shrine,...nurseries]){ if(!cand||cand.hp<=0||cand.dead) continue; if(dist(v,cand)<v.r+(cand.r||30)){
+          hurt(cand,v.dmg*1.8,v); knock(cand,v.x,v.y,cand.isPlayer!==undefined?30:14); v.chargeHit=true;
+          if(cand.isPlayer!==undefined) mshake=Math.max(mshake,7); break; } } }
+        if(v.chargeDashT<=0){ v.chargeCd=4+Math.random()*2.5; } continue; }
+      if(v.chargeT>0){ v.moving=false; v.chargeT-=dt;
+        if(v.chargeT<=0){ v.chargeDashT=0.32; v.chargeHit=false; ring(v.x,v.y,v.r*2.2,"#ff5252"); } continue; }
       if(v.t>0) v.t-=dt; if(v.atkA>0) v.atkA-=dt; v.moving=false;
-      const tg=invaderTarget(v); v.tgt=tg; const reach=v.range+(tg.r||0);
-      if(dist(v,tg)<=reach){ if(v.t<=0){ v.t=v.cd; v.face=Math.atan2(tg.y-v.y,tg.x-v.x); v.atkA=0.2; hurt(tg,v.dmg,v); } }
+      const tg=invaderTarget(v); v.tgt=tg; const reach=v.range+(tg.r||0); const dd=dist(v,tg);
+      if(v.canCharge && !v.elite && v.chargeCd<=0 && v.t<=0 && dd>reach+30 && dd<280){
+        v.chargeT=0.55; v.chargeDir=Math.atan2(tg.y-v.y,tg.x-v.x); v.face=v.chargeDir; continue; }   // 進入蓄力預警
+      if(dd<=reach){ if(v.t<=0){ v.t=v.cd; v.face=Math.atan2(tg.y-v.y,tg.x-v.x); v.atkA=0.2; hurt(tg,v.dmg,v); } }
       else { const ang=Math.atan2(tg.y-v.y,tg.x-v.x); v.face=ang; v.x+=Math.cos(ang)*v.speed*dt; v.y+=Math.sin(ang)*v.speed*dt; v.moving=true; v.anim+=dt; } }
     invaders=invaders.filter(v=>!v.dead);
 
@@ -779,6 +796,15 @@
       aura.addColorStop(0,"rgba(180,0,30,"+(0.16+0.1*pl).toFixed(3)+")"); aura.addColorStop(1,"rgba(180,0,30,0)");
       ctx.fillStyle=aura; ctx.beginPath(); ctx.arc(u.x,u.y,R0*2.2,0,7); ctx.fill();
       ctx.strokeStyle="rgba(255,40,40,"+(0.35+0.25*pl).toFixed(3)+")"; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(u.x,u.y,R0*1.35,0,7); ctx.stroke(); }
+    // 衝撞蓄力預警：紅色扇形箭頭指向衝撞方向，讓玩家有時間反應閃避
+    if(isInv && u.chargeT>0){ const pw=1-u.chargeT/0.55;
+      ctx.save(); ctx.translate(u.x,u.y); ctx.rotate(u.chargeDir);
+      ctx.fillStyle="rgba(255,50,50,"+(0.18+0.35*pw).toFixed(3)+")";
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0,R0*4.5,-0.28,0.28); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle="rgba(255,255,255,"+(0.4+0.4*pw).toFixed(3)+")"; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(R0*1.3,0); ctx.lineTo(R0*3.8,0); ctx.moveTo(R0*3.2,-8); ctx.lineTo(R0*3.8,0); ctx.lineTo(R0*3.2,8); ctx.stroke();
+      ctx.restore();
+      ctx.strokeStyle="rgba(255,60,60,0.8)"; ctx.lineWidth=2.5; ctx.beginPath(); ctx.arc(u.x,u.y,R0*(1+pw*0.5),0,7); ctx.stroke(); }
     drawCreatureTop(u,r,isInv?"inv":"ally"); const R=R0;
     if(isInv){ if(u.elite){ ctx.fillStyle="#ffca28"; ctx.font="bold 11px sans-serif"; ctx.textAlign="center"; ctx.fillText("👑"+KNAME[u.kind]+"王",u.x,u.y-R-12); }
       if(u.hp<u.maxhp) bar(u.x,u.y-R-8,u.elite?40:26,u.hp/u.maxhp,"#ff8a80");
