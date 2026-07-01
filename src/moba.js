@@ -141,6 +141,9 @@
   const PVE_TARGETS=["iguana","ibis","anole","canetoad","python"];
   const PVE_DUR=90, PVE_NEED={iguana:14, ibis:10, anole:22, canetoad:12, python:8};
   let pvePickTarget="iguana";
+  // 單挑首領戰：只有玩家自己 vs 一隻超強首領，不出一般波次，擊敗首領即勝、時限到或神木倒則敗
+  let duelEvent=null;   // {timeLeft, active}
+  const DUEL_DUR=100, DUEL_BOSSES=["python","iguana","canetoad","ibis"];
   // 入侵種強度倍率（PVE 關卡遞增用；一般/限時模式恆為 1）——mkInvader 讀取套用到 hp/dmg
   let invHpMul=1, invDmgMul=1, invSpawnMul=1;
   // pveNextLevel：非 null 時結算畫面提供「下一關（更難）」按鈕；失敗維持 null（moverAgain 重打同關）
@@ -211,7 +214,8 @@
   function edgePoint(){ const s=Math.floor(Math.random()*4), u=Math.random();
     if(s===0) return {x:u*MW,y:20}; if(s===1) return {x:u*MW,y:MH-20}; if(s===2) return {x:20,y:u*MH}; return {x:MW-20,y:u*MH}; }
 
-  function setup(size){ teamSize=size; clock=0; ended=false; restore=0; killCount=0; spawnT=2; surgeT=42; finalAssault=false; directive=null; directiveCd=0; bubble=null; eliteFlash=0; timeAttack=(pickMode==="time");
+  function setup(size){ if(pickMode==="duel") size=1;   // 單挑：只有玩家自己上場
+    teamSize=size; clock=0; ended=false; restore=0; killCount=0; spawnT=2; surgeT=42; finalAssault=false; directive=null; directiveCd=0; bubble=null; eliteFlash=0; timeAttack=(pickMode==="time");
     combo=0; comboT=0; comboBest=0; comboPop=0;
     relics=[]; relicSpawnT=5;   // 開場 5 秒後第一顆守護之力才降臨，避免一開場就有必殺
     if(window.__shopReset) window.__shopReset();
@@ -254,6 +258,13 @@
     if(netRole==="host"){ if(heroes[0]) heroes[0].ctrl=netMyUid||"host";
       netPendingGuests.forEach((g,i)=>{ const h=heroes[1+i]; if(h && g.kind && h.kind===g.kind){ h.ctrl=g.uid; netGuestByUid[g.uid]=h; } }); }
     cam.x=clamp(player.x-VW/2,0,Math.max(0,MW-VW)); cam.y=clamp(player.y-VH/2,0,Math.max(0,MH-VH));
+    // 單挑首領戰：生一隻超強首領（高血高傷大體型），不出一般波次
+    duelEvent=null;
+    if(pickMode==="duel"){ const bk=DUEL_BOSSES[Math.floor(Math.random()*DUEL_BOSSES.length)]; const boss=mkInvader(bk,true);
+      boss.maxhp=Math.round(boss.maxhp*3.6); boss.hp=boss.maxhp; boss.dmg=Math.round(boss.dmg*1.15); boss.r=Math.round(boss.r*1.3); boss.isBoss=true;
+      boss.x=SHX; boss.y=SHY-320; invaders.push(boss);
+      duelEvent={ timeLeft:DUEL_DUR, active:true, bossKind:bk };
+      setTimeout(()=>toast("⚔ 單挑首領戰！擊敗 "+KNAME[bk]+"王　限時 "+DUEL_DUR+" 秒"),1600); }
     setTimeout(weatherToast,200);   // 讓進場動畫先跑，再顯示天候 toast
     if(pveEvent) setTimeout(()=>toast("🎯 第 "+pveEvent.level+" 關防衛戰！驅逐 "+pveEvent.need+" 隻 "+KNAME[pvePickTarget]),1600);
   }
@@ -261,7 +272,8 @@
   /* ---------- 目標 ---------- */
   function aliveNurseries(){ return nurseries.filter(n=>n.hp>0); }
   // 入侵種目標：精英直取神木施壓；一般兵近處英雄優先，否則最近苗圃/神木
-  function invaderTarget(v){ if(v.elite) return shrine;
+  function invaderTarget(v){ if(v.isBoss && duelEvent){ const p=(player&&!player.dead)?player:null; return p||shrine; }   // 單挑首領直接追殺玩家
+    if(v.elite) return shrine;
     let bh=null,bd=170; for(const h of heroes){ if(h.dead||h.stealthT>0) continue; const d=dist(v,h); if(d<bd){bd=d;bh=h;} }
     if(bh) return bh;
     let best=shrine, bm=dist(v,shrine); for(const n of aliveNurseries()){ const d=dist(v,n); if(d<bm){bm=d;best=n;} } return best; }
@@ -339,12 +351,19 @@
       v.speed=Math.round(v.speed*weatherSpeedMul(v.kind));   // 寒流：變溫動物（如樹蛙）移動變慢
       invaders.push(v);
       if(el){ eliteFlash=0.5; mshake=Math.max(mshake,3); toast("👑 "+KNAME[v.kind]+"王　降臨！"); } } };
-    spawnT-=dt;
-    if(spawnT<=0){ const ramp=Math.min(1,clock/110); spawnT=Math.max(0.55, (3.0-ramp*2.0)/(invSpawnMul||1));   // PVE 高關卡：生成更快
-      const n=2+(Math.random()<ramp?1:0)+(invSpawnMul>1.3?1:0); for(let i=0;i<n;i++) pushInv(false);
-      if(!pveEvent && clock>15 && Math.random()<0.2+ramp*0.28) pushInv(true); }   // PVE 防衛戰不出入侵種王，聚焦清剿目標種
-    surgeT-=dt; if(surgeT<=0){ surgeT=42; toast("⚠ 入侵潮來襲！"); const c=3+Math.floor(clock/45); for(let i=0;i<c;i++) pushInv(false); if(!pveEvent) pushInv(true); }
-    if(!pveEvent && restore>=0.75 && !finalAssault){ finalAssault=true; toast("⚠ 最終反撲・守住神木！"); for(let i=0;i<6;i++) pushInv(false); pushInv(true); pushInv(true); }
+    if(!duelEvent){   // 單挑模式不出一般波次，只有開場那隻首領
+      spawnT-=dt;
+      if(spawnT<=0){ const ramp=Math.min(1,clock/110); spawnT=Math.max(0.55, (3.0-ramp*2.0)/(invSpawnMul||1));   // PVE 高關卡：生成更快
+        const n=2+(Math.random()<ramp?1:0)+(invSpawnMul>1.3?1:0); for(let i=0;i<n;i++) pushInv(false);
+        if(!pveEvent && clock>15 && Math.random()<0.2+ramp*0.28) pushInv(true); }   // PVE 防衛戰不出入侵種王，聚焦清剿目標種
+      surgeT-=dt; if(surgeT<=0){ surgeT=42; toast("⚠ 入侵潮來襲！"); const c=3+Math.floor(clock/45); for(let i=0;i<c;i++) pushInv(false); if(!pveEvent) pushInv(true); }
+      if(!pveEvent && restore>=0.75 && !finalAssault){ finalAssault=true; toast("⚠ 最終反撲・守住神木！"); for(let i=0;i<6;i++) pushInv(false); pushInv(true); pushInv(true); }
+    }
+
+    // 單挑首領戰：擊敗首領即勝、時限到或神木倒則敗
+    if(duelEvent && duelEvent.active){ duelEvent.timeLeft-=dt;
+      if(invaders.filter(v=>!v.dead).length===0){ duelEvent.active=false; toast("🏆 單挑勝利！擊敗了 "+KNAME[duelEvent.bossKind]+"王！"); endGame(true); }
+      else if(duelEvent.timeLeft<=0){ duelEvent.active=false; duelEvent.timeLeft=0; toast("⏱ 時間到！首領未被擊敗"); endGame(false); } }
 
     // PVE 限時外來種防衛戰：倒數計時，時間到未達標即失敗
     if(pveEvent && pveEvent.active){ pveEvent.timeLeft-=dt;
@@ -445,7 +464,7 @@
     cam.y += (clamp(focus.y-vh/2,0,Math.max(0,MH-vh))-cam.y)*Math.min(1,dt*6);
 
     updateHUD();
-    if(!pveEvent && restore>=1) endGame(true);
+    if(!pveEvent && !duelEvent && restore>=1) endGame(true);
     // 好友連線：host 端節流廣播戰場快照給朋友（只送畫面重建需要的最小欄位，不是每幀送）
     if(netRole==="host"){ netBroadcastT-=dt*1000; if(netBroadcastT<=0){ netBroadcastT=NET_BROADCAST_MS; if(window.__netBroadcast) window.__netBroadcast(snapshot()); } }
   }
@@ -1237,7 +1256,9 @@
   function updateHUD(){ setW("mhpAlly",shrine.hp/shrine.maxhp); txt("mhpAllyTxt",Math.ceil(shrine.hp));
     setW("mRestore",restore); txt("mRestoreTxt",Math.floor(restore*100)+"%");
     const mm=Math.floor(clock/60),ss=Math.floor(clock%60); txt("mclock",mm+":"+(ss<10?"0":"")+ss);
-    if(pveEvent){ txt("mBest","🎯 第"+(pveEvent.level||1)+"關 "+KNAME[pveEvent.target]+" "+pveEvent.got+"/"+pveEvent.need+"　⏱ "+fmtTime(pveEvent.timeLeft)); }
+    if(duelEvent){ const boss=invaders.find(v=>v.isBoss&&!v.dead); const bhp=boss?Math.ceil(100*boss.hp/boss.maxhp):0;
+      txt("mBest","⚔ "+KNAME[duelEvent.bossKind]+"王 HP "+bhp+"%　⏱ "+fmtTime(duelEvent.timeLeft)); }
+    else if(pveEvent){ txt("mBest","🎯 第"+(pveEvent.level||1)+"關 "+KNAME[pveEvent.target]+" "+pveEvent.got+"/"+pveEvent.need+"　⏱ "+fmtTime(pveEvent.timeLeft)); }
     else if(timeAttack){ const b=getBest(teamSize); txt("mBest", b?("🏆 最佳 "+fmtTime(b)):"⏱ 挑戰紀錄中"); } else txt("mBest","");
     const sp=document.getElementById("mSp"); if(sp){ const mx=(player&&player.spMax)||8, cd=player&&player.spCd>0?player.spCd:0; sp.querySelector(".fill").style.height=(cd/mx*100)+"%"; sp.classList.toggle("ready",cd<=0); }
     // 必殺鈕：握有守護之力＝金色可施放（ready）；冷卻中＝倒數遮罩由下往上退；空手＝上鎖(locked)提示去撿
@@ -1269,6 +1290,7 @@
   function endGame(win){ if(ended) return; ended=true; running=false; cancelAnimationFrame(raf);
     pveNextLevel=null;   // 預設清掉「下一關」旗標；只有 PVE 過關時 endGamePve 會重新設定
     const key=(window.__featuredKey&&window.__featuredKey())||"leopard", before=(window.__heroLevel&&window.__heroLevel(key))||1;
+    if(duelEvent){ endGameDuel(win,key,before); return; }
     if(pveEvent){ endGamePve(win,key,before); return; }
     if(win){ const eco=teamSize*20+killCount, xp=60+teamSize*10+killCount;
       window.__awardEco&&window.__awardEco(eco); window.__awardXP&&window.__awardXP(key,xp); window.__bumpWin&&window.__bumpWin();
@@ -1296,8 +1318,16 @@
         "<br><br>⚠ 下一關（第 "+nextLv+" 關）更難：需驅逐 "+np.need+" 隻・限時 "+np.dur+" 秒・入侵種更強更多！"); }
     else { const xp=6+got*2; window.__awardXP&&window.__awardXP(key,xp);
       showOver("⏱ 第 "+lv+" 關失敗","防衛戰未達標","限時內只清除了 "+got+"/"+need+" 隻 "+KNAME[tKind]+"，外來種仍在擴散……可以重打這一關！<br>"+(KNAME[key]||"")+" 仍獲得 EXP +"+xp); } }
+  // 單挑首領戰結算
+  function endGameDuel(win,key,before){ const bk=(duelEvent&&duelEvent.bossKind)||"iguana";
+    if(win){ const eco=60+Math.floor(clock), xp=70;
+      window.__awardEco&&window.__awardEco(eco); window.__awardXP&&window.__awardXP(key,xp); window.__bumpWin&&window.__bumpWin();
+      const after=(window.__heroLevel&&window.__heroLevel(key))||before;
+      showOver("🏆 單挑勝利！","首領被你單槍匹馬擊敗","你以一敵一擊敗了 "+KNAME[bk]+"王，真正的守護者！<br>🌿 保育值 +"+eco+"　"+(KNAME[key]||"")+" EXP +"+xp+"　Lv"+before+(after>before?(" → "+after+" ⬆升級！"):"")); }
+    else { const xp=12; window.__awardXP&&window.__awardXP(key,xp);
+      showOver("⚔ 單挑失敗","首領太強了…","限時內沒能擊敗 "+KNAME[bk]+"王，升級守護者或換個剋制屬性再來挑戰！<br>"+(KNAME[key]||"")+" 仍獲得 EXP +"+xp); } }
   function showOver(t,s,b){ root.classList.add("mhide"); txt("moverT",t); txt("moverS",s); const el=document.getElementById("moverB"); if(el) el.innerHTML=b;
-    if(window.__sfx) window.__sfx.play(/成功/.test(t)?"victory":"defeat");   // 勝利/失敗結算音效
+    if(window.__sfx) window.__sfx.play(/成功|勝利|過關/.test(t)?"victory":"defeat");   // 勝利/失敗結算音效
     const again=document.getElementById("moverAgain"); const next=document.getElementById("moverNext");
     // PVE 過關（pveNextLevel!=null）：主按鈕改成「下一關（更難）」，再守一場保留為重打（同樣讀已推進的關卡）
     if(pveNextLevel){ if(again) again.classList.add("hide");
@@ -1362,20 +1392,25 @@
       +(pct<10?"（去棲地基地復育這一區可以更強！）":""); }
   document.querySelectorAll("#battleRegions .hregion").forEach(b=>b.addEventListener("pointerdown",(e)=>{ e.preventDefault(); setBattleRegion(b.dataset.r); },{passive:false}));
   function setPickMode(m){ pickMode=m;
-    const nT=document.getElementById("modeNormal"), tT=document.getElementById("modeTime"), pT=document.getElementById("modePve");
-    if(nT) nT.classList.toggle("on",m==="normal"); if(tT) tT.classList.toggle("on",m==="time"); if(pT) pT.classList.toggle("on",m==="pve");
-    txt("mpickTitle", m==="time" ? "⏱ 限時復育挑戰" : m==="pve" ? "🎯 外來種防衛戰" : "🌳 棲地復育保衛戰");
+    const nT=document.getElementById("modeNormal"), tT=document.getElementById("modeTime"), pT=document.getElementById("modePve"), dT=document.getElementById("modeDuel");
+    if(nT) nT.classList.toggle("on",m==="normal"); if(tT) tT.classList.toggle("on",m==="time"); if(pT) pT.classList.toggle("on",m==="pve"); if(dT) dT.classList.toggle("on",m==="duel");
+    txt("mpickTitle", m==="time" ? "⏱ 限時復育挑戰" : m==="pve" ? "🎯 外來種防衛戰" : m==="duel" ? "⚔ 單挑首領戰" : "🌳 棲地復育保衛戰");
     const descEl=document.getElementById("mpickDesc");
     if(descEl) descEl.innerHTML = m==="time" ? "目標不是守住不倒，而是盡快把棲地復原到 100%！<br>擊退入侵種、守住苗圃，比比看你多快能讓棲地重新翠綠。"
       : m==="pve" ? "選一種外來入侵種當清除目標，限時內驅逐足額數量就成功！<br>善用原生種的生態優勢（生物防治鏈）能大幅提升效率。"
+      : m==="duel" ? "一對一單挑！只有你一隻守護者，對上一隻超強的外來入侵種首領。<br>限時內擊敗牠就贏——善用屬性相剋、走位閃避牠的蓄力衝撞、撿守護之力放必殺。"
       : "守護台灣神木與復育苗圃，擊退四面湧入的外來入侵種——讓枯黃的棲地一吋吋復原成翠綠，復原度滿 100% 就守護成功！";
     const info=document.getElementById("bestTimeInfo");
     if(info){ if(m==="time"){ const b3=getBest(3), b5=getBest(5);
         info.innerHTML="🏆 最佳紀錄　3守護者："+(b3?fmtTime(b3):"—")+"　5守護者："+(b5?fmtTime(b5):"—"); info.classList.remove("hide"); }
       else info.classList.add("hide"); }
     const pvR=document.getElementById("pveTargets"); if(pvR) pvR.classList.toggle("hide",m!=="pve");
+    // 單挑：隱藏隊伍人數選擇、改顯示單一「開始單挑」按鈕
+    const tsr=document.getElementById("teamSizeRow"); if(tsr) tsr.classList.toggle("hide",m==="duel");
+    const pd=document.getElementById("pickDuel"); if(pd) pd.classList.toggle("hide",m!=="duel");
     updatePveLevelInfo(); }
-  tap("modeNormal",()=>setPickMode("normal")); tap("modeTime",()=>setPickMode("time")); tap("modePve",()=>setPickMode("pve"));
+  tap("modeNormal",()=>setPickMode("normal")); tap("modeTime",()=>setPickMode("time")); tap("modePve",()=>setPickMode("pve")); tap("modeDuel",()=>setPickMode("duel"));
+  tap("pickDuel",()=>mCountdown(()=>start(1)));
   window.__mobaSetPickMode=(m)=>{ if(["normal","time","pve","siege"].indexOf(m)>=0) setPickMode(m); };   // 好友房間房主選的模式帶進對戰
   function setPveTarget(k){ pvePickTarget=k; document.querySelectorAll("#pveTargets .hregion").forEach(b=>b.classList.toggle("on",b.dataset.pv===k)); updatePveLevelInfo(); }
   // PVE 關卡進度提示：顯示目前選定目標已解鎖到第幾關、該關需求

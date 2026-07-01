@@ -11,18 +11,18 @@
 
   function ensure(){ if(ac) return ac;
     try{ const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return null;
-      ac=new AC(); master=ac.createGain(); master.gain.value=0.5; master.connect(ac.destination);
+      ac=new AC(); master=ac.createGain(); master.gain.value=0.3; master.connect(ac.destination);   // 整體音量調柔和
     }catch(e){ ac=null; }
     return ac; }
   function now(){ return ac?ac.currentTime:0; }
 
-  // 單一振盪器音（可掃頻），帶 ADSR 包絡
+  // 單一振盪器音（可掃頻），柔和淡入淡出包絡（較長的 attack/release，聽起來圓潤不刺耳）
   function tone(freq,dur,type,gain,sweepTo,delay){ if(!ac) return; const t0=now()+(delay||0);
     const o=ac.createOscillator(), g=ac.createGain();
     o.type=type||"sine"; o.frequency.setValueAtTime(freq,t0);
     if(sweepTo) o.frequency.exponentialRampToValueAtTime(Math.max(1,sweepTo),t0+dur);
     g.gain.setValueAtTime(0.0001,t0);
-    g.gain.exponentialRampToValueAtTime(gain||0.3,t0+0.008);
+    g.gain.exponentialRampToValueAtTime(gain||0.2,t0+Math.min(0.03,dur*0.25));   // 較緩的起音，去掉點擊爆音
     g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
     o.connect(g); g.connect(master); o.start(t0); o.stop(t0+dur+0.02); }
   // 雜訊爆（打擊/爆炸感），經低通
@@ -35,23 +35,24 @@
     src.connect(f); f.connect(g); g.connect(master); src.start(t0); src.stop(t0+dur+0.02); }
   function arp(freqs,step,type,gain){ freqs.forEach((f,i)=>tone(f,step*1.6,type||"triangle",gain||0.25,null,i*step)); }
 
+  // 全面改成柔和的 sine/triangle（不再用刺耳的 square/sawtooth 與大量白噪），走溫暖、圓潤、音樂性的音色
   const SOUNDS={
-    tap:      ()=>{ tone(320,0.05,"square",0.14,520); },
-    back:     ()=>{ tone(300,0.07,"square",0.14,180); },
-    hit:      ()=>{ noise(0.09,0.28,1600); tone(150,0.09,"sine",0.22,80); },
-    bighit:   ()=>{ noise(0.16,0.4,2200); tone(110,0.16,"sine",0.32,60); },
-    skill:    ()=>{ tone(420,0.22,"sawtooth",0.22,880); tone(660,0.2,"sine",0.14,1320,0.02); },
-    ult:      ()=>{ [261,329,392,523].forEach((f,i)=>tone(f,0.5,"sawtooth",0.2,f*1.5,i*0.04)); noise(0.4,0.3,1800); },
-    coin:     ()=>{ tone(880,0.06,"square",0.18,1180); tone(1320,0.09,"square",0.16,1580,0.06); },
-    pickup:   ()=>{ arp([523,659,784,1046],0.06,"triangle",0.22); },
-    victory:  ()=>{ arp([392,523,659,784,1046],0.11,"triangle",0.28); },
-    defeat:   ()=>{ arp([392,330,262,196],0.14,"sine",0.26); },
-    beep:     ()=>{ tone(680,0.12,"square",0.2); },
-    go:       ()=>{ tone(920,0.28,"square",0.24,1240); tone(460,0.28,"triangle",0.16); },
-    plant:    ()=>{ tone(360,0.1,"triangle",0.2,540); },
-    harvest:  ()=>{ tone(560,0.09,"triangle",0.2,780); tone(880,0.1,"sine",0.14,1100,0.05); },
-    levelup:  ()=>{ arp([523,659,784,1046,1318],0.09,"triangle",0.3); },
-    combo:    ()=>{ tone(760,0.07,"square",0.18,1140); },
+    tap:      ()=>{ tone(523,0.05,"sine",0.09,660); },                                   // 清脆柔和的點一下
+    back:     ()=>{ tone(392,0.07,"sine",0.09,294); },                                   // 返回：柔和下行
+    hit:      ()=>{ tone(200,0.08,"sine",0.13,150); noise(0.03,0.04,700); },              // 悶柔一擊（微量低頻噪音當觸感）
+    bighit:   ()=>{ tone(150,0.14,"sine",0.18,100); noise(0.05,0.07,800); },              // 重擊：低沉但不刺耳
+    skill:    ()=>{ tone(523,0.18,"triangle",0.12,784); tone(784,0.16,"sine",0.07,1047,0.03); }, // 柔和上揚泛音
+    ult:      ()=>{ [392,523,659].forEach((f,i)=>tone(f,0.55,"triangle",0.11,f,i*0.05)); tone(1047,0.55,"sine",0.06,1047,0.12); }, // 溫暖大三和弦
+    coin:     ()=>{ tone(784,0.09,"sine",0.11,880); tone(1175,0.12,"sine",0.09,1319,0.07); },    // 悅耳「叮」
+    pickup:   ()=>{ arp([523,659,784,1047],0.07,"sine",0.11); },                          // 上行琶音
+    victory:  ()=>{ arp([523,659,784,1047,1319],0.13,"triangle",0.14); },                 // 明亮鐘聲勝利
+    defeat:   ()=>{ arp([440,349,294,220],0.16,"sine",0.13); },                           // 柔和下行失落
+    beep:     ()=>{ tone(660,0.1,"sine",0.12); },                                         // 倒數：溫和嗶
+    go:       ()=>{ tone(880,0.26,"triangle",0.15,1047); },                               // 開始：柔亮長音
+    plant:    ()=>{ tone(392,0.12,"sine",0.11,523); },
+    harvest:  ()=>{ tone(587,0.1,"sine",0.11,784); tone(880,0.1,"sine",0.07,1047,0.05); },
+    levelup:  ()=>{ arp([523,659,784,1047,1319],0.1,"triangle",0.15); },
+    combo:    ()=>{ tone(784,0.08,"sine",0.1,988); },
   };
 
   function play(name){ if(muted) return; if(!ensure()) return;

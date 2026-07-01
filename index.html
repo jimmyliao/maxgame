@@ -589,6 +589,7 @@
     <button class="btn sec mode-tab on" id="modeNormal">🌳 一般模式</button>
     <button class="btn sec mode-tab" id="modeTime">⏱ 限時復育挑戰</button>
     <button class="btn sec mode-tab" id="modePve">🎯 外來種防衛戰</button>
+    <button class="btn sec mode-tab" id="modeDuel">⚔ 單挑首領戰</button>
   </div>
   <p id="bestTimeInfo" class="hide" style="color:#ffd54f;font-weight:800;"></p>
   <div class="row hide" id="pveTargets">
@@ -611,10 +612,11 @@
   </div>
   <p id="battleBonusInfo" style="font-size:12px;color:#a5d6a7;max-width:340px;"></p>
   <p id="talentHintInfo" class="hide" style="font-size:12px;color:#ffd54f;max-width:340px;"></p>
-  <div class="row">
+  <div class="row" id="teamSizeRow">
     <button class="btn" id="pick3">3 守護者小隊</button>
     <button class="btn" id="pick5">5 守護者大隊</button>
   </div>
+  <button class="btn hide" id="pickDuel">⚔ 開始單挑（你 vs 首領）</button>
   <button class="btn sec" id="pickBack">返回大廳</button>
 </div>
 <div id="mover" class="scr hide">
