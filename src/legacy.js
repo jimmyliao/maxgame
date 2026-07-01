@@ -716,6 +716,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   // ===== 守護神木 MOBA 模組接點（不改既有合約，只導出唯讀資訊與回大廳刷新） =====
   window.__featuredKey=()=> (HEROES[featured]&&HEROES[featured].key)||"leopard";
   window.__unlockedKeys=()=> HEROES.filter(h=>isHeroUnlocked(h.key)).map(h=>h.key);
+  window.__heroLevel=(key)=> heroLevel(key);   // 守護者等級（最高 50、永不退級）
   window.__awardEco=(n)=>{ setEco(getEco()+(n|0)); };
   window.__awardXP=(key,n)=>{ gainXP(key,n|0); };
   window.__bumpWin=()=>{ try{ localStorage.setItem("shoutu_wins",String(getWins()+1)); }catch(e){} };

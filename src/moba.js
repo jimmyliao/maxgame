@@ -35,6 +35,7 @@
     rot = ih>iw;                              // 直握 → 旋轉成橫向
     root.classList.toggle("rot", rot);
     VW = rot? ih : iw; VH = rot? iw : ih;     // 邏輯畫面一律為橫向（寬>高）
+    ZMIN=Math.max(0.62, VW/(MW-40), VH/(MH-40)); if(zoom<ZMIN) zoom=ZMIN;   // 視角不得超出世界邊界
     dpr=Math.min(window.devicePixelRatio||1,2); cv.width=Math.round(VW*dpr); cv.height=Math.round(VH*dpr); ctx.setTransform(dpr,0,0,dpr,0,0); }
   window.addEventListener("resize",()=>{ if(running) resize(); });
   window.addEventListener("orientationchange",()=>{ if(running) setTimeout(resize,60); });
@@ -46,10 +47,10 @@
   /* ---------- 狀態 ---------- */
   let running=false, raf=0, lastT=0, clock=0, teamSize=3, ended=false;
   let shrine=null, nurseries=[], heroes=[], invaders=[], fx=[], floats=[];
-  let player=null, spawnT=0, restore=0, killCount=0;
+  let player=null, spawnT=0, restore=0, killCount=0, surgeT=45, finalAssault=false;
   const cam={x:0,y:0}, mv={x:0,y:0};
   let wantSp=false, wantBack=false;
-  let zoom=1; const ZMIN=0.6, ZMAX=1.8;
+  let zoom=1, ZMIN=0.62; const ZMAX=1.8;
   function setZoom(z){ zoom=clamp(z,ZMIN,ZMAX); }
 
   const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
@@ -59,28 +60,31 @@
   function mkHero(kind,isPlayer){ return { kind, isPlayer:!!isPlayer, x:0,y:0, r:24, hp:340, maxhp:340,
     dmg:28, range:70, cd:0.6, t:0, spCd:0, speed:isPlayer?172:150, face:0, dead:false, respawn:0, name:KNAME[kind]||kind,
     hitT:0, anim:0, moving:false, phase:Math.random()*6.28, atkA:0 }; }
-  function mkInvader(kind,elite){ const p=edgePoint();
-    return { kind, x:p.x, y:p.y, r:elite?30:16, hp:elite?260:56, maxhp:elite?260:56, dmg:elite?16:9, range:elite?44:32,
-      cd:0.9, t:0, speed:elite?58:74, face:0, dead:false, elite, hitT:0, tgt:null, anim:0, moving:false, phase:Math.random()*6.28, atkA:0 }; }
+  function mkInvader(kind,elite){ const p=edgePoint(), scale=1+Math.min(1.3,clock/120)*0.6; // 隨時間越來越強
+    const hp=Math.round((elite?300:64)*scale);
+    return { kind, x:p.x, y:p.y, r:elite?30:16, hp, maxhp:hp, dmg:Math.round((elite?18:10)*scale), range:elite?44:32,
+      cd:0.9, t:0, speed:elite?62:82, face:0, dead:false, elite, hitT:0, tgt:null, anim:0, moving:false, phase:Math.random()*6.28, atkA:0 }; }
   function edgePoint(){ const s=Math.floor(Math.random()*4), u=Math.random();
     if(s===0) return {x:u*MW,y:20}; if(s===1) return {x:u*MW,y:MH-20}; if(s===2) return {x:20,y:u*MH}; return {x:MW-20,y:u*MH}; }
 
-  function setup(size){ teamSize=size; clock=0; ended=false; restore=0; killCount=0; spawnT=2;
+  function setup(size){ teamSize=size; clock=0; ended=false; restore=0; killCount=0; spawnT=2; surgeT=42; finalAssault=false;
     fx=[]; floats=[]; invaders=[];
-    shrine={ x:SHX, y:SHY, r:76, hp:1500, maxhp:1500, kind:"shrine", hitT:0 };
-    nurseries=NPOS.map(p=>({ x:p.x, y:p.y, r:34, hp:420, maxhp:420, growth:0.15, contested:false, kind:"nursery" }));
+    shrine={ x:SHX, y:SHY, r:76, hp:1400, maxhp:1400, kind:"shrine", hitT:0 };
+    nurseries=NPOS.map(p=>({ x:p.x, y:p.y, r:34, hp:340, maxhp:340, growth:0.15, contested:false, kind:"nursery" }));
     const myKey=(window.__featuredKey&&window.__featuredKey())||"leopard";
     const kinds=[myKey]; for(const k of GUARDIANS){ if(kinds.length>=size) break; if(k!==myKey) kinds.push(k); }
     while(kinds.length<size) kinds.push(GUARDIANS[kinds.length%GUARDIANS.length]);
-    heroes=kinds.map((k,i)=>{ const h=mkHero(k,i===0); const ang=-1.57+(i-(size-1)/2)*0.6; h.x=SHX+Math.cos(ang)*150; h.y=SHY+Math.sin(ang)*150; return h; });
+    heroes=kinds.map((k,i)=>{ const h=mkHero(k,i===0); const ang=-1.57+(i-(size-1)/2)*0.6; h.x=SHX+Math.cos(ang)*150; h.y=SHY+Math.sin(ang)*150;
+      const lv=(window.__heroLevel&&window.__heroLevel(k))||1; h.level=lv; h.maxhp=Math.round(h.maxhp*(1+(lv-1)*0.03)); h.hp=h.maxhp; h.dmg=Math.round(h.dmg*(1+(lv-1)*0.02)); return h; });
     player=heroes[0];
     cam.x=clamp(player.x-VW/2,0,Math.max(0,MW-VW)); cam.y=clamp(player.y-VH/2,0,Math.max(0,MH-VH));
   }
 
   /* ---------- 目標 ---------- */
   function aliveNurseries(){ return nurseries.filter(n=>n.hp>0); }
-  // 入侵種目標：附近的英雄優先（被擾），否則最近的苗圃/神木（破壞棲地）
-  function invaderTarget(v){ let bh=null,bd=190; for(const h of heroes){ if(h.dead) continue; const d=dist(v,h); if(d<bd){bd=d;bh=h;} }
+  // 入侵種目標：精英直取神木施壓；一般兵近處英雄優先，否則最近苗圃/神木
+  function invaderTarget(v){ if(v.elite) return shrine;
+    let bh=null,bd=170; for(const h of heroes){ if(h.dead) continue; const d=dist(v,h); if(d<bd){bd=d;bh=h;} }
     if(bh) return bh;
     let best=shrine, bm=dist(v,shrine); for(const n of aliveNurseries()){ const d=dist(v,n); if(d<bm){bm=d;best=n;} } return best; }
   // 英雄目標：最近入侵種
@@ -107,11 +111,15 @@
   /* ---------- 更新 ---------- */
   function step(dt){
     if(ended) return; clock+=dt;
-    // 入侵浪潮：隨時間加速、偶有「入侵種王」
+    // 入侵浪潮：更兇、隨時間加速、精英「入侵種王」
+    const RK=()=>INVADERS[Math.floor(Math.random()*INVADERS.length)];
+    const pushInv=(el)=>{ if(invaders.length<80) invaders.push(mkInvader(RK(),el)); };
     spawnT-=dt;
-    if(spawnT<=0){ const ramp=Math.min(1,clock/150); spawnT=Math.max(1.1, 3.4-ramp*2.2);
-      if(invaders.length<54){ const n=1+(Math.random()<ramp?1:0); for(let i=0;i<n;i++) invaders.push(mkInvader(INVADERS[Math.floor(Math.random()*INVADERS.length)],false));
-        if(clock>20 && Math.random()<0.18+ramp*0.18) invaders.push(mkInvader(INVADERS[Math.floor(Math.random()*INVADERS.length)],true)); } }
+    if(spawnT<=0){ const ramp=Math.min(1,clock/110); spawnT=Math.max(0.8, 3.0-ramp*2.0);
+      const n=2+(Math.random()<ramp?1:0); for(let i=0;i<n;i++) pushInv(false);
+      if(clock>15 && Math.random()<0.2+ramp*0.28) pushInv(true); }
+    surgeT-=dt; if(surgeT<=0){ surgeT=42; toast("⚠ 入侵潮來襲！"); const c=3+Math.floor(clock/45); for(let i=0;i<c;i++) pushInv(false); pushInv(true); }
+    if(restore>=0.75 && !finalAssault){ finalAssault=true; toast("⚠ 最終反撲・守住神木！"); for(let i=0;i<6;i++) pushInv(false); pushInv(true); pushInv(true); }
 
     // 入侵種
     for(const v of invaders){ if(v.dead) continue; if(v.t>0) v.t-=dt; if(v.hitT>0) v.hitT-=dt; if(v.atkA>0) v.atkA-=dt; v.moving=false;
@@ -139,7 +147,7 @@
     let healthy=0;
     for(const n of nurseries){ if(n.hp<=0){ n.growth=0; continue; }
       n.contested = invaders.some(v=>!v.dead && dist(v,n)<210);
-      if(!n.contested){ n.growth=Math.min(1,n.growth+0.12*dt); restore=clamp(restore+0.0026*dt,0,1); healthy++; }
+      if(!n.contested){ n.growth=Math.min(1,n.growth+0.12*dt); restore=clamp(restore+0.0018*dt,0,1); healthy++; }
       else { n.growth=Math.max(0.1,n.growth-0.06*dt); } }
 
     // 特效 / 文字
@@ -210,6 +218,12 @@
 
   function drawField(){
     const gt=clock;
+    // 世界邊界：濃密森林牆（讓鏡頭有明確邊界、不再滑出空白）
+    ctx.strokeStyle="rgba(16,36,20,0.95)"; ctx.lineWidth=90; ctx.strokeRect(0,0,MW,MH);
+    ctx.fillStyle="rgba(8,24,12,0.9)";
+    for(let i=0;i<64;i++){ const t=i/64; // 沿四邊排樹叢
+      const pts=[[t*MW,0],[t*MW,MH],[0,t*MH],[MW,t*MH]];
+      for(const[px,py]of pts){ ctx.beginPath(); ctx.arc(px,py,26+((i*13)%16),0,7); ctx.fill(); } }
     // 大地色塊變化（讓草地不死板）
     ctx.globalAlpha=0.5; for(let i=0;i<26;i++){ const x=hgrid(i,1), y=hgrid(i,2), rr=90+((i*53)%140);
       ctx.fillStyle=mix("#615a35","#33612a",restore); ctx.beginPath(); ctx.ellipse(x,y,rr,rr*0.7,i,0,7); ctx.fill(); } ctx.globalAlpha=1;
@@ -339,7 +353,8 @@
     if(h.isPlayer){ ctx.strokeStyle="#ffd54f"; ctx.lineWidth=3; ctx.beginPath(); ctx.ellipse(h.x,h.y+r*0.5,R*1.2,R*0.5,0,0,7); ctx.stroke();
       const bY=h.y-R*1.8-Math.sin(clock*4)*3; ctx.fillStyle="#ffd54f"; ctx.beginPath(); ctx.moveTo(h.x,bY+10); ctx.lineTo(h.x-7,bY); ctx.lineTo(h.x+7,bY); ctx.fill(); }
     bar(h.x,h.y-R-14,42,h.hp/h.maxhp,"#66bb6a");
-    ctx.fillStyle="#fff"; ctx.font="bold 12px sans-serif"; ctx.textAlign="center"; ctx.fillText(h.name,h.x,h.y-R-20); }
+    ctx.font="bold 12px sans-serif"; ctx.textAlign="center"; ctx.fillStyle="#fff"; ctx.fillText(h.name,h.x-9,h.y-R-20);
+    ctx.fillStyle="#ffd54f"; ctx.fillText(" Lv"+(h.level||1),h.x+h.name.length*6,h.y-R-20); }
   function bar(x,y,w,frac,col){ ctx.fillStyle="rgba(0,0,0,0.5)"; ctx.fillRect(x-w/2,y,w,5); ctx.fillStyle=col; ctx.fillRect(x-w/2,y,w*clamp(frac,0,1),5); }
 
   /* ---------- HUD ---------- */
@@ -356,10 +371,13 @@
   function stop(){ running=false; cancelAnimationFrame(raf); }
   function exitToLobby(){ stop(); root.classList.add("mhide"); hide("mover"); hide("mpick"); mv.x=mv.y=0; if(window.__lobbyRefresh) window.__lobbyRefresh(); }
   function endGame(win){ if(ended) return; ended=true; running=false; cancelAnimationFrame(raf);
-    if(win){ const eco=teamSize*20+killCount, key=(window.__featuredKey&&window.__featuredKey())||"leopard", xp=60+teamSize*10+killCount;
-      if(window.__awardEco) window.__awardEco(eco); if(window.__awardXP) window.__awardXP(key,xp); if(window.__bumpWin) window.__bumpWin();
-      showOver("🌳 棲地復原成功！","枯黃的土地重新長回翠綠","你和守護者小隊驅逐了外來入侵種、守住台灣神木與復育苗圃。<br>🌿 保育值 +"+eco+"　驅逐 "+killCount+" 隻入侵種　"+(KNAME[key]||"")+" EXP +"+xp); }
-    else showOver("神木倒下了…","棲地失守","別氣餒！多回防受威脅的苗圃、善用『守護爆發』與『回神木』補血，再守一次。"); }
+    const key=(window.__featuredKey&&window.__featuredKey())||"leopard", before=(window.__heroLevel&&window.__heroLevel(key))||1;
+    if(win){ const eco=teamSize*20+killCount, xp=60+teamSize*10+killCount;
+      window.__awardEco&&window.__awardEco(eco); window.__awardXP&&window.__awardXP(key,xp); window.__bumpWin&&window.__bumpWin();
+      const after=(window.__heroLevel&&window.__heroLevel(key))||before;
+      showOver("🌳 棲地復原成功！","枯黃的土地重新長回翠綠","你和守護者小隊驅逐了外來入侵種、守住台灣神木與復育苗圃。<br>🌿 保育值 +"+eco+"　驅逐 "+killCount+" 隻　"+(KNAME[key]||"")+" EXP +"+xp+"　Lv"+before+(after>before?(" → "+after+" ⬆升級！"):"")); }
+    else { const xp=8+killCount; window.__awardXP&&window.__awardXP(key,xp);  // 輸了也給少量經驗——等級只升不降
+      showOver("神木倒下了…","棲地失守","別氣餒！多回防受威脅的苗圃、善用『守護爆發』與『回神木』補血，再守一次。<br>"+(KNAME[key]||"")+" 仍獲得 EXP +"+xp+"（等級永不下降・目前 Lv"+before+"）"); } }
   function showOver(t,s,b){ root.classList.add("mhide"); txt("moverT",t); txt("moverS",s); const el=document.getElementById("moverB"); if(el) el.innerHTML=b;
     document.getElementById("moverAgain").textContent="⚔ 再守一場"; show("mover"); }
   function show(id){ const e=document.getElementById(id); if(e) e.classList.remove("hide"); }
