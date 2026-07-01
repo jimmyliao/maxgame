@@ -376,6 +376,13 @@
     <button class="btn sec mode-tab" id="modeTime">⏱ 限時復育挑戰</button>
   </div>
   <p id="bestTimeInfo" class="hide" style="color:#ffd54f;font-weight:800;"></p>
+  <div class="row" id="battleRegions">
+    <button class="hregion" data-r="paddy">🌾 稻田</button>
+    <button class="hregion" data-r="hill">⛰ 淺山</button>
+    <button class="hregion" data-r="stream">💧 溪流</button>
+    <button class="hregion" data-r="wetland">🌫 濕地</button>
+  </div>
+  <p id="battleBonusInfo" style="font-size:12px;color:#a5d6a7;max-width:340px;"></p>
   <div class="row">
     <button class="btn" id="pick3">3 守護者小隊</button>
     <button class="btn" id="pick5">5 守護者大隊</button>
@@ -436,6 +443,7 @@
   <h1>房間 <span id="roomCode"></span></h1>
   <h2 id="roomStatus">等待玩家加入…</h2>
   <div id="roomPlayers" class="row" style="flex-direction:column;gap:8px;width:100%;max-width:320px;"></div>
+  <p id="coopRoomNet" style="color:#ffab91;min-height:1.2em;"></p>
   <button class="btn" id="coopStart">⚔ 開始遊戲</button>
   <button class="btn sec" id="coopLeave">離開房間</button>
 </div>

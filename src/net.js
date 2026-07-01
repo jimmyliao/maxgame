@@ -16,7 +16,7 @@
   const $ = (id) => document.getElementById(id);
   function show(id){ const e=$(id); if(e) e.classList.remove("hide"); }
   function hide(id){ const e=$(id); if(e) e.classList.add("hide"); }
-  function netMsg(s){ const e=$("coopNet"); if(e) e.textContent=s||""; }
+  function netMsg(s){ const e=$("coopNet"); if(e) e.textContent=s||""; const r=$("coopRoomNet"); if(r) r.textContent=s||""; }
 
   // ===== 暱稱（本機記住） =====
   function getNick(){ try{ return localStorage.getItem("shoutu_nick")||""; }catch(e){ return ""; } }

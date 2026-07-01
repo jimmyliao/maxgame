@@ -231,7 +231,7 @@
   /* ---------- HUD 文字 ---------- */
   function applyTheme(){
     const info=REGION_INFO[data.current]||REGION_INFO.paddy, night=isNight(), w=weatherNow(), wm=WMETA[w];
-    document.querySelectorAll(".hregion").forEach(b=>b.classList.toggle("on", b.dataset.r===data.current));
+    document.querySelectorAll("#habRegions .hregion").forEach(b=>b.classList.toggle("on", b.dataset.r===data.current));
     $("habWeather") && ($("habWeather").textContent=(night?"🌙 夜間":"☀️ 白天")+"　"+wm.icon+" "+wm.txt);
     $("habSpecies") && ($("habSpecies").textContent="🌳 本區培育："+info.plant+"——"+info.fact);
   }
@@ -247,7 +247,7 @@
   }
   // 每個地區獨立顯示自己的狀態小標：紅=有入侵種待清、金=有成熟可收成——四塊地要輪流照顧，考驗分配注意力
   function updateRegionBadges(){
-    document.querySelectorAll(".hregion").forEach(b=>{ const key=b.dataset.r, tiles=data.regions[key]; if(!tiles) return;
+    document.querySelectorAll("#habRegions .hregion").forEach(b=>{ const key=b.dataset.r, tiles=data.regions[key]; if(!tiles) return;
       let invasive=0, ripe=0; for(const tile of tiles){ const st=stageOf(tile); if(st==="invasive") invasive++; else if(st==="mature") ripe+=storedOf(tile)>0?1:0; }
       const badge=b.querySelector(".hbadge"); if(!badge) return;
       if(invasive>0){ badge.textContent=invasive; badge.className="hbadge warn show"; }
@@ -295,5 +295,16 @@
   tap2("navHabitat",openHabitat);
   tap2("habBack",closeHabitat);
   tap2("habCollectAll",collectAll);
-  document.querySelectorAll(".hregion").forEach(b=> b.addEventListener("pointerdown",(e)=>{ e.preventDefault(); setRegion(b.dataset.r); },{passive:false}));
+  document.querySelectorAll("#habRegions .hregion").forEach(b=> b.addEventListener("pointerdown",(e)=>{ e.preventDefault(); setRegion(b.dataset.r); },{passive:false}));
+
+  /* ---------- 對外接點：復育↔對戰核心循環 ----------
+     戰場健康度影響對戰數值；對戰獲勝回饋棲地復育素材。data 隨時是最新（load 於每次開關時同步）。 */
+  window.__habitatRegions = () => REGION_KEYS.map(k=>({ key:k, label:REGION_INFO[k].label, plant:REGION_INFO[k].plant }));
+  window.__habitatHealth = (region) => { const tiles=(data.regions||{})[region]; if(!tiles) return 0;
+    let w=0; for(const tile of tiles){ const st=stageOf(tile); w += st==="mature"?1:st==="sapling"?0.6:st==="sprout"?0.3:0; } return w/N; };
+  window.__habitatBoost = (region, n) => { const tiles=(data.regions||{})[region]; if(!tiles) return;
+    let left=n|0;
+    for(const tile of tiles){ if(left<=0) break; if(tile.state==="invasive"){ tile.state="unplanted"; tile.emptySince=now(); left--; } }
+    for(const tile of tiles){ if(left<=0) break; if(tile.state==="planted"){ tile.plantedAt-=120000; left--; } }
+    save(data); };
 })();

@@ -53,6 +53,8 @@
   let shrine=null, nurseries=[], heroes=[], invaders=[], fx=[], floats=[], hprojs=[];
   let player=null, spawnT=0, restore=0, killCount=0, surgeT=45, finalAssault=false, mshake=0, eliteFlash=0;
   let pickMode="normal", timeAttack=false;
+  let battleRegion="paddy", healthBonus=0;   // 復育↔對戰核心循環：戰場棲地健康度影響數值加成
+  const REGION_LABEL={ paddy:"稻田", hill:"淺山", stream:"溪流", wetland:"濕地" };
   function fmtTime(s){ s=Math.max(0,Math.floor(s)); const m=Math.floor(s/60), ss=s%60; return m+":"+(ss<10?"0":"")+ss; }
   function getBest(size){ try{ const v=parseFloat(localStorage.getItem("shoutu_besttime_"+size)); return isNaN(v)?null:v; }catch(e){ return null; } }
   function setBest(size,t){ try{ localStorage.setItem("shoutu_besttime_"+size,String(t)); }catch(e){} }
@@ -86,9 +88,10 @@
     const myKey=(window.__featuredKey&&window.__featuredKey())||"leopard";
     const kinds=[myKey]; for(const k of GUARDIANS){ if(kinds.length>=size) break; if(k!==myKey) kinds.push(k); }
     while(kinds.length<size) kinds.push(GUARDIANS[kinds.length%GUARDIANS.length]);
+    healthBonus=(window.__habitatHealth&&window.__habitatHealth(battleRegion))||0;   // 該地區棲地健康度 0~1
     heroes=kinds.map((k,i)=>{ const h=mkHero(k,i===0); const ang=-1.57+(i-(size-1)/2)*0.6; h.x=SHX+Math.cos(ang)*150; h.y=SHY+Math.sin(ang)*150;
       const lv=(window.__heroLevel&&window.__heroLevel(k))||1; h.level=lv; h.maxhp=Math.round(h.maxhp*(1+(lv-1)*0.03)); h.hp=h.maxhp; h.dmg=Math.round(h.dmg*(1+(lv-1)*0.02));
-      h.spMax=(SKILL[k]&&SKILL[k].cd)||7; return h; });
+      h.speed=Math.round(h.speed*(1+healthBonus*0.12)); h.spMax=((SKILL[k]&&SKILL[k].cd)||7)*(1-healthBonus*0.15); return h; });
     player=heroes[0];
     cam.x=clamp(player.x-VW/2,0,Math.max(0,MW-VW)); cam.y=clamp(player.y-VH/2,0,Math.max(0,MH-VH));
   }
@@ -237,7 +240,7 @@
     for(const v of invaders){ if(!v.dead && dist(h,v)<155) knock(v,h.x,h.y,52); } }
   const SKILL={ leopard:{name:"閃電突進",cd:6,fn:skDash}, bear:{name:"震地",cd:9,fn:skSlam}, cicada:{name:"音爆",cd:9,fn:skSonic},
     dragonfly:{name:"疾風刃",cd:6,fn:skShoot}, magpie:{name:"俯衝啄擊",cd:6,fn:skDive}, deer:{name:"復育號角",cd:8,fn:skHeal} };
-  function castSp(h){ const s=SKILL[h.kind]; h.spCd=(s&&s.cd)||7; h.atkA=0.3;
+  function castSp(h){ const s=SKILL[h.kind]; h.spCd=h.spMax||(s&&s.cd)||7; h.atkA=0.3;
     if(h.isPlayer){ mshake=Math.max(mshake,6); toast((s?s.name:"技能")+"！"); }
     (s?s.fn:skSlam)(h); }
   function keepIn(h){ h.x=clamp(h.x,40,MW-40); h.y=clamp(h.y,40,MH-40);
@@ -557,11 +560,14 @@
     const key=(window.__featuredKey&&window.__featuredKey())||"leopard", before=(window.__heroLevel&&window.__heroLevel(key))||1;
     if(win){ const eco=teamSize*20+killCount, xp=60+teamSize*10+killCount;
       window.__awardEco&&window.__awardEco(eco); window.__awardXP&&window.__awardXP(key,xp); window.__bumpWin&&window.__bumpWin();
+      const boostN=6+Math.min(killCount,10);
+      window.__habitatBoost&&window.__habitatBoost(battleRegion,boostN);
       const after=(window.__heroLevel&&window.__heroLevel(key))||before;
       let timeLine="";
       if(timeAttack){ const prev=getBest(teamSize), newRecord=!prev||clock<prev; if(newRecord) setBest(teamSize,clock);
         timeLine="<br><br>⏱ 用時 <b>"+fmtTime(clock)+"</b>"+(newRecord?"　🏆 新紀錄！":("　（歷史最佳 "+fmtTime(prev)+"）")); }
-      showOver("🌳 棲地復原成功！","枯黃的土地重新長回翠綠","你和守護者小隊驅逐了外來入侵種、守住台灣神木與復育苗圃。<br>🌿 保育值 +"+eco+"　驅逐 "+killCount+" 隻　"+(KNAME[key]||"")+" EXP +"+xp+"　Lv"+before+(after>before?(" → "+after+" ⬆升級！"):"")+timeLine); }
+      showOver("🌳 棲地復原成功！","枯黃的土地重新長回翠綠","你和守護者小隊驅逐了外來入侵種、守住台灣神木與復育苗圃。<br>🌿 保育值 +"+eco+"　驅逐 "+killCount+" 隻　"+(KNAME[key]||"")+" EXP +"+xp+"　Lv"+before+(after>before?(" → "+after+" ⬆升級！"):"")+
+        "<br>🌱 "+(REGION_LABEL[battleRegion]||battleRegion)+"棲地獲得復育核心資產，成長加速！"+timeLine); }
     else { const xp=8+killCount; window.__awardXP&&window.__awardXP(key,xp);  // 輸了也給少量經驗——等級只升不降
       showOver("神木倒下了…","棲地失守","別氣餒！多回防受威脅的苗圃、善用『守護爆發』與『回神木』補血，再守一次。<br>"+(KNAME[key]||"")+" 仍獲得 EXP +"+xp+"（等級永不下降・目前 Lv"+before+"）"); } }
   function showOver(t,s,b){ root.classList.add("mhide"); txt("moverT",t); txt("moverS",s); const el=document.getElementById("moverB"); if(el) el.innerHTML=b;
@@ -602,8 +608,16 @@
   cv.addEventListener("wheel",(e)=>{ if(!running)return; e.preventDefault(); setZoom(zoom-Math.sign(e.deltaY)*0.12); },{passive:false});
 
   /* ---------- 接到大廳「對戰」 ---------- */
-  function openPick(){ const e=document.getElementById("mpick"); if(e) e.classList.remove("hide"); setPickMode(pickMode); }
+  function openPick(){ const e=document.getElementById("mpick"); if(e) e.classList.remove("hide"); setPickMode(pickMode); setBattleRegion(battleRegion); }
   const pb=document.getElementById("playBtn"); if(pb) pb.onclick=openPick;
+  // 復育↔對戰核心循環：戰場選在哪個地區，就吃該地區棲地基地的健康度加成
+  function setBattleRegion(r){ battleRegion=r;
+    document.querySelectorAll("#battleRegions .hregion").forEach(b=>b.classList.toggle("on",b.dataset.r===r));
+    const h=(window.__habitatHealth&&window.__habitatHealth(r))||0, pct=Math.round(h*100);
+    const el=document.getElementById("battleBonusInfo");
+    if(el) el.textContent="🌱 "+(REGION_LABEL[r]||r)+"棲地健康度 "+pct+"%　→　出戰速度 +"+Math.round(h*12)+"%・技能冷卻 -"+Math.round(h*15)+"%"
+      +(pct<10?"（去棲地基地復育這一區可以更強！）":""); }
+  document.querySelectorAll("#battleRegions .hregion").forEach(b=>b.addEventListener("pointerdown",(e)=>{ e.preventDefault(); setBattleRegion(b.dataset.r); },{passive:false}));
   function setPickMode(m){ pickMode=m;
     const nT=document.getElementById("modeNormal"), tT=document.getElementById("modeTime");
     if(nT) nT.classList.toggle("on",m==="normal"); if(tT) tT.classList.toggle("on",m==="time");
