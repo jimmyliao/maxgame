@@ -277,7 +277,7 @@
     combo++; comboT=3.2; comboPop=0.5; comboBest=Math.max(comboBest,combo);
     const comboTier=Math.floor(combo/5), comboBonus=1+comboTier*0.35;
     if(combo>=3 && combo%5===0){ mshake=Math.max(mshake,6+comboTier*2); sparks(o.x,o.y,20+comboTier*6,"#ffd54f"); ring(o.x,o.y,70+comboTier*14,"#ffd54f");
-      toast("🔥 "+combo+" 連擊！驅逐效率大爆發！"); }
+      toast("🔥 "+combo+" 連擊！驅逐效率大爆發！"); if(window.__sfx) window.__sfx.play("combo"); }
     restore=clamp(restore+(o.elite?0.05:0.012)*comboBonus,0,1);
     floats.push({x:o.x,y:o.y-30,txt:(o.elite?"入侵種王 ":"")+KNAME[o.kind]+" 被驅逐  🌿復原+"+Math.round((o.elite?5:1)*comboBonus)+"%",col:"#c5e1a5",life:1.1});
     if(combo>=2) floats.push({x:o.x,y:o.y-50,txt:combo+" 連擊",col:combo%5===0?"#ffd54f":"#fff59d",life:0.9,big:combo%5===0});
@@ -287,6 +287,7 @@
     if(pveEvent && pveEvent.active && o.kind===pveEvent.target){ pveEvent.got++;
       if(pveEvent.got>=pveEvent.need){ pveEvent.active=false; toast("🎯 防衛戰成功！"+KNAME[pveEvent.target]+" 已清除足額！"); endGame(true); } }
     if(window.__shopAddGold) window.__shopAddGold(o.elite?15:3);   // 擊殺額外進帳，主動打怪比純等時間更划算
+    if(by && by.isPlayer!==undefined && by.isPlayer && window.__sfx) window.__sfx.play("coin");   // 玩家親手驅逐才發聲，避免 AI 大量擊殺洗版音效
   }
 
   /* ---------- 攻擊 ---------- */
@@ -301,7 +302,7 @@
     if(u.isPlayer!==undefined) mul*=weatherAtkMul(u);           // 夜間石虎攻擊力 +20%
     if(u.isPlayer!==undefined && tgt.kind) mul*=ecoChainMul(u.kind,tgt.kind); // 生物防治鏈：剋制加成
     const dealt=dmg*mul;
-    hurt(tgt,dealt,u); knock(tgt,u.x,u.y,(u.isPlayer?15:11)*(u.knockMul||1)); if(u.isPlayer) mshake=Math.max(mshake,4);
+    hurt(tgt,dealt,u); knock(tgt,u.x,u.y,(u.isPlayer?15:11)*(u.knockMul||1)); if(u.isPlayer){ mshake=Math.max(mshake,4); if(window.__sfx) window.__sfx.play(dealt>=40?"bighit":"hit"); }
     if(u.lifesteal && u.hp>0){ u.hp=Math.min(u.maxhp,u.hp+dealt*u.lifesteal); } }   // 戰鬥中強化「活力」：攻擊附加生命偷取
 
   /* ---------- 更新 ---------- */
@@ -410,7 +411,7 @@
 
     // 特效 / 文字
     for(const e of fx){ e.life-=dt; if(e.type==="spark"){ e.x+=e.vx*dt; e.y+=e.vy*dt; } } fx=fx.filter(e=>e.life>0); if(fx.length>150) fx.splice(0,fx.length-150);
-    for(const f of floats){ f.life-=dt; f.y-=26*dt; } floats=floats.filter(f=>f.life>0);
+    for(const f of floats){ f.life-=dt; f.y-=26*dt; } floats=floats.filter(f=>f.life>0); if(floats.length>60) floats.splice(0,floats.length-60);   // 硬上限+回收（跟 fx 同模式，避免必殺一次大量命中時無天花板）
 
     // 天候粒子：暴雨雨滴 / 寒流雪花，硬上限＋回收（獨立於 fx，畫在螢幕座標，不受鏡頭平移影響）
     const WFX_MAX=140;
@@ -570,7 +571,7 @@
     muntjac:{name:"靈奔祝福",cd:7,fn:skMuntjacBless}, macaque:{name:"猿躍連擊",cd:6,fn:skMacaqueFlurry},
     salmon:{name:"逆流衝刺",cd:6.5,fn:skSalmonSurge}, pheasant:{name:"金羽連射",cd:6,fn:skPheasantVolley} };
   function castSp(h){ const s=SKILL[h.kind]; h.spCd=h.spMax||(s&&s.cd)||7; h.atkA=0.3;
-    if(h.isPlayer){ mshake=Math.max(mshake,6); toast((s?s.name:"技能")+(h.talent?"！🌟":"！")); }
+    if(h.isPlayer){ mshake=Math.max(mshake,6); toast((s?s.name:"技能")+(h.talent?"！🌟":"！")); if(window.__sfx) window.__sfx.play("skill"); }
     (s?s.fn:skSlam)(h); }
 
   /* ---------- 撿拾式必殺技：守護之力 ---------- */
@@ -586,7 +587,7 @@
   function tryPickRelic(h){ if(h.ult || h.ultCd>0 || !relics.length) return;
     for(let i=0;i<relics.length;i++){ const rl=relics[i]; if(dist(h,rl)<h.r+RELIC_R+6){
       relics.splice(i,1); h.ult=true; ring(h.x,h.y,60,"#ffe082"); sparks(h.x,h.y,20,"#ffe082");
-      if(h.isPlayer){ mshake=Math.max(mshake,5); toast("⭐ 撿到守護之力！按【必殺】施放毀滅波"); }
+      if(h.isPlayer){ mshake=Math.max(mshake,5); toast("⭐ 撿到守護之力！按【必殺】施放毀滅波"); if(window.__sfx) window.__sfx.play("pickup"); }
       return; } } }
   // 必殺：以自身為中心的巨大守護怒濤，重創範圍內所有入侵種（大傷害＋擊退＋震暈），並額外推進棲地復原；用完長冷卻、要再撿一顆
   function castUlt(h){ if(!h.ult) return; h.ult=false; h.ultCd=ULT_CD; h.atkA=0.4;
@@ -595,7 +596,7 @@
     let hitN=0;
     for(const v of invaders){ if(v.dead) continue; if(dist(h,v)<R+v.r){ hurt(v,dmg,{isPlayer:true,kind:h.kind}); knock(v,h.x,h.y,60); v.stun=Math.max(v.stun,1.3); hitN++; } }
     restore=clamp(restore+0.03,0,1);
-    if(h.isPlayer){ toast("💥 守護怒濤！橫掃 "+hitN+" 隻入侵種"); }
+    if(h.isPlayer){ toast("💥 守護怒濤！橫掃 "+hitN+" 隻入侵種"); if(window.__sfx) window.__sfx.play("ult"); }
     floats.push({x:h.x,y:h.y-h.r-10,txt:"守護怒濤！",col:"#ffd54f",life:1.0,big:true}); }
   function keepIn(h){ h.x=clamp(h.x,40,MW-40); h.y=clamp(h.y,40,MH-40);
     for(const o of [shrine,...nurseries]){ if(o.hp<=0) continue; const d=dist(h,o),min=o.r+h.r; if(d<min&&d>0){ const a=Math.atan2(h.y-o.y,h.x-o.x); h.x=o.x+Math.cos(a)*min; h.y=o.y+Math.sin(a)*min; } } }
@@ -1226,6 +1227,7 @@
     else { const xp=6+got*2; window.__awardXP&&window.__awardXP(key,xp);
       showOver("⏱ 第 "+lv+" 關失敗","防衛戰未達標","限時內只清除了 "+got+"/"+need+" 隻 "+KNAME[tKind]+"，外來種仍在擴散……可以重打這一關！<br>"+(KNAME[key]||"")+" 仍獲得 EXP +"+xp); } }
   function showOver(t,s,b){ root.classList.add("mhide"); txt("moverT",t); txt("moverS",s); const el=document.getElementById("moverB"); if(el) el.innerHTML=b;
+    if(window.__sfx) window.__sfx.play(/成功/.test(t)?"victory":"defeat");   // 勝利/失敗結算音效
     const again=document.getElementById("moverAgain"); const next=document.getElementById("moverNext");
     // PVE 過關（pveNextLevel!=null）：主按鈕改成「下一關（更難）」，再守一場保留為重打（同樣讀已推進的關卡）
     if(pveNextLevel){ if(again) again.classList.add("hide");
