@@ -1519,8 +1519,8 @@
     document.querySelectorAll("#battleRegions .hregion").forEach(b=>b.classList.toggle("on",b.dataset.r===r));
     const h=(window.__habitatHealth&&window.__habitatHealth(r))||0, pct=Math.round(h*100);
     const el=document.getElementById("battleBonusInfo");
-    if(el) el.textContent="🌱 "+(REGION_LABEL[r]||r)+"棲地健康度 "+pct+"%　→　出戰速度 +"+Math.round(h*12)+"%・技能冷卻 -"+Math.round(h*15)+"%"
-      +(pct<10?"（去棲地基地復育這一區可以更強！）":""); }
+    // 棲地模式已移除：只顯示戰場地區；若舊存檔仍有棲地健康度，保留其加成顯示（不再引導去棲地基地）
+    if(el) el.textContent="🗺 戰場："+(REGION_LABEL[r]||r)+(h>0.01?("　🌱 加成 出戰速度 +"+Math.round(h*12)+"%・技能冷卻 -"+Math.round(h*15)+"%"):""); }
   document.querySelectorAll("#battleRegions .hregion").forEach(b=>b.addEventListener("pointerdown",(e)=>{ e.preventDefault(); setBattleRegion(b.dataset.r); },{passive:false}));
   function setPickMode(m){ pickMode=m;
     const nT=document.getElementById("modeNormal"), tT=document.getElementById("modeTime"), pT=document.getElementById("modePve"), dT=document.getElementById("modeDuel");
