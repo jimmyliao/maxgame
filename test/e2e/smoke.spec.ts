@@ -15,7 +15,7 @@ test("載入無錯誤、鐵則齊全、能走完一場戰鬥", async ({ page }) 
   // 大廳（遊戲介面）— 開始守護鈕 + 角色展示
   await expect(page.locator("#playBtn")).toBeVisible();
   await expect(page.locator("#heroShow")).toBeVisible();
-  await expect(page.locator("#roster .rb")).toHaveCount(6);
+  await expect(page.locator("#roster .rb")).toHaveCount(10);
 
   // 鐵則：6 個 dock 控制鈕都在
   for (const id of ["bLeft", "bRight", "bSwap", "bJump", "bSp", "bAtk"]) {
@@ -25,15 +25,15 @@ test("載入無錯誤、鐵則齊全、能走完一場戰鬥", async ({ page }) 
   const ta = await page.evaluate(() => getComputedStyle(document.body).touchAction);
   expect(ta).toBe("none");
 
-  // 圖鑑：大廳 → 圖鑑（8 個物種卡，涵蓋 8 個 kind）→ 回大廳
+  // 圖鑑：大廳 → 圖鑑（10 隻守護者 + 4 隻入侵種卡，共 14 張）→ 回大廳
   await page.locator("#navDex").click();
-  await expect(page.locator("#dexCards .card")).toHaveCount(10);
+  await expect(page.locator("#dexCards .card")).toHaveCount(14);
   await page.locator("#dexBack").click();
   await expect(page.locator("#playBtn")).toBeVisible();
 
-  // 復育中心：4 隻守護者可升級
+  // 復育中心：10 隻守護者可升級/解鎖
   await page.locator("#navUpg").click();
-  await expect(page.locator("#upgCards .card")).toHaveCount(6);
+  await expect(page.locator("#upgCards .card")).toHaveCount(10);
   await page.locator("#upgBack").click();
   await expect(page.locator("#playBtn")).toBeVisible();
 
