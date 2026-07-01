@@ -47,7 +47,7 @@
   /* ---------- 狀態 ---------- */
   let running=false, raf=0, lastT=0, clock=0, teamSize=3, ended=false;
   let shrine=null, nurseries=[], heroes=[], invaders=[], fx=[], floats=[];
-  let player=null, spawnT=0, restore=0, killCount=0, surgeT=45, finalAssault=false;
+  let player=null, spawnT=0, restore=0, killCount=0, surgeT=45, finalAssault=false, mshake=0;
   const cam={x:0,y:0}, mv={x:0,y:0};
   let wantSp=false, wantBack=false;
   let zoom=1, ZMIN=0.62; const ZMAX=1.8;
@@ -91,14 +91,16 @@
   function nearestInvader(u,maxR){ let best=null,bd=maxR||1e9; for(const v of invaders){ if(v.dead) continue; const d=dist(u,v); if(d<bd){bd=d;best=v;} } return best?{e:best,d:bd}:null; }
 
   /* ---------- 傷害 ---------- */
-  function hurt(o,amt,by){ if(o.hp<=0) return; o.hp-=amt; o.hitT=0.12;
-    floats.push({x:o.x,y:o.y-o.r-6,txt:"-"+Math.round(amt),col:"#fff",life:0.55}); sparks(o.x,o.y,5,"#fff");
+  function knock(o,fromX,fromY,amt){ if(!('elite' in o)) return; const a=Math.atan2(o.y-fromY,o.x-fromX), k=o.elite?amt*0.3:amt; o.x+=Math.cos(a)*k; o.y+=Math.sin(a)*k; }
+  function hurt(o,amt,by){ if(o.hp<=0) return; o.hp-=amt; o.hitT=0.14; const big=amt>=40;
+    floats.push({x:o.x,y:o.y-o.r-6,txt:"-"+Math.round(amt),col:big?"#fff59d":"#fff",life:0.6,big}); sparks(o.x,o.y,big?9:5,big?"#fff59d":"#fff");
     if(o.hp<=0){ o.hp=0; onDeath(o,by); } }
   function onDeath(o,by){
     if(o.kind==="shrine"){ endGame(false); return; }
     if(o.kind==="nursery"){ ring(o.x,o.y,60,"#ff8a80"); toast("一處復育苗圃被毀！"); return; }
     // 入侵種
-    o.dead=true; killCount++; ring(o.x,o.y,o.elite?50:24,"#cddc39");
+    o.dead=true; killCount++; ring(o.x,o.y,o.elite?60:26,"#cddc39"); sparks(o.x,o.y,o.elite?26:12,o.elite?"#ffca28":"#cddc39");
+    if(o.elite){ mshake=Math.max(mshake,10); ring(o.x,o.y,90,"#ffca28"); }
     restore=clamp(restore+(o.elite?0.05:0.012),0,1);
     floats.push({x:o.x,y:o.y-30,txt:(o.elite?"入侵種王 ":"")+KNAME[o.kind]+" 被驅逐  🌿復原+"+(o.elite?5:1)+"%",col:"#c5e1a5",life:1.1});
   }
@@ -106,11 +108,11 @@
   /* ---------- 攻擊 ---------- */
   function meleeHit(u,tgt,dmg){ u.t=u.cd; u.atkA=0.2; u.face=Math.atan2(tgt.y-u.y,tgt.x-u.x);
     fx.push({type:"slash",x:u.x+Math.cos(u.face)*u.r,y:u.y+Math.sin(u.face)*u.r,a:u.face,life:0.16,max:0.16,col:"#fff59d"});
-    hurt(tgt,dmg,u); }
+    hurt(tgt,dmg,u); knock(tgt,u.x,u.y,u.isPlayer?15:11); if(u.isPlayer) mshake=Math.max(mshake,4); }
 
   /* ---------- 更新 ---------- */
   function step(dt){
-    if(ended) return; clock+=dt;
+    if(ended) return; clock+=dt; if(mshake>0) mshake=Math.max(0,mshake-dt*38);
     // 入侵浪潮：更兇、隨時間加速、精英「入侵種王」
     const RK=()=>INVADERS[Math.floor(Math.random()*INVADERS.length)];
     const pushInv=(el)=>{ if(invaders.length<80) invaders.push(mkInvader(RK(),el)); };
@@ -169,11 +171,12 @@
     keepIn(h);
     if(wantBack){ wantBack=false; h.x=shrine.x; h.y=shrine.y+100; h.hp=h.maxhp; ring(h.x,h.y,46,"#80deea"); toast("回到神木旁・補滿體力"); }
     if(wantSp){ wantSp=false; if(h.spCd<=0) castSp(h); }
-    const tg=nearestInvader(h,h.range+44);
+    const tg=nearestInvader(h,h.range+60);
+    h.aim=(tg && tg.d<=h.range+tg.e.r+40 && !tg.e.dead)? tg.e : null;
     if(tg && tg.d<=h.range+tg.e.r && h.t<=0) meleeHit(h,tg.e,h.dmg);
   }
-  function castSp(h){ h.spCd=8; h.atkA=0.3; ring(h.x,h.y,135,"#fff59d"); sparks(h.x,h.y,18,"#fff59d"); floats.push({x:h.x,y:h.y-46,txt:"守護爆發!",col:"#fff59d",life:0.7});
-    for(const v of invaders){ if(!v.dead && dist(h,v)<145) hurt(v,h.dmg*2.4,h); } }
+  function castSp(h){ h.spCd=8; h.atkA=0.3; ring(h.x,h.y,135,"#fff59d"); ring(h.x,h.y,90,"#ffe082"); sparks(h.x,h.y,24,"#fff59d"); floats.push({x:h.x,y:h.y-46,txt:"守護爆發!",col:"#fff59d",life:0.7});
+    for(const v of invaders){ if(!v.dead && dist(h,v)<145){ hurt(v,h.dmg*2.4,h); knock(v,h.x,h.y,44); } } if(h.isPlayer) mshake=Math.max(mshake,9); }
   function keepIn(h){ h.x=clamp(h.x,40,MW-40); h.y=clamp(h.y,40,MH-40);
     for(const o of [shrine,...nurseries]){ if(o.hp<=0) continue; const d=dist(h,o),min=o.r+h.r; if(d<min&&d>0){ const a=Math.atan2(h.y-o.y,h.x-o.x); h.x=o.x+Math.cos(a)*min; h.y=o.y+Math.sin(a)*min; } } }
 
@@ -193,7 +196,7 @@
     // 棲地：枯黃(低復原) → 翠綠(高復原)
     const top=mix("#6f6a44","#3f6b34",restore), bot=mix("#574e30","#2e5226",restore);
     const g=ctx.createLinearGradient(0,0,0,VH); g.addColorStop(0,top); g.addColorStop(1,bot); ctx.fillStyle=g; ctx.fillRect(0,0,VW,VH);
-    ctx.save(); ctx.scale(zoom,zoom); ctx.translate(-cam.x,-cam.y);
+    ctx.save(); if(mshake>0) ctx.translate((Math.random()-0.5)*mshake,(Math.random()-0.5)*mshake); ctx.scale(zoom,zoom); ctx.translate(-cam.x,-cam.y);
     drawField();
     // 依 y 疊放
     const ents=[shrine,...nurseries.filter(n=>n.hp>0)];
@@ -201,6 +204,9 @@
     for(const h of heroes) if(!h.dead) ents.push(h);
     ents.sort((a,b)=>a.y-b.y);
     for(const e of ents){ if(e.kind==="shrine") drawShrine(e); else if(e.kind==="nursery") drawNursery(e); else if(e.isPlayer!==undefined) drawHero(e); else drawUnit(e,e.r,true); }
+    // 鎖定準心（玩家目前普攻的目標）
+    if(player && !player.dead && player.aim && !player.aim.dead){ const a=player.aim, rr=(a.r||16)*(kcfg(a.kind).sz)+12, tt=clock*4;
+      ctx.strokeStyle="rgba(255,90,80,0.95)"; ctx.lineWidth=2.6; for(let k=0;k<4;k++){ const ang=tt+k*1.5708; ctx.beginPath(); ctx.arc(a.x,a.y,rr,ang+0.35,ang+1.15); ctx.stroke(); } }
     // 特效
     for(const e of fx){ const a=Math.max(0,e.life/e.max);
       if(e.type==="spark"){ ctx.globalAlpha=a; ctx.fillStyle=e.col; ctx.beginPath(); ctx.arc(e.x,e.y,e.r,0,7); ctx.fill(); }
@@ -208,11 +214,14 @@
       else if(e.type==="slash"){ ctx.globalAlpha=a; ctx.strokeStyle=e.col; ctx.lineWidth=5; ctx.beginPath(); ctx.arc(e.x,e.y,20,e.a-0.9,e.a+0.9); ctx.stroke(); }
       ctx.globalAlpha=1; }
     ctx.textAlign="center"; ctx.textBaseline="middle";
-    for(const f of floats){ ctx.globalAlpha=Math.min(1,f.life*1.8); ctx.fillStyle=f.col; ctx.font="bold 14px sans-serif"; ctx.fillText(f.txt,f.x,f.y); ctx.globalAlpha=1; }
+    for(const f of floats){ ctx.globalAlpha=Math.min(1,f.life*1.8); ctx.fillStyle=f.col; ctx.font="bold "+(f.big?20:14)+"px sans-serif"; ctx.fillText(f.txt,f.x,f.y); ctx.globalAlpha=1; }
     ctx.restore();
     // 邊緣暗角（聚焦中央）
     const vg=ctx.createRadialGradient(VW/2,VH*0.52,VH*0.28,VW/2,VH*0.52,VH*0.75);
     vg.addColorStop(0,"rgba(0,0,0,0)"); vg.addColorStop(1,"rgba(0,0,0,0.28)"); ctx.fillStyle=vg; ctx.fillRect(0,0,VW,VH);
+    // 神木瀕危：紅色警示閃動
+    if(shrine.hp/shrine.maxhp<0.3){ const pl=0.5+0.5*Math.sin(clock*6); const rv=ctx.createRadialGradient(VW/2,VH/2,VH*0.3,VW/2,VH/2,VH*0.78);
+      rv.addColorStop(0,"rgba(255,0,0,0)"); rv.addColorStop(1,"rgba(255,0,0,"+(0.26*pl).toFixed(3)+")"); ctx.fillStyle=rv; ctx.fillRect(0,0,VW,VH); }
     if(toastT>0){ toastT-=0.016; if(toastT<=0){ const el=document.getElementById("mtoast"); if(el) el.classList.remove("show"); } }
   }
 
@@ -309,9 +318,11 @@
         :[[lxf,-ly,1],[lxf,ly,-1],[-lxb,-ly,-1],[-lxb,ly,1]];
       ctx.fillStyle=footCol; ctx.strokeStyle="rgba(0,0,0,0.28)"; ctx.lineWidth=1.2;
       for(const L of legs){ ctx.beginPath(); ctx.ellipse(L[0]+L[2]*sw,L[1],lr,lr*1.2,0,0,7); ctx.fill(); ctx.stroke(); } }
-    // 身體（3D 漸層）
+    // 身體（3D 漸層 + 深色描邊 + 頂光）
     const bg=ctx.createRadialGradient(bLen*0.15,-bW*0.4,r*0.1,0,0,bLen*1.15); bg.addColorStop(0,lite); bg.addColorStop(0.55,col); bg.addColorStop(1,dark);
-    ctx.fillStyle=u.hitT>0?"#fff":bg; ctx.beginPath(); ctx.ellipse(0,0,bLen,bW,0,0,7); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0,0,bLen,bW,0,0,7); ctx.fillStyle=u.hitT>0?"#fff":bg; ctx.fill();
+    ctx.strokeStyle="rgba(0,0,0,0.38)"; ctx.lineWidth=Math.max(1.3,r*0.08); ctx.stroke();
+    if(u.hitT<=0){ ctx.save(); ctx.globalAlpha=0.45; ctx.fillStyle=lite; ctx.beginPath(); ctx.ellipse(-bLen*0.08,-bW*0.42,bLen*0.56,bW*0.32,0,0,7); ctx.fill(); ctx.restore(); }
     // 背部花紋 / 殼 / 棘
     if(u.kind==="leopard"){ ctx.fillStyle="rgba(70,45,20,0.55)"; for(const o of [[-.3,-.2],[.1,.15],[-.05,-.28],[.3,-.05],[-.35,.2]]){ ctx.beginPath(); ctx.arc(o[0]*bLen*1.2,o[1]*bW*1.5,r*0.12,0,7); ctx.fill(); } }
     else if(u.kind==="bear"){ ctx.fillStyle="rgba(255,255,255,0.9)"; ctx.beginPath(); ctx.moveTo(bLen*0.35,-bW*0.5); ctx.lineTo(bLen*0.55,0); ctx.lineTo(bLen*0.35,bW*0.5); ctx.lineWidth=r*0.12; ctx.strokeStyle="rgba(255,255,255,0.9)"; ctx.stroke(); } // 胸前白 V
@@ -320,9 +331,10 @@
       ctx.strokeStyle=dark; ctx.lineWidth=r*0.16; ctx.beginPath(); for(let a=0;a<16;a++){ const rr=bW*0.85*(1-a/19),px=-bLen*0.1+Math.cos(a*0.9)*rr,py=Math.sin(a*0.9)*rr; a?ctx.lineTo(px,py):ctx.moveTo(px,py); } ctx.stroke(); }
     else if(u.kind==="iguana"){ ctx.fillStyle=lite; for(let i=-3;i<=3;i++){ ctx.beginPath(); ctx.moveTo(i*bLen*0.16,-r*0.05); ctx.lineTo(i*bLen*0.16-r*0.07,-bW*0.9); ctx.lineTo(i*bLen*0.16+r*0.07,-bW*0.9); ctx.closePath(); ctx.fill(); } }
     else if(u.kind==="frog"){ ctx.fillStyle="rgba(40,70,20,0.5)"; for(const o of [[-.2,-.3],[.1,.35],[.25,-.2]]){ ctx.beginPath(); ctx.arc(o[0]*bLen*1.1,o[1]*bW*1.1,r*0.13,0,7); ctx.fill(); } }
-    // 頭
+    // 頭（描邊）
     const hx=bLen*(bird?0.62:0.72), hr=r*(bird?0.32:0.46);
-    ctx.fillStyle=u.hitT>0?"#fff":shade(col,18); ctx.beginPath(); ctx.arc(hx,0,hr,0,7); ctx.fill();
+    ctx.beginPath(); ctx.arc(hx,0,hr,0,7); ctx.fillStyle=u.hitT>0?"#fff":shade(col,18); ctx.fill();
+    ctx.strokeStyle="rgba(0,0,0,0.34)"; ctx.lineWidth=Math.max(1,r*0.06); ctx.stroke();
     // 耳
     if(u.kind==="leopard"||u.kind==="bear"||u.kind==="deer"||u.kind==="iguana"){ ctx.fillStyle=dark;
       const er=hr*(u.kind==="bear"?0.55:0.42); ctx.beginPath(); ctx.arc(hx-hr*0.2,-hr*0.85,er,0,7); ctx.arc(hx-hr*0.2,hr*0.85,er,0,7); ctx.fill(); }
