@@ -850,6 +850,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   window.__heroTalent=(key)=> talentSummary(key);   // 天賦加成摘要：{path,pathName,tier,mods:{dmg,speed,spCd,dr},active}|null
   window.__awardEco=(n)=>{ gainEco(n); };
   window.__getEco=()=> getEco();
+  window.__conservationLevel=()=> Math.floor(getEcoEarned()/100)+1;   // 保育等級（跟結算頁公式一致，供其他模組讀取）
   window.__awardXP=(key,n)=>{ gainXP(key,n|0); };
   window.__bumpWin=()=>{ try{ localStorage.setItem("shoutu_wins",String(getWins()+1)); }catch(e){} };
   window.__lobbyRefresh=()=>{ if(state==="lobby"){ updateLobby(); buildRoster(); resizeHeroShow(); } };
