@@ -72,6 +72,14 @@
   .zbtn{ width:46px; height:46px; border:none; border-radius:12px; background:rgba(0,0,0,.42); color:#fff; font-size:22px; font-weight:800;
     box-shadow:0 2px 0 rgba(0,0,0,.4); cursor:pointer; line-height:1; }
   .zbtn:active{ transform:translateY(2px); filter:brightness(1.2); }
+  .zbtn.chat{ position:absolute; left:max(20px,env(safe-area-inset-left)); top:max(10px,env(safe-area-inset-top)); margin-top:56px; font-size:20px; z-index:2; }
+  #mChatWheel{ position:absolute; left:max(20px,env(safe-area-inset-left)); top:max(10px,env(safe-area-inset-top)); margin-top:110px;
+    display:flex; flex-direction:column; gap:8px; z-index:3; }
+  #mChatWheel.hide{ display:none; }
+  .qmsg{ display:flex; align-items:center; gap:8px; border:none; border-radius:20px; background:rgba(10,20,14,.82); color:#fff;
+    font-size:18px; padding:8px 16px 8px 10px; box-shadow:0 2px 0 rgba(0,0,0,.4); cursor:pointer; white-space:nowrap; }
+  .qmsg span{ font-size:13px; font-weight:800; }
+  .qmsg:active{ transform:translateY(1px) scale(0.97); filter:brightness(1.2); }
   #mtoast{ position:absolute; left:50%; top:24%; transform:translateX(-50%); font-size:20px; font-weight:900; color:#fff;
     text-shadow:0 2px 6px #000; pointer-events:none; opacity:0; transition:opacity .3s; text-align:center; white-space:nowrap; }
   #mtoast.show{ opacity:1; }
@@ -301,6 +309,14 @@
   <div id="mzoom">
     <button id="mZoomIn" class="zbtn">＋</button>
     <button id="mZoomOut" class="zbtn">－</button>
+  </div>
+  <button id="mChatBtn" class="zbtn chat">💬</button>
+  <div id="mChatWheel" class="hide">
+    <button class="qmsg" data-q="rally">📣<span>集合</span></button>
+    <button class="qmsg" data-q="focus">⚔<span>攻擊</span></button>
+    <button class="qmsg" data-q="retreat">🛡<span>撤退</span></button>
+    <button class="qmsg" data-q="careful">⚠<span>小心</span></button>
+    <button class="qmsg" data-q="gg">👍<span>做得好</span></button>
   </div>
   <div id="mtoast"></div>
 </div></div>

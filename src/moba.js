@@ -55,6 +55,9 @@
   const cam={x:0,y:0}, mv={x:0,y:0};
   let wantSp=false, wantBack=false;
   let zoom=1, ZMIN=0.62; const ZMAX=1.8;
+  // 快捷訊息：指揮 AI 隊友（集合/攻擊/撤退/小心/讚），有實際行為、不只是裝飾文字
+  const QMSG={ rally:{icon:"📣",txt:"集合！",dur:5}, focus:{icon:"⚔",txt:"攻擊！",dur:5}, retreat:{icon:"🛡",txt:"撤退！",dur:5}, careful:{icon:"⚠",txt:"小心！",dur:3}, gg:{icon:"👍",txt:"做得好！",dur:2} };
+  let directive=null, directiveCd=0, bubble=null;
   function setZoom(z){ zoom=clamp(z,ZMIN,ZMAX); }
 
   const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
@@ -71,7 +74,7 @@
   function edgePoint(){ const s=Math.floor(Math.random()*4), u=Math.random();
     if(s===0) return {x:u*MW,y:20}; if(s===1) return {x:u*MW,y:MH-20}; if(s===2) return {x:20,y:u*MH}; return {x:MW-20,y:u*MH}; }
 
-  function setup(size){ teamSize=size; clock=0; ended=false; restore=0; killCount=0; spawnT=2; surgeT=42; finalAssault=false;
+  function setup(size){ teamSize=size; clock=0; ended=false; restore=0; killCount=0; spawnT=2; surgeT=42; finalAssault=false; directive=null; directiveCd=0; bubble=null;
     fx=[]; floats=[]; invaders=[]; hprojs=[];
     shrine={ x:SHX, y:SHY, r:76, hp:1400, maxhp:1400, kind:"shrine", hitT:0 };
     nurseries=NPOS.map(p=>({ x:p.x, y:p.y, r:34, hp:340, maxhp:340, growth:0.15, contested:false, kind:"nursery" }));
@@ -149,14 +152,27 @@
       if(p.pierce<=0) p.life=0; }
     hprojs=hprojs.filter(p=>p.life>0 && p.x>-40 && p.x<MW+40 && p.y>-40 && p.y<MH+40);
 
+    // 快捷指令：倒數、rally 目標點跟隨玩家位置
+    if(directiveCd>0) directiveCd-=dt;
+    if(directive){ directive.t-=dt; if(directive.type==="rally"&&player){ directive.x=player.x; directive.y=player.y; } if(directive.t<=0) directive=null; }
+    if(bubble){ bubble.t-=dt; if(bubble.t<=0) bubble=null; }
+
     // 英雄
     for(const h of heroes){
       if(h.dead){ h.respawn-=dt; if(h.respawn<=0){ h.dead=false; h.hp=h.maxhp; h.x=SHX+(Math.random()*120-60); h.y=SHY+110; ring(h.x,h.y,40,"#66bb6a"); } continue; }
       if(h.t>0) h.t-=dt; if(h.spCd>0) h.spCd-=dt; if(h.hitT>0) h.hitT-=dt; if(h.atkA>0) h.atkA-=dt; if(h.moodT>0) h.moodT-=dt; h.moving=false;
       if(h.isPlayer){ updatePlayer(h,dt); continue; }
-      // AI 守護者：優先打靠近苗圃/神木的入侵種
-      let tg=nearestInvader(h,420);
-      if(tg){ const reach=h.range+tg.e.r;
+      // AI 守護者：聽從快捷指令（集合/攻擊/撤退），否則優先打靠近苗圃/神木的入侵種
+      const dirOn=directive && directive.t>0;
+      let tg = (dirOn && directive.type==="focus" && directive.target && !directive.target.dead)
+        ? {e:directive.target, d:dist(h,directive.target)} : nearestInvader(h,420);
+      if(dirOn && directive.type==="retreat"){
+        if(tg && tg.d<=h.range+tg.e.r){ if(h.t<=0) meleeHit(h,tg.e,h.dmg); }
+        const ang=Math.atan2(shrine.y-h.y,shrine.x-h.x); if(dist(h,shrine)>150){ h.face=ang; h.x+=Math.cos(ang)*h.speed*dt; h.y+=Math.sin(ang)*h.speed*dt; h.moving=true; h.anim+=dt; }
+      } else if(dirOn && directive.type==="rally"){
+        if(tg && tg.d<=h.range+tg.e.r){ if(h.t<=0) meleeHit(h,tg.e,h.dmg); if(h.spCd<=0 && invaders.filter(v=>!v.dead&&dist(v,h)<150).length>=2) castSp(h); }
+        const ang=Math.atan2(directive.y-h.y,directive.x-h.x); if(dist(h,directive)>100){ h.face=ang; h.x+=Math.cos(ang)*h.speed*dt; h.y+=Math.sin(ang)*h.speed*dt; h.moving=true; h.anim+=dt; }
+      } else if(tg){ const reach=h.range+tg.e.r;
         if(tg.d<=reach){ if(h.t<=0) meleeHit(h,tg.e,h.dmg); if(h.spCd<=0 && invaders.filter(v=>!v.dead&&dist(v,h)<150).length>=2) castSp(h); }
         else { const ang=Math.atan2(tg.e.y-h.y,tg.e.x-h.x); h.face=ang; h.x+=Math.cos(ang)*h.speed*dt; h.y+=Math.sin(ang)*h.speed*dt; h.moving=true; h.anim+=dt; } }
       else { // 無敵人：回防最近受威脅的苗圃，否則待在神木旁
@@ -489,7 +505,15 @@
       if(u.hp<u.maxhp) bar(u.x,u.y-R-8,u.elite?40:26,u.hp/u.maxhp,"#ff8a80");
       if(u.stun>0){ ctx.fillStyle="#ffe082"; for(let s=0;s<3;s++){ const a=clock*7+s*2.1; ctx.beginPath(); ctx.arc(u.x+Math.cos(a)*R*0.9,u.y-R-2+Math.sin(a)*3,2.4,0,7); ctx.fill(); } } } }
   function drawHero(h){ const r=h.r, R=r*kcfg(h.kind).sz; drawCreatureTop(h,r,"ally");
-    if(h.isPlayer){ const bY=h.y-R*1.8-Math.sin(clock*4)*3; ctx.fillStyle="#ffd54f"; ctx.beginPath(); ctx.moveTo(h.x,bY+10); ctx.lineTo(h.x-7,bY); ctx.lineTo(h.x+7,bY); ctx.fill(); }
+    if(h.isPlayer){ const bY=h.y-R*1.8-Math.sin(clock*4)*3; ctx.fillStyle="#ffd54f"; ctx.beginPath(); ctx.moveTo(h.x,bY+10); ctx.lineTo(h.x-7,bY); ctx.lineTo(h.x+7,bY); ctx.fill();
+      if(bubble && bubble.t>0){ const a=Math.min(1,bubble.t*2.4), by=bY-30, bw=Math.max(58,bubble.txt.length*13+34);
+        ctx.globalAlpha=a; ctx.fillStyle="#fff"; ctx.strokeStyle="rgba(0,0,0,0.5)"; ctx.lineWidth=2;
+        ctx.beginPath(); ctx.moveTo(h.x-10,by+16); ctx.lineTo(h.x,by+28); ctx.lineTo(h.x+6,by+15);
+        const rr=12, bx=h.x-bw/2, byy=by-16;
+        ctx.moveTo(bx+rr,byy); ctx.arcTo(bx+bw,byy,bx+bw,byy+32,rr); ctx.arcTo(bx+bw,byy+32,bx,byy+32,rr); ctx.arcTo(bx,byy+32,bx,byy,rr); ctx.arcTo(bx,byy,bx+bw,byy,rr); ctx.closePath();
+        ctx.fill(); ctx.stroke();
+        ctx.font="14px sans-serif"; ctx.textAlign="center"; ctx.fillStyle="#222"; ctx.fillText(bubble.icon+" "+bubble.txt,h.x,byy+21);
+        ctx.globalAlpha=1; } }
     bar(h.x,h.y-R-14,42,h.hp/h.maxhp,"#66bb6a");
     ctx.font="bold 12px sans-serif"; ctx.textAlign="center"; ctx.fillStyle="#fff"; ctx.fillText(h.name,h.x-9,h.y-R-20);
     ctx.fillStyle="#ffd54f"; ctx.fillText(" Lv"+(h.level||1),h.x+h.name.length*6,h.y-R-20); }
@@ -536,6 +560,16 @@
   tap("mSp",()=>{ wantSp=true; }); tap("mBack",()=>{ wantBack=true; });
   // 縮放：＋/－ 鈕、雙指縮放、滾輪
   tap("mZoomIn",()=>setZoom(zoom+0.2)); tap("mZoomOut",()=>setZoom(zoom-0.2));
+  // 快捷訊息：開合輪盤 + 送出指令（真的會指揮 AI 隊友，不只是裝飾）
+  function sendQuickMsg(key){ const q=QMSG[key]; if(!q||!player||player.dead) return; if(directiveCd>0) return;
+    directiveCd=4;
+    if(key==="rally") directive={type:"rally",x:player.x,y:player.y,t:q.dur};
+    else if(key==="retreat") directive={type:"retreat",t:q.dur};
+    else if(key==="focus"){ const tg=nearestInvader(player,260); if(tg) directive={type:"focus",target:tg.e,t:q.dur}; }
+    bubble={icon:q.icon,txt:q.txt,t:1.8}; toast(q.icon+" "+q.txt);
+    const w=document.getElementById("mChatWheel"); if(w) w.classList.add("hide"); }
+  tap("mChatBtn",()=>{ const w=document.getElementById("mChatWheel"); if(w) w.classList.toggle("hide"); });
+  document.querySelectorAll("#mChatWheel .qmsg").forEach(b=>{ b.addEventListener("pointerdown",(ev)=>{ ev.preventDefault(); sendQuickMsg(b.dataset.q); },{passive:false}); });
   const pts=new Map(); let pinchD=0, pinchZ=1;
   cv.addEventListener("pointerdown",(e)=>{ pts.set(e.pointerId,{x:e.clientX,y:e.clientY}); if(pts.size===2){ const a=[...pts.values()]; pinchD=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)||1; pinchZ=zoom; } },{passive:false});
   cv.addEventListener("pointermove",(e)=>{ if(!pts.has(e.pointerId))return; pts.set(e.pointerId,{x:e.clientX,y:e.clientY}); if(pts.size===2){ e.preventDefault(); const a=[...pts.values()], d=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)||1; setZoom(pinchZ*d/pinchD); } },{passive:false});
