@@ -17,6 +17,14 @@
   html,body{ height:100%; overflow:hidden; background:#0d2818;
     font-family:"PingFang TC","Microsoft JhengHei","Noto Sans TC",system-ui,sans-serif;
     -webkit-user-select:none; user-select:none; touch-action:none; color:#e8f5e9; }
+  /* 直握手機時蓋在最上層的「請橫向持機」引導頁——CSS 旋轉戲法只有物理橫拿才會對，
+     不提示的話玩家會誤以為畫面壞了/歪掉，這裡把要求講清楚，橫拿後自動消失 */
+  #rotateGate{ position:fixed; inset:0; z-index:9999; background:#08150d; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:14px; text-align:center; padding:24px; }
+  #rotateGate.hide{ display:none; }
+  #rotateGate .rg-icon{ font-size:56px; animation:rgSpin 1.6s ease-in-out infinite; }
+  @keyframes rgSpin{ 0%,100%{ transform:rotate(0deg);} 50%{ transform:rotate(90deg);} }
+  #rotateGate p{ font-size:16px; line-height:1.7; color:#e8f5e9; font-weight:800; }
   #app{ position:fixed; inset:0; overflow:hidden; }
   #appWrap{ position:absolute; inset:0; display:flex; flex-direction:column;
     padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
@@ -256,6 +264,7 @@
 </style>
 </head>
 <body>
+<div id="rotateGate" class="hide"><div class="rg-icon">📱</div><p>請將手機橫向持拿<br>以獲得最佳遊戲體驗</p></div>
 <div id="app">
  <div id="appWrap">
   <div id="stage">

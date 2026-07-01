@@ -495,11 +495,15 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   // 這幾個畫面是獨立於 #app 之外的覆蓋層（MOBA 選人/結算、好友連線），沒有內部畫布要重繪，
   // 直接把整個 .scr 盒子原地旋轉即可，跟 #app 用同一個 rot 判斷、同一時間切換，畫面才不會忽正忽橫。
   const ROT_OVERLAYS=["mpick","mover","coop","coopRoom"].map(id=>document.getElementById(id)).filter(Boolean);
+  const rotateGate=document.getElementById("rotateGate");
   // 直握手機時，強制把整個遊戲（大廳/1v1戰鬥/圖鑑/復育…）旋轉成橫向，跟 MOBA／棲地基地同一套做法：
   // 內部畫布一律以「橫向」尺寸繪製，交給 CSS transform 負責把畫面轉正貼滿直立螢幕。
+  // 同時蓋一層「請橫向持機」引導頁——CSS 旋轉戲法只有物理橫拿手機才會正確顯示，
+  // 不提示的話玩家會看到整個畫面歪一邊、以為壞掉，這裡把要求講清楚，橫拿後自動消失。
   function applyRot(){ const iw=window.innerWidth, ih=window.innerHeight; rot=ih>iw;
     if(appRoot) appRoot.classList.toggle("rot",rot);
-    for(const el of ROT_OVERLAYS) el.classList.toggle("rot",rot); }
+    for(const el of ROT_OVERLAYS) el.classList.toggle("rot",rot);
+    if(rotateGate) rotateGate.classList.toggle("hide",!rot); }
   function resize(){ applyRot(); const iw=window.innerWidth, ih=window.innerHeight;
     W = rot? ih : iw; H = rot? iw : ih; GY=H*0.82;
     dpr=Math.min(window.devicePixelRatio||1,2); canvas.width=Math.round(W*dpr); canvas.height=Math.round(H*dpr); ctx.setTransform(dpr,0,0,dpr,0,0); }
