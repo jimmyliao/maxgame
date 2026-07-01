@@ -15,17 +15,20 @@
   const KCOL = { leopard:"#e8a13a", bear:"#3b332e", cicada:"#5f9a3c", dragonfly:"#1fa3a3", deer:"#cf9a5e", magpie:"#2f6fd0",
                  snail:"#b6884a", iguana:"#54b24a", frog:"#82b24c", ibis:"#e3e9ec", anole:"#8a6a3c",
                  muntjac:"#b8703f", macaque:"#b08f56", salmon:"#3a8a9e", pheasant:"#2a3a7a",
+                 // 新增守護者：穿山甲(土黃鱗甲)、黃喉貂(深褐配鮮黃喉)、帝雉(深藍黑金屬光)
+                 pangolin:"#b78a4a", yellowmarten:"#5a3c22", mikado:"#26386a",
                  // 新增外來入侵種：海蟾蜍(棕疣毒腺)、緬甸蟒(黃棕網紋)、多線南蜥(古銅褐帶縱紋)
                  canetoad:"#8a6a44", python:"#b79a54", skink:"#7a6a4a" };
   const KNAME = { leopard:"石虎", bear:"黑熊", cicada:"爺蟬", dragonfly:"勾蜓", deer:"梅花鹿", magpie:"藍鵲",
                   snail:"福壽螺", iguana:"綠鬣蜥", frog:"斑腿蛙", ibis:"聖䴉", anole:"沙氏變色蜥",
                   muntjac:"山羌", macaque:"台灣獼猴", salmon:"櫻花鉤吻鮭", pheasant:"藍腹鷴",
+                  pangolin:"穿山甲", yellowmarten:"黃喉貂", mikado:"帝雉",
                   canetoad:"海蟾蜍", python:"緬甸蟒", skink:"多線南蜥" };
   // 新增外來入侵種真實生態危害科普（擊殺 toast / 圖鑑用）
   const KFACT = { canetoad:"海蟾蜍全身毒腺，2021 年在台中爆發，毒液會毒死捕食牠的原生蛇類與犬貓！",
                   python:"緬甸蟒是世界最大蛇類之一，纏繞絞殺獵物，會吞食鳥類與哺乳類，破壞在地食物鏈！",
                   skink:"多線南蜥繁殖力驚人、與原生蜥蜴競爭棲地與食物，已在南台灣大量擴散！" };
-  const GUARDIANS = ["leopard","bear","dragonfly","magpie","deer","cicada","muntjac","macaque","salmon","pheasant"];
+  const GUARDIANS = ["leopard","bear","dragonfly","magpie","deer","cicada","muntjac","macaque","salmon","pheasant","pangolin","yellowmarten","mikado"];
   const INVADERS  = ["iguana","snail","frog","ibis","canetoad","python","skink"];
   // 各物種體型/身形（讓每隻一眼就不同：大小、身體長寬比）
   const KCFG = {
@@ -37,6 +40,8 @@
     anole:{sz:0.70, long:1.22, wide:0.38},
     muntjac:{sz:0.88, long:1.02, wide:0.46},   macaque:{sz:0.96, long:0.92, wide:0.62},
     salmon:{sz:1.0, long:1.5, wide:0.36},     pheasant:{sz:1.02, long:1.06, wide:0.58},
+    // 穿山甲：厚實拱背坦克；黃喉貂：細長流線刺客；帝雉：雉科水滴身+極長尾
+    pangolin:{sz:1.16, long:1.12, wide:0.72},  yellowmarten:{sz:0.9, long:1.34, wide:0.42}, mikado:{sz:1.04, long:1.06, wide:0.58},
     // 海蟾蜍：矮胖蹲姿；緬甸蟒：極細長蛇身；多線南蜥：細長蜥蜴（比沙氏稍大）
     canetoad:{sz:1.18, long:0.82, wide:1.06},  python:{sz:1.05, long:2.6, wide:0.30}, skink:{sz:0.84, long:1.32, wide:0.36}
   };
@@ -46,17 +51,19 @@
                    macaque:"#e8b3a2", magpie:"#f5f7fb", pheasant:"#e2e8f4", salmon:"#eef3f4",
                    iguana:"#bde486", frog:"#e8e8b6", ibis:"#ffffff", anole:"#cfbb8c",
                    snail:"#d9c288", cicada:"#cbe0af", dragonfly:"#c3f0f0",
+                   pangolin:"#e0c48a", yellowmarten:"#ffe066", mikado:"#dfe6f2",
                    canetoad:"#d8c39a", python:"#e6d49a", skink:"#c8b48c" };
   // 花紋 / 斑點色（清楚可讀、真實物種）
   const KPAT = { leopard:"#2a1808", bear:"#f2ece3", deer:"#fcf5e8", muntjac:"#38220f",
                  macaque:"#6b5334", magpie:"#c0392b", pheasant:"#f2f5fb", salmon:"#ec7386",
                  iguana:"#2d6822", frog:"#233815", ibis:"#161616", anole:"#382810",
                  snail:"#78521f", cicada:"#38581f",
+                 pangolin:"#6a4a22", yellowmarten:"#e0a81f", mikado:"#f2f5fb",
                  canetoad:"#4a3620", python:"#5a3d1a", skink:"#3a2c18" };
   const kbelly=(k)=>KBELLY[k]||"#eadfce", kpat=(k)=>KPAT[k]||"#2c1c0c";
   // 圖檔優先：放 assets/top/<kind>.png(俯視角、面向右、去背)就自動改用寫實圖，沒有就用程式圖
   const SPRITES_TOP={};
-  ["leopard","bear","cicada","dragonfly","deer","magpie","snail","iguana","frog","ibis","anole","muntjac","macaque","salmon","pheasant"].forEach(k=>{
+  ["leopard","bear","cicada","dragonfly","deer","magpie","snail","iguana","frog","ibis","anole","muntjac","macaque","salmon","pheasant","pangolin","yellowmarten","mikado"].forEach(k=>{
     try{ const im=new Image(); im.onload=()=>{ if(im.naturalWidth>0) SPRITES_TOP[k]=im; }; im.onerror=()=>{}; im.src="assets/top/"+k+".png"; }catch(e){} });
 
   /* ---------- 視窗 / 世界 ---------- */
@@ -170,10 +177,20 @@
   const clamp=(v,a,b)=>v<a?a:v>b?b:v;
 
   /* ---------- 建立 ---------- */
-  function mkHero(kind,isPlayer){ return { kind, isPlayer:!!isPlayer, x:0,y:0, r:24, hp:340, maxhp:340,
+  // 角色定位微調（疊在既有 mkHero 基準上，只動既有欄位、不改合約）：
+  //  穿山甲=坦克(高血/高減傷/慢/近戰重擊)、黃喉貂=刺客(高速/快攻/低血)、帝雉=遠程(長射程/略脆)
+  const KROLE = {
+    pangolin:{ hpMul:1.35, dmgMul:1.05, spdMul:0.86, cd:0.7, dr:0.18, range:66, r:26 },
+    yellowmarten:{ hpMul:0.82, dmgMul:0.72, spdMul:1.28, cd:0.34, dr:0, range:56, r:22 },
+    mikado:{ hpMul:0.9, dmgMul:0.9, spdMul:1.0, cd:0.55, dr:0, range:150, r:23 }
+  };
+  function mkHero(kind,isPlayer){ const h={ kind, isPlayer:!!isPlayer, x:0,y:0, r:24, hp:340, maxhp:340,
     dmg:28, range:70, cd:0.6, t:0, spCd:0, speed:isPlayer?172:150, face:0, dead:false, respawn:0, name:KNAME[kind]||kind,
     hitT:0, anim:0, moving:false, phase:Math.random()*6.28, atkA:0, mood:"n", moodT:0,
-    dr:0, invulnT:0, stealthT:0, shieldT:0, talent:null, blessT:0, ult:false, ultCd:0 }; }   // dr=天賦減傷 0~1；talent=第3級主動技能旗標；blessT=山羌祝福加速剩餘時間；ult=手上是否握有撿到的必殺；ultCd=施放後長冷卻
+    dr:0, invulnT:0, stealthT:0, shieldT:0, talent:null, blessT:0, ult:false, ultCd:0 };   // dr=天賦減傷 0~1；talent=第3級主動技能旗標；blessT=山羌祝福加速剩餘時間；ult=手上是否握有撿到的必殺；ultCd=施放後長冷卻
+    const rl=KROLE[kind]; if(rl){ h.maxhp=Math.round(h.maxhp*rl.hpMul); h.hp=h.maxhp; h.dmg=Math.round(h.dmg*rl.dmgMul);
+      h.speed=Math.round(h.speed*rl.spdMul); if(rl.cd) h.cd=rl.cd; if(rl.dr) h.dr=rl.dr; if(rl.range) h.range=rl.range; if(rl.r) h.r=rl.r; }
+    return h; }
   const CHARGERS=["iguana","anole","skink"];   // 體型較大/敏捷的入侵種會蓄力衝撞，逼玩家主動走位閃避，不是站樁對打
   // 各外來種相對於基準(64hp)的差異倍率：緬甸蟒血厚移動慢、海蟾蜍略胖、多線南蜥小而快
   const INV_STATS={
@@ -565,10 +582,29 @@
   function skPheasantVolley(h){ for(let i=-2;i<=2;i++){ const a=h.face+i*0.16;
       hprojs.push({x:h.x+Math.cos(a)*h.r,y:h.y+Math.sin(a)*h.r,vx:Math.cos(a)*580,vy:Math.sin(a)*580,dmg:h.dmg*1.35,life:1.3,hits:[],pierce:2,col:"#c0392b"}); }
     ring(h.x,h.y,50,"#2a3a7a"); sparks(h.x,h.y,14,"#c0392b"); }
+  // 穿山甲・捲甲防禦：捲成球短暫無敵+護盾+高減傷窗，並震退周圍入侵種（坦克開團/自保）
+  function skPangolinCurl(h){ h.invulnT=Math.max(h.invulnT,1.4); h.shieldT=Math.max(h.shieldT,2.6);
+    ring(h.x,h.y,60,"#e0c48a"); ring(h.x,h.y,86,"#c9a05a"); sparks(h.x,h.y,20,"#e0c48a"); mshake=Math.max(mshake,7);
+    floats.push({x:h.x,y:h.y-h.r-14,txt:"捲甲！無敵",col:"#ffe082",life:0.9});
+    for(const v of invaders){ if(!v.dead && dist(h,v)<150){ hurt(v,h.dmg*1.4,h); knock(v,h.x,h.y,70); v.stun=Math.max(v.stun,0.8); } } }
+  // 黃喉貂・疾襲連咬：四段極速短衝連咬，敏捷刺客高機動連段（比獼猴更快更多段、單段傷害略低）
+  function skMartenRush(h){ let cx=h.x, cy=h.y; h.invulnT=Math.max(h.invulnT,0.4);
+    for(let i=0;i<4;i++){ const tg=nearestInvader({x:cx,y:cy},280);
+      const ang=tg?Math.atan2(tg.e.y-cy,tg.e.x-cx):h.face+((Math.random()-0.5)*0.5);
+      const ex=clamp(cx+Math.cos(ang)*120,40,MW-40), ey=clamp(cy+Math.sin(ang)*120,40,MH-40);
+      fx.push({type:"streak",x:cx,y:cy,x2:ex,y2:ey,life:0.14,max:0.14,col:"#ffe066"});
+      for(const v of invaders){ if(!v.dead && segDist(v.x,v.y,cx,cy,ex,ey)<38){ hurt(v,h.dmg*1.15,h); knock(v,cx,cy,18); } }
+      sparks(ex,ey,8,"#ffe066"); cx=ex; cy=ey; }
+    h.x=cx; h.y=cy; ring(cx,cy,52,"#ffe066"); }
+  // 帝雉・帝羽箭雨：七連發寬扇形箭羽，高山遠程壓制，射程與涵蓋角度勝過金羽連射
+  function skMikadoArrows(h){ for(let i=-3;i<=3;i++){ const a=h.face+i*0.15;
+      hprojs.push({x:h.x+Math.cos(a)*h.r,y:h.y+Math.sin(a)*h.r,vx:Math.cos(a)*600,vy:Math.sin(a)*600,dmg:h.dmg*1.3,life:1.4,hits:[],pierce:2,col:"#f2f5fb"}); }
+    ring(h.x,h.y,54,"#26386a"); sparks(h.x,h.y,16,"#e5342a"); }
   const SKILL={ leopard:{name:"閃電突進",cd:6,fn:skDash}, bear:{name:"震地",cd:9,fn:skSlam}, cicada:{name:"音爆",cd:9,fn:skSonic},
     dragonfly:{name:"疾風刃",cd:6,fn:skShoot}, magpie:{name:"俯衝啄擊",cd:6,fn:skDive}, deer:{name:"復育號角",cd:8,fn:skHeal},
     muntjac:{name:"靈奔祝福",cd:7,fn:skMuntjacBless}, macaque:{name:"猿躍連擊",cd:6,fn:skMacaqueFlurry},
-    salmon:{name:"逆流衝刺",cd:6.5,fn:skSalmonSurge}, pheasant:{name:"金羽連射",cd:6,fn:skPheasantVolley} };
+    salmon:{name:"逆流衝刺",cd:6.5,fn:skSalmonSurge}, pheasant:{name:"金羽連射",cd:6,fn:skPheasantVolley},
+    pangolin:{name:"捲甲防禦",cd:8,fn:skPangolinCurl}, yellowmarten:{name:"疾襲連咬",cd:5.5,fn:skMartenRush}, mikado:{name:"帝羽箭雨",cd:6.5,fn:skMikadoArrows} };
   function castSp(h){ const s=SKILL[h.kind]; h.spCd=h.spMax||(s&&s.cd)||7; h.atkA=0.3;
     if(h.isPlayer){ mshake=Math.max(mshake,6); toast((s?s.name:"技能")+(h.talent?"！🌟":"！")); }
     (s?s.fn:skSlam)(h); }
@@ -780,7 +816,7 @@
       P.bezierCurveTo(L*0.5,-W, -L*0.2,-W, -L*0.9,-W*0.28);
       P.bezierCurveTo(-L*1.02,-W*0.12,-L*1.02,W*0.12,-L*0.9,W*0.28);
       P.bezierCurveTo(-L*0.2,W, L*0.5,W, L*nose,0);
-    } else if(kind==="bear"){ // 壯碩渾圓、肩背寬
+    } else if(kind==="bear"||kind==="pangolin"){ // 壯碩渾圓、肩背寬（穿山甲亦拱背厚實）
       P.moveTo(L*0.96,-W*0.2);
       P.bezierCurveTo(L*1.02,-W*0.85, L*0.2,-W*1.06, -L*0.2,-W*1.02);
       P.bezierCurveTo(-L*0.98,-W*0.96,-L*1.02,W*0.96,-L*0.2,W*1.02);
@@ -792,13 +828,13 @@
       P.bezierCurveTo(-L*1.06,-W*0.82,-L*1.06,W*0.82,-L*0.5,W*0.86);
       P.bezierCurveTo(L*0.1,W*0.9, L*0.6,W*0.72, L*1.02,W*0.5);
       P.bezierCurveTo(L*1.1,W*0.2,L*1.1,-W*0.2,L*1.02,-W*0.5);
-    } else if(kind==="leopard"){ // 精瘦流線、肩胸略寬於臀
+    } else if(kind==="leopard"||kind==="yellowmarten"){ // 精瘦流線、肩胸略寬於臀（黃喉貂細長流線）
       P.moveTo(L*1.0,-W*0.35);
       P.bezierCurveTo(L*0.55,-W*1.0, L*0.05,-W*0.95, -L*0.55,-W*0.78);
       P.bezierCurveTo(-L*1.04,-W*0.62,-L*1.04,W*0.62,-L*0.55,W*0.78);
       P.bezierCurveTo(L*0.05,W*0.95, L*0.55,W*1.0, L*1.0,W*0.35);
       P.bezierCurveTo(L*1.08,W*0.12,L*1.08,-W*0.12,L*1.0,-W*0.35);
-    } else if(kind==="magpie"||kind==="ibis"||kind==="pheasant"){ // 鳥：水滴（胸圓、尾收窄）
+    } else if(kind==="magpie"||kind==="ibis"||kind==="pheasant"||kind==="mikado"){ // 鳥：水滴（胸圓、尾收窄）
       P.moveTo(L*1.02,0);
       P.bezierCurveTo(L*0.6,-W*1.02, -L*0.1,-W*0.98, -L*0.7,-W*0.5);
       P.bezierCurveTo(-L*1.02,-W*0.24,-L*1.02,W*0.24,-L*0.7,W*0.5);
@@ -812,8 +848,8 @@
   function drawCreatureTop(u,r0,faction){
     const col=KCOL[u.kind]||"#888", dark=shade(col,-44), lite=shade(col,52), INK="#20140c";
     const cfg=kcfg(u.kind), r=r0*cfg.sz, gt=clock, f=u.face;
-    const flyer=(u.kind==="dragonfly"||u.kind==="cicada"), bird=(u.kind==="magpie"||u.kind==="ibis"||u.kind==="pheasant");
-    const mammal=(u.kind==="leopard"||u.kind==="bear"||u.kind==="deer"||u.kind==="muntjac"||u.kind==="macaque"), angry=u.atkA>0;
+    const flyer=(u.kind==="dragonfly"||u.kind==="cicada"), bird=(u.kind==="magpie"||u.kind==="ibis"||u.kind==="pheasant"||u.kind==="mikado");
+    const mammal=(u.kind==="leopard"||u.kind==="bear"||u.kind==="deer"||u.kind==="muntjac"||u.kind==="macaque"||u.kind==="pangolin"||u.kind==="yellowmarten"), angry=u.atkA>0;
     const fish=(u.kind==="salmon");
     const walk=u.moving?Math.sin(u.anim*12):0;
     const bob=u.moving?Math.abs(Math.sin(u.anim*12))*r*0.14:Math.sin(gt*2.2+u.phase)*r*0.05;
@@ -830,7 +866,7 @@
     const bLen=r*cfg.long, bW=r*cfg.wide;
     const proud=(u.mood==="proud" && u.moodT>0 && !angry);
     const OUT=Math.max(2.2,r*0.11);
-    const earKind=(u.kind==="leopard"||u.kind==="bear"||u.kind==="deer"||u.kind==="muntjac"||u.kind==="macaque");
+    const earKind=(u.kind==="leopard"||u.kind==="bear"||u.kind==="deer"||u.kind==="muntjac"||u.kind==="macaque"||u.kind==="yellowmarten");
     // 影子（方向性、柔和；光源在左上，影子落右下）
     ctx.fillStyle="rgba(0,0,0,0.13)"; ctx.beginPath(); ctx.ellipse(u.x+r*0.28,u.y+r*0.66,bLen*1.08,r*0.42,0,0,7); ctx.fill();
     ctx.fillStyle="rgba(0,0,0,0.24)"; ctx.beginPath(); ctx.ellipse(u.x+r*0.18,u.y+r*0.62,bLen*0.82,r*0.32,0,0,7); ctx.fill();
@@ -845,9 +881,9 @@
     g.setTransform(1,0,0,1,R2,R2); g.clearRect(-R2,-R2,R2*2,R2*2);
     g.save(); g.scale(1,breath);
     // 尾巴（貓/鹿/鬣蜥各異，畫在最底層）
-    if(u.kind==="leopard"||u.kind==="deer"||u.kind==="iguana"||u.kind==="anole"||u.kind==="skink"||u.kind==="muntjac"||u.kind==="macaque"){
-      const tw=Math.sin(gt*3+u.phase)*r*0.4, tl=(u.kind==="iguana"||u.kind==="anole"||u.kind==="skink")?1.7:(u.kind==="macaque"?1.5:u.kind==="muntjac"?1.05:1.35);
-      const tlw=(u.kind==="deer"||u.kind==="muntjac")?0.12:(u.kind==="macaque"?0.1:u.kind==="skink"?0.14:0.2);
+    if(u.kind==="leopard"||u.kind==="deer"||u.kind==="iguana"||u.kind==="anole"||u.kind==="skink"||u.kind==="muntjac"||u.kind==="macaque"||u.kind==="pangolin"||u.kind==="yellowmarten"){
+      const tw=Math.sin(gt*3+u.phase)*r*0.4, tl=(u.kind==="iguana"||u.kind==="anole"||u.kind==="skink")?1.7:(u.kind==="pangolin")?1.5:(u.kind==="macaque"||u.kind==="yellowmarten")?1.5:u.kind==="muntjac"?1.05:1.35;
+      const tlw=(u.kind==="deer"||u.kind==="muntjac")?0.12:(u.kind==="macaque")?0.1:(u.kind==="skink")?0.14:(u.kind==="pangolin")?0.28:(u.kind==="yellowmarten")?0.16:0.2;
       g.strokeStyle=INK; g.lineWidth=r*tlw+OUT*0.8; g.lineCap="round";
       g.beginPath(); g.moveTo(-bLen*0.8,0); g.quadraticCurveTo(-r*(tl*0.85),tw,-r*tl,tw*1.5); g.stroke();
       g.strokeStyle=col; g.lineWidth=r*tlw;
@@ -901,8 +937,8 @@
     function drawNeck(w){ g.save(); g.lineCap="round"; g.lineWidth=neckW*2+w; g.strokeStyle=g.strokeStyle;
       g.beginPath(); g.moveTo(bLen*0.55,0); g.lineTo(hx-hr*0.2,0); g.stroke(); g.restore(); }
     // 有吻部（鼻口向前突出）的哺乳類，用長吻取代圓臉
-    const snouted=(u.kind==="leopard"||u.kind==="bear"||u.kind==="deer"||u.kind==="muntjac");
-    const snoutL=hr*(u.kind==="bear"?0.7:u.kind==="leopard"?0.55:u.kind==="deer"?0.62:0.58), snoutW=hr*(u.kind==="bear"?0.55:u.kind==="deer"||u.kind==="muntjac"?0.36:0.42);
+    const snouted=(u.kind==="leopard"||u.kind==="bear"||u.kind==="deer"||u.kind==="muntjac"||u.kind==="pangolin"||u.kind==="yellowmarten");
+    const snoutL=hr*(u.kind==="bear"?0.7:u.kind==="leopard"?0.55:u.kind==="deer"?0.62:u.kind==="pangolin"?0.85:u.kind==="yellowmarten"?0.7:0.58), snoutW=hr*(u.kind==="bear"?0.55:u.kind==="deer"||u.kind==="muntjac"?0.36:u.kind==="pangolin"?0.3:u.kind==="yellowmarten"?0.32:0.42);
 
     // ===== 第一遍：黑色輪廓底（整隻放大一圈，畫出唯一乾淨外框，不再有接縫）=====
     g.fillStyle=INK;
@@ -991,6 +1027,19 @@
       g.strokeStyle=PAT; g.lineWidth=r*0.06; g.beginPath(); g.moveTo(bLen*0.4,0); g.lineTo(-bLen*0.6,0); g.stroke(); }
     else if(u.kind==="macaque"){ // 台灣獼猴：背灰褐 + 腹淺，臀部白斑
       g.fillStyle="rgba(255,255,255,0.4)"; g.beginPath(); g.ellipse(-bLen*0.5,0,bLen*0.22,bW*0.5,0,0,7); g.fill(); }
+    else if(u.kind==="pangolin"){ // 穿山甲：覆瓦狀角質鱗甲（招牌特徵），由頭至尾成列三角鱗
+      g.save(); bodyPathTop(g,u.kind,bLen,bW,0); g.clip();
+      for(let row=-1;row<=3;row++){ const cols=4-Math.abs(row-1); const px0=-bLen*0.7+row*bLen*0.34;
+        for(let cc2=-cols;cc2<=cols;cc2++){ const py=cc2*bW*0.26+(row%2?bW*0.13:0), px=px0;
+          g.fillStyle=shade(col,-8+((cc2+row)%2)*22); g.beginPath();
+          g.moveTo(px-bLen*0.14,py); g.lineTo(px+bLen*0.02,py-bW*0.24); g.lineTo(px+bLen*0.18,py); g.lineTo(px+bLen*0.02,py+bW*0.24); g.closePath(); g.fill();
+          g.strokeStyle="rgba(60,42,20,0.55)"; g.lineWidth=Math.max(1,r*0.03); g.stroke(); } }
+      g.restore(); }
+    else if(u.kind==="yellowmarten"){ // 黃喉貂：深褐體 + 鮮黃喉胸斑（招牌特徵，位於前胸/頸下）
+      g.save(); bodyPathTop(g,u.kind,bLen,bW,0); g.clip();
+      g.fillStyle=PAT; g.beginPath(); g.ellipse(bLen*0.42,0,bLen*0.36,bW*0.72,0,0,7); g.fill(); // 黃喉胸
+      g.fillStyle="rgba(255,255,255,0.25)"; g.beginPath(); g.ellipse(-bLen*0.55,0,bLen*0.28,bW*0.5,0,0,7); g.fill(); // 尾根較淺
+      g.restore(); }
     else if(fish){ // 櫻花鉤吻鮭：側面粉紅縱帶 + 黑點
       g.save(); bodyPathTop(g,u.kind,bLen,bW,0); g.clip();
       g.fillStyle="rgba(45,90,70,0.5)"; g.beginPath(); g.ellipse(0,-bW*0.45,bLen*0.95,bW*0.55,0,0,7); g.fill(); // 背側青綠
@@ -1059,7 +1108,16 @@
         g.strokeStyle="#1565c0"; g.lineWidth=r*0.26; g.beginPath(); g.moveTo(-bLen*0.8,0); g.lineTo(-r*1.7,Math.sin(gt*3+u.phase)*r*0.25); g.stroke(); g.lineCap="butt"; }
       if(u.kind==="pheasant"){ g.strokeStyle=INK; g.lineWidth=r*0.22+3; g.lineCap="round"; g.beginPath(); g.moveTo(-bLen*0.8,0); g.lineTo(-r*2.0,Math.sin(gt*2.5+u.phase)*r*0.2); g.stroke();
         g.strokeStyle="#1a2f5c"; g.lineWidth=r*0.22; g.beginPath(); g.moveTo(-bLen*0.8,0); g.lineTo(-r*2.0,Math.sin(gt*2.5+u.phase)*r*0.2); g.stroke(); g.lineCap="butt";
-        g.fillStyle="#c0392b"; g.beginPath(); g.ellipse(hx-hr*0.1,0,hr*0.32,hr*0.24,0,0,7); g.fill(); } } // 紅色肉垂
+        g.fillStyle="#c0392b"; g.beginPath(); g.ellipse(hx-hr*0.1,0,hr*0.32,hr*0.24,0,0,7); g.fill(); } // 紅色肉垂
+      if(u.kind==="mikado"){ // 帝雉：更長的藍黑尾羽 + 白色橫帶（招牌特徵）+ 眼周紅斑
+        const ty=Math.sin(gt*2.3+u.phase)*r*0.18, tex=-r*2.3;
+        g.strokeStyle=INK; g.lineWidth=r*0.2+3; g.lineCap="round"; g.beginPath(); g.moveTo(-bLen*0.8,0); g.lineTo(tex,ty); g.stroke();
+        g.strokeStyle="#12203f"; g.lineWidth=r*0.2; g.beginPath(); g.moveTo(-bLen*0.8,0); g.lineTo(tex,ty); g.stroke(); g.lineCap="butt";
+        // 白色橫帶：沿尾羽等距畫短白條
+        g.strokeStyle="#f2f5fb"; g.lineWidth=r*0.09;
+        for(const tt of [0.35,0.55,0.75,0.92]){ const bx=-bLen*0.8+(tex-(-bLen*0.8))*tt, by=ty*tt;
+          g.beginPath(); g.moveTo(bx,by-r*0.14); g.lineTo(bx,by+r*0.14); g.stroke(); }
+        g.fillStyle="#e5342a"; g.beginPath(); g.ellipse(hx+hr*0.1,0,hr*0.34,hr*0.26,0,0,7); g.fill(); } } // 眼周紅斑
     // 蝸牛觸角（末端小眼點）
     if(u.kind==="snail"){ g.strokeStyle=shade(col,-20); g.lineWidth=r*0.06; g.lineCap="round"; for(const s of [-1,1]){ g.beginPath(); g.moveTo(hx,s*hr*0.35); g.lineTo(hx+r*0.3,s*hr*0.95); g.stroke();
       g.fillStyle="#2a1a10"; g.beginPath(); g.arc(hx+r*0.3,s*hr*0.95,r*0.05,0,7); g.fill(); } g.lineCap="butt"; }
