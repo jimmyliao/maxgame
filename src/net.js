@@ -158,8 +158,8 @@
     const nm=$("ccNames"); if(nm) nm.textContent="🌿 出戰隊伍："+names;
     ov.classList.remove("hide");
     const num=$("ccNum"); let n=3;
-    (function tick(){ if(n>=1){ if(num){ num.textContent=String(n); num.style.animation="none"; void num.offsetWidth; num.style.animation="ccPop .8s ease"; } n--; setTimeout(tick,800); }
-      else { if(num){ num.textContent="開始！"; num.style.animation="none"; void num.offsetWidth; num.style.animation="ccPop .8s ease"; }
+    (function tick(){ if(n>=1){ if(num){ num.textContent=String(n); num.style.animation="none"; void num.offsetWidth; num.style.animation="ccPop .8s ease"; } if(window.__sfx) window.__sfx.play("beep"); n--; setTimeout(tick,800); }
+      else { if(num){ num.textContent="開始！"; num.style.animation="none"; void num.offsetWidth; num.style.animation="ccPop .8s ease"; } if(window.__sfx) window.__sfx.play("go");
         setTimeout(()=>{ ov.classList.add("hide"); countingDown=false; done(); }, 750); } })();
   }
   const MODE_LABEL={normal:"🌳 復育戰",time:"⏱ 限時挑戰",pve:"🎯 外來種防衛戰"};
