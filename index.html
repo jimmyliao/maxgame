@@ -187,6 +187,26 @@
   /* 訪客紀錄 HUD 角標：右上角顯示已見過幾種訪客動物 */
   #habVisitorDex{ position:absolute; top:max(8px,env(safe-area-inset-top)); right:10px; font-size:10.5px; font-weight:800; color:#ffe082;
     background:rgba(10,20,14,.55); border-radius:12px; padding:4px 10px; pointer-events:none; backdrop-filter:blur(2px); text-shadow:0 1px 3px #000; }
+  /* ===== 保育關卡進度面板：左上角常駐，顯示目前第幾關、本關目標與進度條（等級/過關系統） ===== */
+  #habStagePanel{ position:absolute; top:max(8px,env(safe-area-inset-top)); left:10px; width:min(62vw,230px);
+    background:rgba(10,20,14,.6); border:1.5px solid rgba(255,213,79,.5); border-radius:14px; padding:8px 10px;
+    pointer-events:none; backdrop-filter:blur(2px); box-shadow:0 3px 12px rgba(0,0,0,.4); }
+  #habStagePanel:empty{ display:none; }
+  #habStagePanel .hstg-hdr{ font-size:11px; font-weight:900; color:#ffd54f; text-shadow:0 1px 3px #000; display:flex; justify-content:space-between; gap:6px; align-items:baseline; }
+  #habStagePanel .hstg-num{ font-size:9.5px; font-weight:900; color:#1b5e20; background:#ffd54f; border-radius:8px; padding:0 6px; flex:none; }
+  #habStagePanel .hstg-name{ font-size:10px; color:#c5e1a5; margin-top:3px; line-height:1.4; }
+  #habStagePanel .hstg-goal{ margin-top:5px; }
+  #habStagePanel .hstg-grow{ display:flex; justify-content:space-between; gap:6px; font-size:9.5px; font-weight:800; }
+  #habStagePanel .hstg-gt{ color:#e8f5e9; text-shadow:0 1px 2px #000; }
+  #habStagePanel .hstg-gv{ color:#ffe082; flex:none; }
+  #habStagePanel .hstg-goal.done .hstg-gt, #habStagePanel .hstg-goal.done .hstg-gv{ color:#a5d6a7; }
+  #habStagePanel .hstg-bar{ height:5px; border-radius:3px; background:rgba(0,0,0,.5); overflow:hidden; margin-top:2px; border:1px solid rgba(255,255,255,.18); }
+  #habStagePanel .hstg-bar i{ display:block; height:100%; width:0%; background:linear-gradient(90deg,#66bb6a,#ffd54f); transition:width .4s; }
+  #habStagePanel .hstg-goal.done .hstg-bar i{ background:linear-gradient(90deg,#43a047,#a5d6a7); }
+  #habStagePanel .hstg-reward{ font-size:9px; color:#ffab91; margin-top:6px; line-height:1.4; text-shadow:0 1px 2px #000; }
+  #habStagePanel.hstg-pop{ animation:hstgPop .6s cubic-bezier(.2,1.6,.4,1); }
+  @keyframes hstgPop{ 0%{ transform:scale(.85); box-shadow:0 0 0 0 rgba(255,213,79,.7); } 60%{ transform:scale(1.05); } 100%{ transform:scale(1); box-shadow:0 3px 12px rgba(0,0,0,.4); } }
+  /* ===== /保育關卡進度面板 ===== */
   /* 訪客知識小面板：點擊訪客後彈出的生態小知識卡 */
   #habVisitorPanel{ position:fixed; left:50%; bottom:max(96px,calc(env(safe-area-inset-bottom) + 84px)); transform:translateX(-50%) translateY(12px); width:min(88vw,380px);
     background:rgba(12,28,18,.96); border:2px solid #ffd54f; border-radius:18px; padding:12px 16px; z-index:52; opacity:0; pointer-events:none;
@@ -554,6 +574,9 @@
     <div class="hbar"><i id="habRestoreBar"></i></div>
   </div>
   <div id="habVisitorDex">📖 訪客紀錄 0/0</div>
+  <!-- ===== 保育關卡進度面板（等級/過關系統，內容由 habitat.js renderStagePanel() 填入） ===== -->
+  <div id="habStagePanel"></div>
+  <!-- ===== /保育關卡進度面板 ===== -->
   <p id="habHint">🥀 入侵種：點掉它　🟫 空地：點下去種植　🌱🌿🌳 依時間長大，點成熟的收成　✨ 棲地夠健康會有野生動物來訪，點牠認識牠！</p>
   <div id="habBtns">
     <button class="btn sec" id="habBack">返回大廳</button>

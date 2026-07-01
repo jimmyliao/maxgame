@@ -134,9 +134,9 @@
     for(let i=0;i<N;i++){ if(i%5===0) tiles.push({state:"invasive"}); else tiles.push({state:"unplanted", emptySince:t}); }
     return tiles; }
   function load(){ try{ const raw=localStorage.getItem("shoutu_habitat_v2"); if(raw){ const d=JSON.parse(raw);
-      if(d && d.regions && REGION_KEYS.every(k=>Array.isArray(d.regions[k]) && d.regions[k].length===N)){ if(!d.current) d.current="paddy"; if(!d.visits) d.visits={}; return d; } } }catch(e){}
+      if(d && d.regions && REGION_KEYS.every(k=>Array.isArray(d.regions[k]) && d.regions[k].length===N)){ if(!d.current) d.current="paddy"; if(!d.visits) d.visits={}; if(typeof d.totalHarvests!=="number") d.totalHarvests=0; return d; } } }catch(e){}
     const regions={}; for(const k of REGION_KEYS) regions[k]=freshTiles();
-    return { regions, current:"paddy", visits:{} };
+    return { regions, current:"paddy", visits:{}, totalHarvests:0 };
   }
   function save(d){ try{ localStorage.setItem("shoutu_habitat_v2", JSON.stringify(d)); }catch(e){} }
   let data = load();
@@ -159,6 +159,83 @@
   function regionVisible(key){ if(BASE_REGIONS.includes(key)) return true;
     if(!levelUnlocked(key)) return false;
     return CORRIDORS.some(c=> (c.a===key||c.b===key) && corridorBuilt(c.a,c.b)); }
+
+  /* ---------- 保育站「等級 / 過關」系統（與 conservationLevel() 平行、不衝突） ==========
+     設計理念：conservationLevel()（依終身保育值 shoutu_ecoearned）負責「解鎖新棲地」（alpine Lv5／estuary Lv10）；
+     這裡的「保育關卡」則是一條看得見、有明確目標與慶祝感的過關進度線——用現有可查得到的資料當條件，
+     每個條件都是純函數（離線回來重新判定一樣正確），達標即過關、給獎勵、前進下一關。
+     進度存新鍵 shoutu_conservation_stage（只記「已過到第幾關」，不與既有鍵衝突）。 */
+  const STAGE_KEY = "shoutu_conservation_stage";
+  // 各種目標的「當前值」抓取器：全部讀既有可查資料，純讀不改狀態
+  //   eco       = 終身累積保育值（=conservationLevel 的原料，跟解鎖同源）
+  //   harvests  = 棲地累積收成次數（data.totalHarvests，隨棲地存檔離線持久化）
+  //   visitors  = 已記錄的野生動物訪客種數（loadVisitorLog）
+  //   corridors = 已建成的生態走廊條數（loadCorridors）
+  //   health    = 「任一區」棲地健康度達到門檻（掃全部有田地的區，取最高值比對）
+  function ecoEarnedNow(){ try{ const v=parseInt(localStorage.getItem("shoutu_ecoearned"),10); if(!isNaN(v)) return Math.max(0,v); }catch(e){}
+    return (window.__getEco&&window.__getEco())||0; }
+  function bestHealthPct(){ let best=0; for(const k of REGION_KEYS){ const h=(window.__habitatHealth?window.__habitatHealth(k):0)||0; if(h>best) best=h; } return Math.round(best*100); }
+  function metricValue(type){
+    if(type==="eco") return ecoEarnedNow();
+    if(type==="harvests") return (data&&data.totalHarvests)||0;
+    if(type==="visitors") return loadVisitorLog().length;
+    if(type==="corridors") return loadCorridors().length;
+    if(type==="health") return bestHealthPct();
+    return 0;
+  }
+  const GOAL_META = {
+    eco:      { icon:"🌿", label:"累積保育值",   unit:"" },
+    harvests: { icon:"🧺", label:"累積收成次數", unit:" 次" },
+    visitors: { icon:"📖", label:"記錄野生訪客", unit:" 種" },
+    corridors:{ icon:"🌉", label:"建成生態走廊", unit:" 條" },
+    health:   { icon:"🌱", label:"任一棲地復原度", unit:"%" },
+  };
+  // 十道保育關卡：由淺入深，交錯不同玩法目標，教玩家把整個保育站玩過一輪。
+  //   reward=過關一次性保育值 bonus（算入終身累積，會回饋 conservationLevel）；title=過關授予的稱號。
+  const STAGES = [
+    { name:"守護的起點",   goals:[{type:"harvests",target:1}],                          reward:20,  title:"見習復育員" },
+    { name:"綠意萌芽",     goals:[{type:"health",target:25},{type:"harvests",target:5}], reward:30,  title:"萍蓬草之友" },
+    { name:"生機盎然",     goals:[{type:"health",target:50},{type:"eco",target:120}],    reward:40,  title:"淺山守望者" },
+    { name:"訪客到來",     goals:[{type:"visitors",target:2},{type:"harvests",target:15}],reward:50,  title:"野地觀察家" },
+    { name:"棲地繁盛",     goals:[{type:"health",target:70},{type:"eco",target:300}],    reward:70,  title:"溪谷護林人" },
+    { name:"串起山海",     goals:[{type:"corridors",target:1},{type:"visitors",target:4}],reward:90,  title:"生態走廊工程師" },
+    { name:"物種齊聚",     goals:[{type:"visitors",target:6},{type:"harvests",target:40}],reward:110, title:"濕地見證者" },
+    { name:"豐饒之地",     goals:[{type:"health",target:85},{type:"eco",target:700}],    reward:140, title:"高山寒原守衛" },
+    { name:"全境暢通",     goals:[{type:"corridors",target:2},{type:"visitors",target:9}],reward:180, title:"跨物種協力大使" },
+    { name:"福爾摩沙衛士", goals:[{type:"eco",target:1200},{type:"visitors",target:12},{type:"harvests",target:80}], reward:260, title:"福爾摩沙衛士" },
+  ];
+  function loadStageIdx(){ try{ const v=parseInt(localStorage.getItem(STAGE_KEY),10); if(!isNaN(v)) return clamp(v,0,STAGES.length); }catch(e){} return 0; }
+  function saveStageIdx(i){ try{ localStorage.setItem(STAGE_KEY, String(clamp(i,0,STAGES.length))); }catch(e){} }
+  function goalDone(g){ return metricValue(g.type) >= g.target; }
+  function stageCleared(st){ return st.goals.every(goalDone); }
+  // 純函數：回傳目前關卡狀態（第幾關、目標與各自進度、是否全破台）——供 UI 與測試查詢
+  function stageStatus(){
+    const idx=loadStageIdx(), allDone=idx>=STAGES.length;
+    const st = allDone ? null : STAGES[idx];
+    const goals = st ? st.goals.map(g=>{ const cur=metricValue(g.type), m=GOAL_META[g.type]||{icon:"•",label:g.type,unit:""};
+      return { type:g.type, icon:m.icon, label:m.label, unit:m.unit, cur, target:g.target, done:cur>=g.target,
+               pct: clamp(Math.round(cur/g.target*100),0,100) }; }) : [];
+    const donen = goals.filter(x=>x.done).length;
+    return { idx, num:idx+1, total:STAGES.length, allDone, name: st?st.name:"", reward: st?st.reward:0, title: st?st.title:"",
+             goals, cleared: st?stageCleared(st):false, goalsDone:donen, goalsTotal:goals.length }; }
+  // 依序推進：一次可過多關（例如離線攢了大量保育值回來，可連跳好幾關），每過一關發一次獎勵與慶祝
+  let stageBusy=false;
+  function checkStageProgress(silent){
+    if(stageBusy) return; stageBusy=true;
+    let advanced=0, lastCleared=null;
+    try{
+      let guard=0;
+      while(guard++<STAGES.length){ const idx=loadStageIdx(); if(idx>=STAGES.length) break;
+        const st=STAGES[idx]; if(!stageCleared(st)) break;
+        saveStageIdx(idx+1); lastCleared=st; advanced++;
+        window.__awardEco && window.__awardEco(st.reward);   // 不論即時過關或靜默補算（離線回來）都照發獎勵，差別只在是否跳慶祝動畫
+        try{ localStorage.setItem("shoutu_conservation_title", st.title); }catch(e){}   // 記錄最新稱號（靜默補算也更新）
+      }
+    }finally{ stageBusy=false; }
+    if(advanced>0 && lastCleared && !silent) celebrateStage(lastCleared, advanced);
+    if(advanced>0) renderStagePanel();
+    return advanced;
+  }
 
   function weatherNow(){ const t=Math.floor(now()/WEATHER_PERIOD_MS); const pat=["sunny","sunny","rain","cloudy","sunny","rain"]; return pat[((t%pat.length)+pat.length)%pat.length]; }
   function isNight(){ const h=new Date().getHours(); return h<6||h>=18; }
@@ -584,6 +661,36 @@
     $("habEcoTxt") && ($("habEcoTxt").textContent="🌿 本區可收成 "+totalStored);
     updateRegionBadges();
     updateVisitorDex();
+    checkStageProgress(false);   // 玩到達標即時過關（含慶祝）；未達標只更新面板進度
+    renderStagePanel();
+  }
+
+  /* ---------- 保育關卡 UI：進度面板（本關目標＋進度條）＋過關慶祝 ---------- */
+  function renderStagePanel(){
+    const box=$("habStagePanel"); if(!box) return;
+    const s=stageStatus();
+    if(s.allDone){
+      box.innerHTML='<div class="hstg-hdr">🏅 全關卡達成！<span class="hstg-num">'+s.total+'/'+s.total+'</span></div>'+
+                    '<div class="hstg-name">你已成為福爾摩沙衛士，繼續守護這片土地吧！</div>';
+      return;
+    }
+    let html='<div class="hstg-hdr">🎯 保育關卡 Lv.'+s.num+'　'+s.name+'<span class="hstg-num">'+s.num+'/'+s.total+'</span></div>';
+    for(const g of s.goals){
+      html+='<div class="hstg-goal'+(g.done?" done":"")+'">'+
+              '<div class="hstg-grow"><span class="hstg-gt">'+g.icon+' '+g.label+'</span>'+
+              '<span class="hstg-gv">'+(g.done?"✅ ":"")+g.cur+' / '+g.target+g.unit+'</span></div>'+
+              '<div class="hstg-bar"><i style="width:'+g.pct+'%"></i></div>'+
+            '</div>';
+    }
+    html+='<div class="hstg-reward">達成獎勵：🌿 +'+s.reward+' 保育值　稱號「'+s.title+'」</div>';
+    box.innerHTML=html;
+  }
+  // 過關慶祝：橫幅 + 中央 canvas 粒子爆發（沿用既有 parts 上限機制），連跳多關時秀最後過的那關
+  function celebrateStage(st, advanced){
+    const multi = advanced>1? ("　連過 "+advanced+" 關！") : "";
+    banner("🎉 過關！Lv."+loadStageIdx()+"「"+st.name+"」達成　🏅 稱號："+st.title+"　🌿 +"+st.reward+multi);
+    if(VW&&VH){ for(let k=0;k<3;k++) burstAt(VW*(0.36+0.14*k), VH*0.4); burstAt(VW*0.5,VH*0.32); }
+    const p=$("habStagePanel"); if(p){ p.classList.remove("hstg-pop"); void p.offsetWidth; p.classList.add("hstg-pop"); }
   }
   // 每個地區獨立顯示自己的狀態小標：紅=有入侵種待清、金=有成熟可收成——四塊地要輪流照顧，考驗分配注意力
   function updateRegionBadges(){
@@ -603,11 +710,12 @@
     else if(st==="mature"){ const s=storedOf(tile); if(s>0) harvestTile(i,tile,s); }
     const sp=spots[i]; if(sp) sp.popT=1; save(data); updateHUD(); }
   function harvestTile(i,tile,s){ const gain=harvestGain(s); window.__awardEco && window.__awardEco(gain); tile.lastCollect=now(); tile.harvestCount=(tile.harvestCount||0)+1;
+    data.totalHarvests=(data.totalHarvests||0)+1;
     const pos=spotPos(i); burstAt(pos.x,pos.y-16*pos.scale);
     const info=REGION_INFO[data.current]||REGION_INFO.paddy, tag=STAGE_TAG[harvestStage(tile)]?("　"+STAGE_TAG[harvestStage(tile)]+"！"):"";
     banner("🧺 收成 "+info.plant+" +"+gain+" 保育值！"+tag); }
   function collectAll(){ let total=0, n=0;
-    for(let i=0;i<N;i++){ const tile=curTiles()[i]; if(stageOf(tile)==="mature"){ const s=storedOf(tile); if(s>0){ total+=harvestGain(s); n++; tile.lastCollect=now(); tile.harvestCount=(tile.harvestCount||0)+1;
+    for(let i=0;i<N;i++){ const tile=curTiles()[i]; if(stageOf(tile)==="mature"){ const s=storedOf(tile); if(s>0){ total+=harvestGain(s); n++; tile.lastCollect=now(); tile.harvestCount=(tile.harvestCount||0)+1; data.totalHarvests=(data.totalHarvests||0)+1;
       const pos=spotPos(i); burstAt(pos.x,pos.y-16*pos.scale); const sp=spots[i]; if(sp) sp.popT=1; } } }
     if(total>0){ window.__awardEco && window.__awardEco(total); banner("🧺 一次收成 "+n+" 棵，共 +"+total+" 保育值！"); } else banner("目前還沒有成熟可收成的植物");
     save(data); updateHUD(); }
@@ -661,6 +769,8 @@
     updateHUD(); raf=requestAnimationFrame(loop); }
 
   function openHabitat(){ data=load(); applyTheme();
+    checkStageProgress(true);   // 進基地先靜默補算離線期間可能已達成的關卡（照發獎勵，不洗版慶祝），再渲染面板
+    renderStagePanel();
     const doOpen=()=>{ show(); resize(); running=true; last=0; raf=requestAnimationFrame(loop); };
     if(window.__tx) window.__tx(doOpen); else doOpen(); }
   function show(){ const e=$("habitat"); if(e) e.classList.remove("hide"); }
@@ -695,4 +805,8 @@
   // 訪客系統唯讀查詢接點：供 HUD／測試判斷目前時間窗格是否會有訪客（純函數，不改變任何狀態）
   window.__habitatVisitPlan = (region) => visitPlan(region);
   window.__habitatVisitorSeen = () => loadVisitorLog();
+  // 保育關卡查詢／推進接點：__habitatStage() 純讀目前關卡與各目標進度（供 HUD／測試）；
+  //   __habitatStageCheck() 主動推進一次（供測試灌保育值後觸發過關驗收，回傳這次前進的關數）
+  window.__habitatStage = () => stageStatus();
+  window.__habitatStageCheck = () => checkStageProgress(false);
 })();
