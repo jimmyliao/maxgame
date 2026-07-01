@@ -469,7 +469,9 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     muntjac:"登山賞鹿保持距離，不要因為好奇而驚擾牠們棲息的森林底層。", macaque:"看到台灣獼猴請勿餵食，這會讓牠們失去覓食本能、增加人猴衝突。", salmon:"守護溪流上游的水質與水溫，就是守護國寶魚僅存的家。", pheasant:"淺山賞鳥不放音誘、不接近巢區，讓藍腹鷴安心繁殖。",
     pangolin:"拒買穿山甲鱗片與製品，盜獵才會停止；夜間淺山開車減速避免路殺。", yellowmarten:"保留完整的森林廊道，讓黃喉貂有足夠獵場與活動空間。", mikado:"高山賞鳥保持安靜與距離，不餵食、不追逐，讓帝雉安心於霧林覓食。" };
   const CONS_INV={ snail:"看到福壽螺的粉紅色卵塊，撥落水中可阻止孵化。", iguana:"養寵物請養到底——綠鬣蜥是因棄養才氾濫的。", frog:"不要隨意放生，外來蛙會排擠台灣原生種。", ibis:"發現外來入侵種，可通報林業保育署協助移除。" };
-  let featured=0, hsW=0, hsH=0;
+  // 記住上次選的守護者（跨 session 持久化）：讀 localStorage，驗證在範圍內且已解鎖才採用，否則回到 0
+  let featured=(()=>{ try{ const v=parseInt(localStorage.getItem("shoutu_featured")||"0",10); if(v>=0&&v<HEROES.length&&isHeroUnlocked(HEROES[v].key)) return v; }catch(e){} return 0; })(), hsW=0, hsH=0;
+  function saveFeatured(){ try{ localStorage.setItem("shoutu_featured",String(featured)); }catch(e){} }
   function getEco(){ try{ return parseInt(localStorage.getItem("shoutu_eco")||"0",10)||0; }catch(e){ return 0; } }
   function setEco(v){ try{ localStorage.setItem("shoutu_eco",String(v)); }catch(e){} }
   // 累積獲得的保育值（終身；只增不減——花費保育值不會扣，保育等級才不會退等）
@@ -776,7 +778,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
       if(!unlocked){ cc.fillStyle="rgba(0,0,0,.5)"; cc.fillRect(0,0,144,144); cc.font="40px serif"; cc.textAlign="center"; cc.textBaseline="middle"; cc.fillText("🔒",72,74); }
       const nm=document.createElement("div"); nm.className="hp-name"; nm.textContent=h.name; b.appendChild(nm);
       if(!unlocked){ const lk=document.createElement("div"); lk.className="hp-lock"; lk.textContent="🔒 去復育解鎖"; b.appendChild(lk); }
-      b.onclick=()=>{ if(unlocked){ featured=i; updateLobby(); closeHeroPicker(); } else { closeHeroPicker(); transition(goUpgrade); } };
+      b.onclick=()=>{ if(unlocked){ featured=i; saveFeatured(); updateLobby(); closeHeroPicker(); } else { closeHeroPicker(); transition(goUpgrade); } };
       wrap.appendChild(b); }); }
   function openHeroPicker(){ const p=document.getElementById("heroPicker"); if(!p) return; buildRoster(); p.classList.remove("hide"); }
   function closeHeroPicker(){ const p=document.getElementById("heroPicker"); if(p) p.classList.add("hide"); }
