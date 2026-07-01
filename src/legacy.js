@@ -724,7 +724,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     HEROES.forEach((h,i)=>{ const unlocked=isHeroUnlocked(h.key);
       const b=document.createElement("button"); b.className="hp-card"+(i===featured&&unlocked?" sel":"");
       const cv=document.createElement("canvas"); cv.width=144; cv.height=144; b.appendChild(cv);
-      const cc=cv.getContext("2d"); drawCreature(cc, h.key, 72, 80, 50, {t:0});
+      const cc=cv.getContext("2d"); drawCreature(cc, h.key, 72, 80, 50, {t:0}); if(unlocked) drawCosmetic(cc, cosEquipOf(h.key), 72, 80, 50, 0);
       if(!unlocked){ cc.fillStyle="rgba(0,0,0,.5)"; cc.fillRect(0,0,144,144); cc.font="40px serif"; cc.textAlign="center"; cc.textBaseline="middle"; cc.fillText("🔒",72,74); }
       const nm=document.createElement("div"); nm.className="hp-name"; nm.textContent=h.name; b.appendChild(nm);
       if(!unlocked){ const lk=document.createElement("div"); lk.className="hp-lock"; lk.textContent="🔒 去復育解鎖"; b.appendChild(lk); }
@@ -732,6 +732,51 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
       wrap.appendChild(b); }); }
   function openHeroPicker(){ const p=document.getElementById("heroPicker"); if(!p) return; buildRoster(); p.classList.remove("hide"); }
   function closeHeroPicker(){ const p=document.getElementById("heroPicker"); if(p) p.classList.add("hide"); }
+
+  /* ===== 保育服裝店：用保育值買裝飾，穿在守護者身上（大廳展示＋選角彈窗），每隻各自記憶裝備 ===== */
+  const COSMETICS=[
+    {key:"crown", name:"守護皇冠", icon:"👑", cost:120},
+    {key:"bow",   name:"櫻花蝶結", icon:"🎀", cost:70},
+    {key:"wreath",name:"山林花環", icon:"🌸", cost:100},
+    {key:"star",  name:"星塵光環", icon:"✨", cost:160},
+    {key:"leaf",  name:"落葉之舞", icon:"🍂", cost:110},
+    {key:"snow",  name:"初雪結晶", icon:"❄️", cost:130},
+  ];
+  function cosOwned(){ try{ return JSON.parse(localStorage.getItem("shoutu_cosmetics")||"[]")||[]; }catch(e){ return []; } }
+  function cosOwnedSet(a){ try{ localStorage.setItem("shoutu_cosmetics",JSON.stringify(a)); }catch(e){} }
+  function cosEquipOf(hk){ try{ return localStorage.getItem("shoutu_cos_"+hk)||""; }catch(e){ return ""; } }
+  function cosEquipSet(hk,k){ try{ if(k) localStorage.setItem("shoutu_cos_"+hk,k); else localStorage.removeItem("shoutu_cos_"+hk); }catch(e){} }
+  function cosStar(g,x,y,r){ g.beginPath(); for(let i=0;i<5;i++){ const a=-1.5708+i*1.2566; g.lineTo(x+Math.cos(a)*r,y+Math.sin(a)*r); const a2=a+0.628; g.lineTo(x+Math.cos(a2)*r*0.45,y+Math.sin(a2)*r*0.45); } g.closePath(); g.fill(); }
+  // 畫在守護者(x,y 中心、大小 s)上的裝飾；純程序繪製、無狀態，動畫吃 t 不 push 陣列（零外部資源＋無粒子洩漏）
+  function drawCosmetic(g,key,x,y,s,t){ if(!key) return; t=t||0; g.save(); g.translate(x,y); const hy=-s*0.5;
+    if(key==="crown"){ const w=s*0.52,h=s*0.28; g.fillStyle="#ffd54f"; g.strokeStyle="#b8860b"; g.lineWidth=Math.max(1,s*0.03);
+      g.beginPath(); g.moveTo(-w/2,hy); g.lineTo(-w/2,hy-h*0.4); g.lineTo(-w*0.25,hy-h*0.95); g.lineTo(0,hy-h*0.4); g.lineTo(w*0.25,hy-h*0.95); g.lineTo(w/2,hy-h*0.4); g.lineTo(w/2,hy); g.closePath(); g.fill(); g.stroke();
+      g.fillStyle="#e53935"; g.beginPath(); g.arc(0,hy-h*0.15,s*0.045,0,7); g.fill(); }
+    else if(key==="bow"){ const by=hy-s*0.02, r=s*0.14; g.fillStyle="#ff6f91"; for(const sg of [-1,1]){ g.beginPath(); g.moveTo(0,by); g.lineTo(sg*r*1.7,by-r); g.lineTo(sg*r*1.7,by+r); g.closePath(); g.fill(); } g.fillStyle="#e91e63"; g.beginPath(); g.arc(0,by,r*0.5,0,7); g.fill(); }
+    else if(key==="wreath"){ const n=10, rr=s*0.62; for(let i=0;i<n;i++){ const a=i/n*6.283+t*0.3, px=Math.cos(a)*rr, py=Math.sin(a)*rr*0.7-s*0.05; g.fillStyle=i%2?"#ffb7c5":"#fff59d"; g.beginPath(); g.arc(px,py,s*0.06,0,7); g.fill(); g.fillStyle="#ff8a80"; g.beginPath(); g.arc(px,py,s*0.022,0,7); g.fill(); } }
+    else if(key==="star"){ g.globalCompositeOperation="lighter"; for(let i=0;i<8;i++){ const a=t*1.6+i*0.785, rr=s*(0.7+0.12*Math.sin(t*3+i)), px=Math.cos(a)*rr, py=Math.sin(a)*rr*0.6-s*0.1, tw=0.5+0.5*Math.sin(t*4+i*2); g.fillStyle="rgba(255,240,150,"+tw.toFixed(2)+")"; cosStar(g,px,py,s*0.05*(0.6+tw*0.6)); } g.globalCompositeOperation="source-over"; }
+    else if(key==="leaf"){ for(let i=0;i<6;i++){ const a=t*1.1+i*1.047, rr=s*0.66, px=Math.cos(a)*rr, py=(Math.sin(t*1.5+i)*0.5)*s*0.5-s*0.05+Math.sin(a)*rr*0.4; g.save(); g.translate(px,py); g.rotate(a+t); g.fillStyle=i%2?"#c0894a":"#8a5a2b"; g.beginPath(); g.ellipse(0,0,s*0.09,s*0.045,0,0,7); g.fill(); g.restore(); } }
+    else if(key==="snow"){ g.fillStyle="rgba(255,255,255,0.92)"; for(let i=0;i<14;i++){ const px=(-0.7+((i*0.19)%1.4))*s, py=(((t*0.4+i*0.37)%1.4)-0.7)*s; g.beginPath(); g.arc(px,py,s*0.022,0,7); g.fill(); } }
+    g.restore(); }
+  function mkCosCard(c, owned, equipped, hk){
+    const key=c?c.key:"", isOwned=!c||owned.includes(key), isEq=equipped===key;
+    const b=document.createElement("button"); b.className="cos-card"+(isEq?" sel":"");
+    const cv=document.createElement("canvas"); cv.width=120; cv.height=120; b.appendChild(cv);
+    const cc=cv.getContext("2d"); drawCreature(cc, hk, 60, 66, 40, {t:0}); if(c) drawCosmetic(cc, key, 60, 66, 40, 0);
+    const nm=document.createElement("div"); nm.className="cos-name"; nm.textContent=c?(c.icon+" "+c.name):"🚫 不穿"; b.appendChild(nm);
+    const st=document.createElement("div"); st.className="cos-status"; st.textContent=isEq?"✅ 已裝備":isOwned?"點我裝備":("🌿 "+c.cost);
+    if(c && !isOwned) st.style.color=getEco()>=c.cost?"#ffd54f":"#ff8a65"; b.appendChild(st);
+    b.onclick=()=>{ if(c && !isOwned){ if(getEco()>=c.cost){ setEco(getEco()-c.cost); const o=cosOwned(); o.push(key); cosOwnedSet(o); if(window.__sfx)window.__sfx.play("coin"); buildCostumeShop(); } else if(window.__sfx) window.__sfx.play("back"); return; }
+      cosEquipSet(hk, isEq?"":key); if(window.__sfx)window.__sfx.play(isEq?"back":"levelup"); buildCostumeShop(); updateLobby(); };
+    return b; }
+  function buildCostumeShop(){ const wrap=document.getElementById("costumeGrid"); if(!wrap) return; wrap.innerHTML="";
+    const hk=HEROES[featured].key, owned=cosOwned(), equipped=cosEquipOf(hk);
+    const eco=document.getElementById("costumeEco"); if(eco) eco.textContent="🌿 保育值 "+getEco();
+    const hn=document.getElementById("costumeHero"); if(hn) hn.textContent="正在打扮："+HEROES[featured].name;
+    wrap.appendChild(mkCosCard(null, owned, equipped, hk));
+    COSMETICS.forEach(c=> wrap.appendChild(mkCosCard(c, owned, equipped, hk))); }
+  function openCostumeShop(){ const p=document.getElementById("costumeShop"); if(!p) return; buildCostumeShop(); p.classList.remove("hide"); }
+  function closeCostumeShop(){ const p=document.getElementById("costumeShop"); if(p) p.classList.add("hide"); }
   function updateLobby(){ const h=HEROES[featured];
     document.getElementById("hsName").textContent=h.name;
     document.getElementById("hsType").textContent=TYPE[h.type];
@@ -786,7 +831,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     aura.addColorStop(0,"rgba(255,228,130,"+(0.22+0.18*pl).toFixed(3)+")"); aura.addColorStop(1,"rgba(255,228,130,0)");
     g.fillStyle=aura; g.beginPath(); g.arc(Wd/2,cy,s*1.1,0,7); g.fill();
     g.save(); g.translate(Wd/2,cy); g.rotate(Math.sin(tt*1.2)*0.05); const sc=1+0.035*Math.sin(tt*2.2); g.scale(sc,sc);
-    drawCreature(g, h.key, 0, 0, s, {t:tt, mood:"happy"}); g.restore();
+    drawCreature(g, h.key, 0, 0, s, {t:tt, mood:"happy"}); drawCosmetic(g, cosEquipOf(h.key), 0, 0, s, tt); g.restore();
     g.save(); g.globalCompositeOperation="lighter";
     for(let i=0;i<9;i++){ const a=tt*1.4+i*0.7, rr=s*(1.05+0.18*Math.sin(tt*2+i)); const sx=Wd/2+Math.cos(a)*rr, sy=cy+Math.sin(a)*rr*0.62; const tw=0.4+0.6*(0.5+0.5*Math.sin(tt*4+i*2)); g.fillStyle="rgba(255,245,180,"+tw.toFixed(3)+")"; g.beginPath(); g.arc(sx,sy,1.6+1.7*tw,0,7); g.fill(); }
     g.restore();
@@ -1098,6 +1143,9 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   { const sw=document.getElementById("heroSwitchBtn"); if(sw) sw.onclick=openHeroPicker;
     const hc=document.getElementById("heroPickerClose"); if(hc) hc.onclick=closeHeroPicker;
     const hp=document.getElementById("heroPicker"); if(hp) hp.addEventListener("pointerdown",(e)=>{ if(e.target===hp) closeHeroPicker(); }); }   // 點彈窗外圍空白處也可關閉
+  { const cb=document.getElementById("navCostume"); if(cb) cb.onclick=openCostumeShop;
+    const cc=document.getElementById("costumeClose"); if(cc) cc.onclick=closeCostumeShop;
+    const cs=document.getElementById("costumeShop"); if(cs) cs.addEventListener("pointerdown",(e)=>{ if(e.target===cs) closeCostumeShop(); }); }   // 服裝店開關
   document.getElementById("navUpg").onclick=()=>transition(goUpgrade);
   document.getElementById("upgBack").onclick=()=>transition(goLobby);
   document.getElementById("navDaily").onclick=()=>transition(goDaily);
