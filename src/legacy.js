@@ -672,16 +672,16 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
       if(lbEl && heroShow){ const r=lbEl.getBoundingClientRect(), cr=heroShow.getBoundingClientRect();
         const t=(r.top-cr.top)*(Hd/Math.max(1,cr.height)); if(t>topBound+60) lbTop=t; } }
     const region=Math.max(90, lbTop-topBound);
-    // 角色尺寸與站位都由安全區推導
-    const s=Math.min(Math.min(Wd,Hd)*0.2, region*0.42), h=HEROES[featured];
-    const py=lbTop-region*0.18, pr=s*1.15, cy=py-s*0.62, pl=0.5+0.5*Math.sin(tt*2);
+    // 角色尺寸與站位都由安全區推導：故意留寬鬆margin，寧可角色小一點，也不要有任何機會擋到下面的圖鑑列/文字
+    const s=Math.min(Math.min(Wd,Hd)*0.15, region*0.32), h=HEROES[featured];
+    const py=lbTop-region*0.36, pr=s*1.15, cy=py-s*0.62, pl=0.5+0.5*Math.sin(tt*2);
     // 台座
     g.fillStyle="rgba(0,0,0,0.34)"; g.beginPath(); g.ellipse(Wd/2,py,pr,pr*0.22,0,0,7); g.fill();
     g.strokeStyle="rgba(255,213,79,0.65)"; g.lineWidth=3; g.beginPath(); g.ellipse(Wd/2,py,pr,pr*0.22,0,0,7); g.stroke();
     g.strokeStyle="rgba(255,213,79,0.22)"; g.lineWidth=2; g.beginPath(); g.ellipse(Wd/2,py,pr*1.25,pr*0.28,0,0,7); g.stroke();
-    const aura=g.createRadialGradient(Wd/2,cy,s*0.2,Wd/2,cy,s*1.8);
+    const aura=g.createRadialGradient(Wd/2,cy,s*0.2,Wd/2,cy,s*1.1);
     aura.addColorStop(0,"rgba(255,228,130,"+(0.22+0.18*pl).toFixed(3)+")"); aura.addColorStop(1,"rgba(255,228,130,0)");
-    g.fillStyle=aura; g.beginPath(); g.arc(Wd/2,cy,s*1.8,0,7); g.fill();
+    g.fillStyle=aura; g.beginPath(); g.arc(Wd/2,cy,s*1.1,0,7); g.fill();
     g.save(); g.translate(Wd/2,cy); g.rotate(Math.sin(tt*1.2)*0.05); const sc=1+0.035*Math.sin(tt*2.2); g.scale(sc,sc);
     drawCreature(g, h.key, 0, 0, s, {t:tt, mood:"happy"}); g.restore();
     g.save(); g.globalCompositeOperation="lighter";
