@@ -287,6 +287,9 @@
   @keyframes moverPop{ 0%{ transform:scale(.6); opacity:0; } 70%{ transform:scale(1.08); opacity:1; } 100%{ transform:scale(1); } }
   /* moba PVE 關卡遞增：過關「下一關」按鈕，未過關時隱藏 */
   #moverNext.hide{ display:none; }
+  /* 對戰選單各列的 .hide 之前沒有對應規則(只有 .hregion.hide/.scr.hide)，導致 pveTargets/隊伍人數/地區/duelBox 一直全部同時顯示＝畫面太複雜。補上這些容器的隱藏規則(id+class 特異度確保生效) */
+  #modeTabs.hide, #pveTargets.hide, #teamSizeRow.hide, #battleRegions.hide, #duelBox.hide,
+  #bestTimeInfo.hide, #pveLevelInfo.hide, #talentHintInfo.hide, #battleBonusInfo.hide{ display:none; }
   .scr{ position:absolute; inset:0; z-index:10; display:flex; flex-direction:column; align-items:center; justify-content:center;
     text-align:center; padding:20px; background:rgba(7,20,12,.92); overflow:auto; }
   .scr.hide{ display:none; }

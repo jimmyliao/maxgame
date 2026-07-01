@@ -1540,6 +1540,11 @@
     // 首領挑戰：隱藏一般隊伍人數列，改顯示 1~5 人挑戰選擇 + 通關紀錄面板
     const tsr=document.getElementById("teamSizeRow"); if(tsr) tsr.classList.toggle("hide",m==="duel");
     const db=document.getElementById("duelBox"); if(db) db.classList.toggle("hide",m!=="duel");
+    // 精簡首領挑戰畫面：只留「模式頁籤 + 單人~五人 + 紀錄」，戰場地區/加成/天賦提示這些額外列在首領挑戰時一律收起，避免太複雜
+    const duel=(m==="duel");
+    const br=document.getElementById("battleRegions"); if(br) br.classList.toggle("hide",duel);
+    const bb=document.getElementById("battleBonusInfo"); if(bb) bb.classList.toggle("hide",duel);
+    const th=document.getElementById("talentHintInfo"); if(th && duel) th.classList.add("hide");
     if(m==="duel") renderDuelRecords();
     updatePveLevelInfo(); }
   tap("modeNormal",()=>setPickMode("normal")); tap("modeTime",()=>setPickMode("time")); tap("modePve",()=>setPickMode("pve")); tap("modeDuel",()=>setPickMode("duel"));
