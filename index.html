@@ -225,6 +225,8 @@
   @keyframes moverDrift{ from{ background-position:0 0; } to{ background-position:-320px 640px; } }
   #mover h1{ animation:moverPop .5s cubic-bezier(.2,1.6,.4,1); text-shadow:0 4px 18px rgba(255,213,79,.4); }
   @keyframes moverPop{ 0%{ transform:scale(.6); opacity:0; } 70%{ transform:scale(1.08); opacity:1; } 100%{ transform:scale(1); } }
+  /* moba PVE 關卡遞增：過關「下一關」按鈕，未過關時隱藏 */
+  #moverNext.hide{ display:none; }
   .scr{ position:absolute; inset:0; z-index:10; display:flex; flex-direction:column; align-items:center; justify-content:center;
     text-align:center; padding:20px; background:rgba(7,20,12,.92); overflow:auto; }
   .scr.hide{ display:none; }
@@ -509,7 +511,14 @@
     <button class="hregion on" data-pv="iguana">🦎 綠鬣蜥</button>
     <button class="hregion" data-pv="ibis">🐦 埃及聖䴉</button>
     <button class="hregion" data-pv="anole">🦎 沙氏變色蜥</button>
+    <!-- ===== moba 新增外來入侵種目標（海蟾蜍/緬甸蟒）===== -->
+    <button class="hregion" data-pv="canetoad">🐸 海蟾蜍</button>
+    <button class="hregion" data-pv="python">🐍 緬甸蟒</button>
+    <!-- ===== /moba 新增外來入侵種目標 ===== -->
   </div>
+  <!-- ===== moba PVE 關卡遞增：顯示目前選定目標的關卡進度 ===== -->
+  <p id="pveLevelInfo" class="hide" style="color:#ffd54f;font-weight:800;"></p>
+  <!-- ===== /moba PVE 關卡遞增 ===== -->
   <div class="row" id="battleRegions">
     <button class="hregion" data-r="paddy">🌾 稻田</button>
     <button class="hregion" data-r="hill">⛰ 淺山</button>
@@ -526,6 +535,9 @@
 </div>
 <div id="mover" class="scr hide">
   <h1 id="moverT"></h1><h2 id="moverS"></h2><p id="moverB"></p>
+  <!-- ===== moba PVE 關卡遞增新增：過關後出現的「下一關（更難）」按鈕（由 src/moba.js 以 .hide 控制顯示/文字）===== -->
+  <button class="btn hide" id="moverNext"></button>
+  <!-- ===== /moba PVE 關卡遞增新增 ===== -->
   <button class="btn" id="moverAgain"></button>
   <button class="btn sec" id="moverHome">🏠 回大廳</button>
 </div>
