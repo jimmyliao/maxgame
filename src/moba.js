@@ -295,6 +295,7 @@
     const col=KCOL[u.kind]||"#888", dark=shade(col,-44), lite=shade(col,52);
     const cfg=kcfg(u.kind), r=r0*cfg.sz, gt=clock, f=u.face;
     const flyer=(u.kind==="dragonfly"||u.kind==="cicada"), bird=(u.kind==="magpie"||u.kind==="ibis");
+    const mammal=(u.kind==="leopard"||u.kind==="bear"||u.kind==="deer"), angry=u.atkA>0;
     const walk=u.moving?Math.sin(u.anim*12):0;
     const bob=u.moving?Math.abs(Math.sin(u.anim*12))*r*0.14:Math.sin(gt*2.2+u.phase)*r*0.05;
     const breath=1+(u.moving?0:Math.sin(gt*2.2+u.phase)*0.03);
@@ -324,7 +325,7 @@
     ctx.strokeStyle="rgba(0,0,0,0.38)"; ctx.lineWidth=Math.max(1.3,r*0.08); ctx.stroke();
     if(u.hitT<=0){ ctx.save(); ctx.globalAlpha=0.45; ctx.fillStyle=lite; ctx.beginPath(); ctx.ellipse(-bLen*0.08,-bW*0.42,bLen*0.56,bW*0.32,0,0,7); ctx.fill(); ctx.restore(); }
     // 背部花紋 / 殼 / 棘
-    if(u.kind==="leopard"){ ctx.fillStyle="rgba(70,45,20,0.55)"; for(const o of [[-.3,-.2],[.1,.15],[-.05,-.28],[.3,-.05],[-.35,.2]]){ ctx.beginPath(); ctx.arc(o[0]*bLen*1.2,o[1]*bW*1.5,r*0.12,0,7); ctx.fill(); } }
+    if(u.kind==="leopard"){ ctx.strokeStyle="rgba(62,40,16,0.6)"; ctx.lineWidth=r*0.05; for(const o of [[-.35,-.25],[-.05,.2],[.15,-.28],[.35,.08],[-.15,-.02],[.2,.35]]){ ctx.beginPath(); ctx.arc(o[0]*bLen*1.15,o[1]*bW*1.35,r*0.1,0,7); ctx.stroke(); } }
     else if(u.kind==="bear"){ ctx.fillStyle="rgba(255,255,255,0.9)"; ctx.beginPath(); ctx.moveTo(bLen*0.35,-bW*0.5); ctx.lineTo(bLen*0.55,0); ctx.lineTo(bLen*0.35,bW*0.5); ctx.lineWidth=r*0.12; ctx.strokeStyle="rgba(255,255,255,0.9)"; ctx.stroke(); } // 胸前白 V
     else if(u.kind==="deer"){ ctx.fillStyle="rgba(255,255,255,0.7)"; for(const o of [[-.2,-.4],[.15,.3],[.3,-.3],[-.35,.35],[0,0]]){ ctx.beginPath(); ctx.arc(o[0]*bLen*1.2,o[1]*bW*1.5,r*0.08,0,7); ctx.fill(); } }
     else if(u.kind==="snail"){ ctx.fillStyle=shade(col,-15); ctx.beginPath(); ctx.arc(-bLen*0.1,0,bW*0.95,0,7); ctx.fill();
@@ -333,11 +334,14 @@
     else if(u.kind==="frog"){ ctx.fillStyle="rgba(40,70,20,0.5)"; for(const o of [[-.2,-.3],[.1,.35],[.25,-.2]]){ ctx.beginPath(); ctx.arc(o[0]*bLen*1.1,o[1]*bW*1.1,r*0.13,0,7); ctx.fill(); } }
     // 頭（描邊）
     const hx=bLen*(bird?0.62:0.72), hr=r*(bird?0.32:0.46);
+    // 耳（先畫於頭後：貓/鹿尖耳含粉內耳、熊圓耳）
+    if(u.kind==="leopard"||u.kind==="bear"||u.kind==="deer"){ const er=hr*(u.kind==="bear"?0.5:0.44);
+      for(const s of [-1,1]){ ctx.fillStyle=dark; ctx.beginPath(); ctx.arc(hx-hr*0.15,s*hr*0.9,er,0,7); ctx.fill(); ctx.strokeStyle="rgba(0,0,0,0.3)"; ctx.lineWidth=1; ctx.stroke();
+        if(u.kind!=="bear"){ ctx.fillStyle="#e79ab0"; ctx.beginPath(); ctx.arc(hx-hr*0.1,s*hr*0.9,er*0.5,0,7); ctx.fill(); } } }
     ctx.beginPath(); ctx.arc(hx,0,hr,0,7); ctx.fillStyle=u.hitT>0?"#fff":shade(col,18); ctx.fill();
     ctx.strokeStyle="rgba(0,0,0,0.34)"; ctx.lineWidth=Math.max(1,r*0.06); ctx.stroke();
-    // 耳
-    if(u.kind==="leopard"||u.kind==="bear"||u.kind==="deer"||u.kind==="iguana"){ ctx.fillStyle=dark;
-      const er=hr*(u.kind==="bear"?0.55:0.42); ctx.beginPath(); ctx.arc(hx-hr*0.2,-hr*0.85,er,0,7); ctx.arc(hx-hr*0.2,hr*0.85,er,0,7); ctx.fill(); }
+    // 口鼻（哺乳類頭前突出，增加立體）
+    if(mammal){ ctx.fillStyle=u.hitT>0?"#fff":lite; ctx.beginPath(); ctx.ellipse(hx+hr*0.58,0,hr*0.5,hr*0.4,0,0,7); ctx.fill(); ctx.strokeStyle="rgba(0,0,0,0.28)"; ctx.lineWidth=1; ctx.stroke(); }
     // 青蛙凸眼（頭頂兩側）
     if(u.kind==="frog"){ ctx.fillStyle=shade(col,25); ctx.beginPath(); ctx.arc(hx,-hr*0.8,hr*0.5,0,7); ctx.arc(hx,hr*0.8,hr*0.5,0,7); ctx.fill(); }
     // 鹿角
@@ -352,10 +356,14 @@
     // 翅（拍動）
     if(flyer){ const flap=0.4+0.6*Math.abs(Math.sin(gt*20+u.phase)), wl=u.kind==="dragonfly"?1.1:0.85; ctx.fillStyle=u.kind==="dragonfly"?"rgba(190,240,250,0.55)":"rgba(210,225,200,0.6)";
       for(const s of [-1,1]){ ctx.save(); ctx.scale(1,s*flap); ctx.beginPath(); ctx.ellipse(r*0.1,bW*2.2,r*wl,r*0.32,0,0,7); ctx.fill(); ctx.restore(); } }
-    // 眼睛（朝前；青蛙眼在凸起上）
-    const eyx=u.kind==="frog"?hx:hx+hr*0.35, eyy=u.kind==="frog"?hr*0.8:hr*0.4;
-    ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(eyx,-eyy,hr*0.3,0,7); ctx.arc(eyx,eyy,hr*0.3,0,7); ctx.fill();
-    ctx.fillStyle="#222"; ctx.beginPath(); ctx.arc(eyx+hr*0.12,-eyy,hr*0.15,0,7); ctx.arc(eyx+hr*0.12,eyy,hr*0.15,0,7); ctx.fill();
+    // 眼睛（白+虹膜+高光；攻擊時虹膜轉紅+怒眉；飛蟲複眼；蝸牛眼在眼柄，這裡略過）
+    if(u.kind!=="snail"){ const eyx=u.kind==="frog"?hx:hx+hr*0.32, eyy=u.kind==="frog"?hr*0.82:hr*0.4, er=hr*0.3;
+      if(flyer){ for(const s of [-1,1]){ ctx.fillStyle=shade(col,-22); ctx.beginPath(); ctx.arc(hx+hr*0.15,s*hr*0.55,hr*0.5,0,7); ctx.fill(); ctx.fillStyle="rgba(255,255,255,0.45)"; ctx.beginPath(); ctx.arc(hx+hr*0.3,s*hr*0.42,hr*0.16,0,7); ctx.fill(); } }
+      else { for(const s of [-1,1]){ ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(eyx,s*eyy,er,0,7); ctx.fill();
+          ctx.fillStyle=angry?"#c62828":"#3a2a1a"; ctx.beginPath(); ctx.arc(eyx+er*0.35,s*eyy,er*0.62,0,7); ctx.fill();
+          ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(eyx+er*0.08,s*eyy-er*0.35,er*0.3,0,7); ctx.fill(); }
+        if(mammal){ ctx.fillStyle="#3a2a20"; ctx.beginPath(); ctx.arc(hx+hr*0.98,0,hr*0.15,0,7); ctx.fill(); }
+        if(angry){ ctx.strokeStyle="rgba(0,0,0,0.6)"; ctx.lineWidth=r*0.06; for(const s of [-1,1]){ ctx.beginPath(); ctx.moveTo(eyx-hr*0.15,s*eyy-hr*0.5); ctx.lineTo(eyx+hr*0.4,s*eyy-hr*0.22); ctx.stroke(); } } } }
     ctx.restore();
   }
   function drawUnit(u,r,isInv){ drawCreatureTop(u,r,isInv?"inv":"ally"); const R=r*kcfg(u.kind).sz;
