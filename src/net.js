@@ -1,13 +1,17 @@
 /* 好友連線（真連線多人）— 獨立模組，需要網路；不影響單機部分離線可玩。
-   目前 FIREBASE_CONFIG 為空：介面已可操作，但連線動作會顯示提示，
-   等專案擁有者提供 Firebase 設定後即可接上即時同步（見下方 TODO）。 */
+   Firebase 專案：maxgame-677be（Realtime Database + 匿名登入）。 */
 (() => {
   "use strict";
 
-  // ===== TODO：把你在 Firebase Console 拿到的設定貼在這裡，就能啟用真連線 =====
-  // 範例：{ apiKey:"...", authDomain:"xxx.firebaseapp.com", databaseURL:"https://xxx.firebaseio.com",
-  //         projectId:"xxx", storageBucket:"xxx.appspot.com", messagingSenderId:"...", appId:"..." }
-  const FIREBASE_CONFIG = null;
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyCn8O6w4pRHa7JoRJ_VWRrV-MHv672xh8k",
+    authDomain: "maxgame-677be.firebaseapp.com",
+    databaseURL: "https://maxgame-677be-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "maxgame-677be",
+    storageBucket: "maxgame-677be.firebasestorage.app",
+    messagingSenderId: "816965458215",
+    appId: "1:816965458215:web:9df19b4b018b050b54f102",
+  };
 
   const $ = (id) => document.getElementById(id);
   function show(id){ const e=$(id); if(e) e.classList.remove("hide"); }
