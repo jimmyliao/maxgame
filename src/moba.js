@@ -850,14 +850,22 @@
       const pts=[[t*MW,0],[t*MW,MH],[0,t*MH],[MW,t*MH]];
       for(const[px,py]of pts){ ctx.fillStyle="rgba(8,24,12,0.92)"; ctx.beginPath(); ctx.arc(px,py,rr,0,7); ctx.fill();
         ctx.fillStyle="rgba(64,116,58,0.5)"; ctx.beginPath(); ctx.arc(px-rr*0.3,py-rr*0.34,rr*0.5,0,7); ctx.fill(); } }
-    // 大地色塊變化（讓草地不死板）
-    ctx.globalAlpha=0.5; for(let i=0;i<26;i++){ const x=hgrid(i,1), y=hgrid(i,2), rr=90+((i*53)%140);
-      ctx.fillStyle=mix("#615a35","#33612a",restore); ctx.beginPath(); ctx.ellipse(x,y,rr,rr*0.7,i,0,7); ctx.fill(); } ctx.globalAlpha=1;
+    // 大地色塊變化（讓草地不死板）：兩層色塊交錯，色調更鮮活不混濁
+    ctx.globalAlpha=0.32; for(let i=0;i<26;i++){ const x=hgrid(i,1), y=hgrid(i,2), rr=90+((i*53)%140);
+      ctx.fillStyle=i%2? mix("#6d6b3e","#3e7d36",restore) : mix("#57633a","#2f6b2c",restore);
+      ctx.beginPath(); ctx.ellipse(x,y,rr,rr*0.7,i,0,7); ctx.fill(); } ctx.globalAlpha=1;
+    // 林間光斑（lighter 疊加、確定性位置）：樹蔭間灑落的陽光，整片地面立刻有呼吸感
+    ctx.save(); ctx.globalCompositeOperation="lighter";
+    for(let i=0;i<9;i++){ const x=hgrid(i+70,1), y=hgrid(i+70,2), rr=110+((i*37)%90);
+      const dg=ctx.createRadialGradient(x,y,10,x,y,rr); dg.addColorStop(0,"rgba(255,244,190,0.055)"); dg.addColorStop(1,"rgba(255,244,190,0)");
+      ctx.fillStyle=dg; ctx.beginPath(); ctx.arc(x,y,rr,0,7); ctx.fill(); }
+    ctx.restore();
     // 蜿蜒溪流（泥沙河岸 + 水體 + 流動反光）
     const riv=(w,st)=>{ ctx.strokeStyle=st; ctx.lineWidth=w; ctx.lineCap="round"; ctx.lineJoin="round"; ctx.beginPath(); ctx.moveTo(-40,MH*0.36); ctx.bezierCurveTo(MW*0.3,MH*0.28,MW*0.62,MH*0.5,MW+40,MH*0.42); ctx.stroke(); };
-    riv(84,"rgba(122,108,72,0.55)");                 // 河岸泥沙
-    riv(64,mix("#4a5b52","#4fa6c9",restore*0.7+0.3)); // 水體
-    riv(30,"rgba(180,225,235,0.25)");                 // 中央淺水高光
+    riv(84,"rgba(116,100,66,0.5)");                  // 河岸泥沙
+    riv(64,mix("#3f6f80","#4fa6c9",restore*0.6+0.4)); // 水體：一開場就是藍綠水色，不再像灰色柏油路
+    riv(44,"rgba(28,58,74,0.28)");                    // 深水中線，多一層層次
+    riv(26,"rgba(190,230,240,0.28)");                 // 中央淺水高光
     ctx.save(); ctx.globalCompositeOperation="lighter"; ctx.strokeStyle="rgba(255,255,255,0.10)"; ctx.lineWidth=10;
     for(let i=0;i<5;i++){ ctx.beginPath(); const off=Math.sin(gt*0.8+i)*10; ctx.moveTo(-40,MH*0.36+off); ctx.bezierCurveTo(MW*0.3,MH*0.28+off,MW*0.62,MH*0.5+off,MW+40,MH*0.42+off); ctx.stroke(); } ctx.restore();
     ctx.lineCap="butt";
@@ -898,6 +906,13 @@
     ctx.fillStyle="#3f9e42"; for(const c of clumps){ ctx.beginPath(); ctx.arc(cx+c[0]*R,cy+c[1]*R,c[2]*R,0,7); ctx.fill(); }
     ctx.fillStyle="#6fc46a"; for(const c of [[-0.46,-0.5,0.34],[0,-0.92,0.32],[-0.22,-0.3,0.24]]){ ctx.beginPath(); ctx.arc(cx+c[0]*R,cy+c[1]*R,c[2]*R,0,7); ctx.fill(); }
     ctx.fillStyle="#2c6e2f"; for(const c of [[0.5,-0.12,0.32],[0.32,-0.42,0.26]]){ ctx.beginPath(); ctx.arc(cx+c[0]*R,cy+c[1]*R,c[2]*R,0,7); ctx.fill(); }
+    // 樹冠立體感：左上頂光高光 + 右下底影（柔和漸層疊在賽璐璐底上，神木立刻有體積）
+    const hl=ctx.createRadialGradient(cx-R*0.32,cy-R*0.5,6,cx-R*0.32,cy-R*0.5,R*1.05);
+    hl.addColorStop(0,"rgba(255,250,200,0.24)"); hl.addColorStop(1,"rgba(255,250,200,0)");
+    ctx.fillStyle=hl; ctx.beginPath(); ctx.arc(cx,cy-R*0.2,R*1.1,0,7); ctx.fill();
+    const shd=ctx.createRadialGradient(cx+R*0.34,cy+R*0.28,6,cx+R*0.34,cy+R*0.28,R*0.9);
+    shd.addColorStop(0,"rgba(8,28,12,0.26)"); shd.addColorStop(1,"rgba(8,28,12,0)");
+    ctx.fillStyle=shd; ctx.beginPath(); ctx.arc(cx+R*0.12,cy+R*0.05,R*0.95,0,7); ctx.fill();
     // 光暈 + 血環
     const gl=ctx.createRadialGradient(cx,cy,4,cx,cy,R*1.8); gl.addColorStop(0,"rgba(197,225,165,0.28)"); gl.addColorStop(1,"rgba(0,0,0,0)"); ctx.fillStyle=gl; ctx.beginPath(); ctx.arc(cx,cy,R*1.8,0,7); ctx.fill();
     ctx.lineWidth=6; ctx.strokeStyle="rgba(0,0,0,0.4)"; ctx.beginPath(); ctx.arc(cx,cy,R*1.2,0,7); ctx.stroke();
@@ -1278,12 +1293,19 @@
         } else if(mammal||u.kind==="frog"||u.kind==="canetoad"){ g.strokeStyle=INK; g.lineWidth=Math.max(1.3,r*0.06); g.lineCap="round";
           g.beginPath(); g.moveTo(hx+hr*0.6,-hr*0.14); g.quadraticCurveTo(hx+hr*0.82,0,hx+hr*0.6,hr*0.14); g.stroke(); g.lineCap="butt"; } } }
     g.restore();
-    // 立體上色：頂光 + 底暗，只作用在角色剪影上（source-atop，跟大廳 drawCreature 同一套質感）
+    // 立體上色：頂光 + 底暗，只作用在角色剪影上（source-atop，跟大廳 drawCreature 同一套質感）——對比略加強更立體
     g.save(); g.globalCompositeOperation="source-atop";
     const sg=g.createLinearGradient(0,-R2*0.85,0,R2*0.72);
-    sg.addColorStop(0,"rgba(255,255,255,0.30)"); sg.addColorStop(0.45,"rgba(255,255,255,0)"); sg.addColorStop(1,"rgba(0,0,0,0.32)");
+    sg.addColorStop(0,"rgba(255,255,255,0.36)"); sg.addColorStop(0.45,"rgba(255,255,255,0)"); sg.addColorStop(1,"rgba(0,0,0,0.38)");
     g.fillStyle=sg; g.fillRect(-R2,-R2,R2*2,R2*2);
     g.globalCompositeOperation="source-over"; g.restore();
+    // 陣營 rim light（研究食譜法A：lighter 沿主體輪廓描一圈細亮邊）——守護者暖金、入侵種冷青，質感+敵我辨識一次到位
+    g.save(); g.globalCompositeOperation="lighter";
+    g.strokeStyle=faction==="inv"?"rgba(90,220,220,0.38)":"rgba(255,224,150,0.42)";
+    g.lineWidth=Math.max(1.2,r*0.055); g.lineJoin="round";
+    bodyPathTop(g,u.kind,bLen,bW,0); g.stroke();
+    g.beginPath(); g.arc(hx,0,hr,0,7); g.stroke();
+    g.restore();
     // 合成到主畫布（旋轉貼上，跟隨移動方向）
     ctx.save(); ctx.translate(u.x+Math.cos(f)*lunge,gy+Math.sin(f)*lunge*0.4); ctx.rotate(f); if(u.hitT>0) ctx.globalAlpha=0.9;
     ctx.drawImage(oc,-R2,-R2,R2*2,R2*2);
