@@ -397,6 +397,8 @@
   #passShop .cos-card canvas{ width:64px; height:64px; }
   #passShop .cos-card .cos-name{ font-size:11.5px; font-weight:800; }
   #passShop .cos-card .cos-status{ font-size:11px; color:#a5d6a7; }
+  #passShop .pass-tab{ flex:1; border:none; border-radius:12px; background:rgba(255,255,255,.08); color:#c8e6c9; font-size:12px; font-weight:800; padding:7px 4px; cursor:pointer; }
+  #passShop .pass-tab.on{ background:#ffd54f; color:#1b2e14; }
   /* 守護者個人資訊 / 帳號資訊（全螢幕） */
   #heroInfo, #accountInfo{ position:absolute; inset:0; z-index:22; display:flex; align-items:center; justify-content:center; background:rgba(6,14,10,.92); backdrop-filter:blur(5px); }
   #heroInfo.hide, #accountInfo.hide{ display:none; }
@@ -525,9 +527,15 @@
       <!-- 通行證：用「通行證點數」(完成每日任務累積)兌換專屬特殊服裝；沿用服裝店樣式，放 #lobby 內跟隨旋轉 -->
       <div id="passShop" class="hide">
         <div class="hp-panel">
-          <div class="hp-head"><span>🎟 通行證 · 特殊服裝</span><span id="passPtsVal" style="font-size:13px;color:#ffd54f;font-weight:800"></span><button id="passClose" class="hp-close">✕</button></div>
+          <div class="hp-head"><span>🎟 通行證</span><span id="passPtsVal" style="font-size:13px;color:#ffd54f;font-weight:800"></span><button id="passClose" class="hp-close">✕</button></div>
+          <!-- 服裝店已併入通行證：三分頁＝專屬服裝(點數)/服裝店(保育值)/兌換獎勵(點數換保育值等) -->
+          <div class="row" id="passTabs" style="gap:6px;padding:6px 12px 0;margin:0;">
+            <button class="pass-tab on" data-pt="pass">🎟 專屬服裝</button>
+            <button class="pass-tab" data-pt="cos">👒 服裝店</button>
+            <button class="pass-tab" data-pt="reward">🌿 兌換獎勵</button>
+          </div>
           <div id="passHero" style="font-size:12.5px;color:#ffe082;padding:4px 16px 0;font-weight:800"></div>
-          <div id="passTip" style="font-size:11.5px;color:#a5d6a7;padding:2px 16px 0;">🎟 通行證點數靠「完成每日任務」累積——這裡的特殊服裝只能用點數兌換，是任務玩家的專屬榮耀！</div>
+          <div id="passTip" style="font-size:11.5px;color:#a5d6a7;padding:2px 16px 0;">🎟 通行證點數靠「完成每日任務」累積。</div>
           <div id="passGrid" class="hp-grid"></div>
         </div>
       </div>

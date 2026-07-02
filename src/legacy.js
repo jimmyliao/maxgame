@@ -912,8 +912,8 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     const nm=document.createElement("div"); nm.className="cos-name"; nm.textContent=c?(c.icon+" "+c.name):"🚫 不穿"; b.appendChild(nm);
     const st=document.createElement("div"); st.className="cos-status"; st.textContent=isEq?"✅ 已裝備":isOwned?"點我裝備":("🌿 "+c.cost);
     if(c && !isOwned) st.style.color=getEco()>=c.cost?"#ffd54f":"#ff8a65"; b.appendChild(st);
-    b.onclick=()=>{ if(c && !isOwned){ if(getEco()>=c.cost){ setEco(getEco()-c.cost); const o=cosOwned(); o.push(key); cosOwnedSet(o); if(window.__sfx)window.__sfx.play("coin"); buildCostumeShop(); } else if(window.__sfx) window.__sfx.play("back"); return; }
-      cosEquipSet(hk, isEq?"":key); if(window.__sfx)window.__sfx.play(isEq?"back":"levelup"); buildCostumeShop(); updateLobby(); };
+    b.onclick=()=>{ if(c && !isOwned){ if(getEco()>=c.cost){ setEco(getEco()-c.cost); const o=cosOwned(); o.push(key); cosOwnedSet(o); if(window.__sfx)window.__sfx.play("coin"); rebuildShops(); } else if(window.__sfx) window.__sfx.play("back"); return; }
+      cosEquipSet(hk, isEq?"":key); if(window.__sfx)window.__sfx.play(isEq?"back":"levelup"); rebuildShops(); updateLobby(); };
     return b; }
   function buildCostumeShop(){ const wrap=document.getElementById("costumeGrid"); if(!wrap) return; wrap.innerHTML="";
     const hk=HEROES[featured].key, owned=cosOwned(), equipped=cosEquipOf(hk);
@@ -939,13 +939,36 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     b.onclick=()=>{ if(!isOwned){ if(getPassPts()>=c.pp){ setPassPts(getPassPts()-c.pp); const o=cosOwned(); o.push(key); cosOwnedSet(o); if(window.__sfx)window.__sfx.play("levelup"); buildPassShop(); } else if(window.__sfx) window.__sfx.play("back"); return; }
       cosEquipSet(hk, isEq?"":key); if(window.__sfx)window.__sfx.play(isEq?"back":"levelup"); buildPassShop(); updateLobby(); };
     return b; }
+  // 通行證兌換獎勵：點數換保育值/EXP 等（依需求「通行證要有保育值等東西」）
+  const PASS_REWARDS=[
+    { key:"eco80",  name:"保育值 ×80",  icon:"🌿", pp:2, give:()=>gainEco(80) },
+    { key:"eco250", name:"保育值 ×250", icon:"🌿", pp:5, give:()=>gainEco(250) },
+    { key:"xp100",  name:"目前守護者 EXP+100", icon:"⭐", pp:3, give:()=>gainXP(HEROES[featured].key,100) },
+  ];
+  let passTab="pass";   // 通行證分頁：pass=專屬服裝(點數) / cos=服裝店(保育值，已併入) / reward=兌換獎勵
+  function mkRewardCard(rw){ const b=document.createElement("button"); b.className="cos-card";
+    const ic=document.createElement("div"); ic.style.cssText="font-size:42px;line-height:64px;height:64px;"; ic.textContent=rw.icon; b.appendChild(ic);
+    const nm=document.createElement("div"); nm.className="cos-name"; nm.textContent=rw.name; b.appendChild(nm);
+    const st=document.createElement("div"); st.className="cos-status"; st.textContent="🎟 "+rw.pp+" 點";
+    st.style.color=getPassPts()>=rw.pp?"#ffd54f":"#ff8a65"; b.appendChild(st);
+    b.onclick=()=>{ if(getPassPts()>=rw.pp){ setPassPts(getPassPts()-rw.pp); rw.give(); if(window.__sfx)window.__sfx.play("coin"); updateLobby(); rebuildShops(); }
+      else if(window.__sfx) window.__sfx.play("back"); };
+    return b; }
   function buildPassShop(){ const wrap=document.getElementById("passGrid"); if(!wrap) return; wrap.innerHTML="";
     const hk=HEROES[featured].key, owned=cosOwned(), equipped=cosEquipOf(hk);
-    const v=document.getElementById("passPtsVal"); if(v) v.textContent="🎟 通行證點數 "+getPassPts();
-    const hn=document.getElementById("passHero"); if(hn) hn.textContent="正在打扮："+HEROES[featured].name;
-    wrap.appendChild(mkCosCard(null, owned, equipped, hk));   // 「不穿」選項沿用一般卡
-    PASS_COSMETICS.forEach(c=> wrap.appendChild(mkPassCard(c, owned, equipped, hk))); }
-  function openPassShop(){ const p=document.getElementById("passShop"); if(!p) return; buildPassShop(); p.classList.remove("hide"); }
+    const v=document.getElementById("passPtsVal"); if(v) v.textContent="🎟 "+getPassPts()+" 點　🌿 "+getEco();
+    document.querySelectorAll("#passTabs .pass-tab").forEach(b=>b.classList.toggle("on",b.dataset.pt===passTab));
+    const hn=document.getElementById("passHero"); if(hn) hn.textContent=passTab==="reward"?"用通行證點數兌換獎勵":"正在打扮："+HEROES[featured].name;
+    const tip=document.getElementById("passTip");
+    if(tip) tip.textContent=passTab==="pass"?"🎟 專屬特殊服裝只能用通行證點數兌換（完成每日任務累積），是任務玩家的榮耀！"
+      :passTab==="cos"?"👒 一般服裝用保育值購買（服裝店已併入通行證）。"
+      :"🌿 點數換保育值、經驗值——任務打得勤，養成快一截！";
+    if(passTab==="reward"){ PASS_REWARDS.forEach(rw=> wrap.appendChild(mkRewardCard(rw))); return; }
+    wrap.appendChild(mkCosCard(null, owned, equipped, hk));   // 「不穿」選項
+    if(passTab==="pass") PASS_COSMETICS.forEach(c=> wrap.appendChild(mkPassCard(c, owned, equipped, hk)));
+    else COSMETICS.forEach(c=> wrap.appendChild(mkCosCard(c, owned, equipped, hk))); }
+  function rebuildShops(){ buildCostumeShop(); buildPassShop(); }   // 買/裝備後同步重繪兩個面板(哪個開著都正確)
+  function openPassShop(tab){ if(typeof tab==="string") passTab=tab; const p=document.getElementById("passShop"); if(!p) return; buildPassShop(); p.classList.remove("hide"); }
   function closePassShop(){ const p=document.getElementById("passShop"); if(p) p.classList.add("hide"); }
   // ===== 守護者個人資訊（點大廳角色開啟，全螢幕）：等級/經驗值/天賦/保育戰績 =====
   function openHeroInfo(){ const h=HEROES[featured], p=document.getElementById("heroInfo"); if(!h||!p) return;
@@ -1401,13 +1424,14 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     const hib=document.getElementById("hiClose"); if(hib) hib.onclick=closeHeroInfo;
     const hbk=document.getElementById("hiBack"); if(hbk) hbk.onclick=closeHeroInfo;
     const hi=document.getElementById("heroInfo"); if(hi) hi.addEventListener("pointerdown",(e)=>{ if(e.target===hi) closeHeroInfo(); }); }
-  { const cb=document.getElementById("navCostume"); if(cb) cb.onclick=openCostumeShop;
+  { const cb=document.getElementById("navCostume"); if(cb) cb.onclick=()=>openPassShop("cos");   // 服裝店已併入通行證：導向合併面板的服裝店分頁
     const cc=document.getElementById("costumeClose"); if(cc) cc.onclick=closeCostumeShop;
-    const cs=document.getElementById("costumeShop"); if(cs) cs.addEventListener("pointerdown",(e)=>{ if(e.target===cs) closeCostumeShop(); }); }   // 服裝店開關
-  { const pb=document.getElementById("navPass"); if(pb) pb.onclick=openPassShop;
+    const cs=document.getElementById("costumeShop"); if(cs) cs.addEventListener("pointerdown",(e)=>{ if(e.target===cs) closeCostumeShop(); }); }   // 舊服裝店彈窗保留於 DOM(相容)
+  { const pb=document.getElementById("navPass"); if(pb) pb.onclick=()=>openPassShop("pass");
     const pc=document.getElementById("passClose"); if(pc) pc.onclick=closePassShop;
     const ps=document.getElementById("passShop"); if(ps) ps.addEventListener("pointerdown",(e)=>{ if(e.target===ps) closePassShop(); });   // 通行證開關
-    const dp=document.getElementById("dailyToPass"); if(dp) dp.onclick=()=>transition(()=>{ goLobby(); openPassShop(); }); }
+    document.querySelectorAll("#passTabs .pass-tab").forEach(b=> b.addEventListener("pointerdown",(e)=>{ e.preventDefault(); passTab=b.dataset.pt; buildPassShop(); },{passive:false}));
+    const dp=document.getElementById("dailyToPass"); if(dp) dp.onclick=()=>transition(()=>{ goLobby(); openPassShop("reward"); }); }
   document.getElementById("navUpg").onclick=()=>transition(goUpgrade);
   document.getElementById("upgBack").onclick=()=>transition(goLobby);
   document.getElementById("navDaily").onclick=()=>transition(goDaily);
