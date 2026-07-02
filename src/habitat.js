@@ -406,28 +406,43 @@
     ctx.restore(); }
   function drawEmpty(x,y,s){ const info=REGION_INFO[data.current]||REGION_INFO.paddy;   // 依地區土壤色調做一點點差異，其餘畫法通用
     ctx.fillStyle="rgba(0,0,0,0.22)"; ctx.beginPath(); ctx.ellipse(x,y,12*s,4*s,0,0,7); ctx.fill();
-    ctx.fillStyle=shade(info.ground[1],30); ctx.globalAlpha=0.55; ctx.beginPath(); ctx.ellipse(x,y-1,9*s,3.2*s,0,0,7); ctx.fill(); ctx.globalAlpha=1; }
+    ctx.fillStyle=shade(info.ground[1],30); ctx.globalAlpha=0.55; ctx.beginPath(); ctx.ellipse(x,y-1,9*s,3.2*s,0,0,7); ctx.fill(); ctx.globalAlpha=1;
+    // 空地浮出「本區種子」圖示：一眼看出每一區種的種子都不一樣（點下去就是種這顆）
+    const sd=(info.seed||{icon:"🌱"}); ctx.globalAlpha=0.85; ctx.font=Math.round(6.5*s)+"px serif"; ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText(sd.icon,x,y-4.5*s); ctx.globalAlpha=1; }
   // 幼苗期（sprout）要依地區 shape 呈現明顯差異——不然玩家剛開局／快速切換地區時，看到的幾乎都是同一種通用幼苗，會誤以為每區都一樣
+  // 每區幼苗專屬光環色：小尺寸下也能一眼分辨「這區種的東西不一樣」
+  const SPROUT_GLOW={ lily:"90,190,235", round:"255,200,80", conifer:"70,190,160", mangrove:"230,110,80", juniper:"180,220,255", heron:"235,225,180" };
   function drawSprout(kind,x,y,s,sway){ ctx.save(); ctx.translate(x,y);
-    if(kind==="lily"){ // 台灣萍蓬草幼苗：貼地小圓葉，還沒浮起
-      ctx.fillStyle="rgba(0,0,0,0.14)"; ctx.beginPath(); ctx.ellipse(0,1.5*s,6*s,2*s,0,0,7); ctx.fill();
-      ctx.fillStyle="#5a9a4a"; for(const o of [[-2.4,0,0.85],[2.2,0.6,0.7]]){ ctx.beginPath(); ctx.ellipse(o[0]*s,o[1]*s,3.4*s*o[2],2.2*s*o[2],0.2,0,7); ctx.fill(); } }
-    else if(kind==="conifer"){ // 台灣杉幼苗：尖尖小針葉，已看得出高聳輪廓的雛形
-      ctx.strokeStyle="#4a6b34"; ctx.lineWidth=1.4*s; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(Math.sin(sway)*1.4*s,-10*s); ctx.stroke();
-      ctx.fillStyle="#3f7a42"; ctx.beginPath(); ctx.moveTo(0,-11*s); ctx.lineTo(-3.2*s,-4*s); ctx.lineTo(3.2*s,-4*s); ctx.closePath(); ctx.fill(); }
-    else if(kind==="mangrove"){ // 水筆仔幼苗：胎生苗剛插入土裡，帶一點支柱根雛形
+    // 專屬色光環（lighter 疊加）：每區幼苗腳下一圈不同顏色的微光
+    ctx.save(); ctx.globalCompositeOperation="lighter";
+    const gl=ctx.createRadialGradient(0,0,1,0,0,9*s); gl.addColorStop(0,"rgba("+(SPROUT_GLOW[kind]||"180,230,150")+",0.30)"); gl.addColorStop(1,"rgba("+(SPROUT_GLOW[kind]||"180,230,150")+",0)");
+    ctx.fillStyle=gl; ctx.beginPath(); ctx.arc(0,0,9*s,0,7); ctx.fill(); ctx.restore();
+    if(kind==="lily"){ // 萍蓬草幼苗：水面亮綠浮葉 + 藍色小水圈
+      ctx.strokeStyle="rgba(120,200,240,0.75)"; ctx.lineWidth=0.9*s; ctx.beginPath(); ctx.ellipse(0,1*s,6.5*s,2.2*s,0,0,7); ctx.stroke();
+      ctx.fillStyle="#4ec06e"; for(const o of [[-2.4,0,0.85],[2.2,0.6,0.7]]){ ctx.beginPath(); ctx.ellipse(o[0]*s,o[1]*s,3.4*s*o[2],2.2*s*o[2],0.2,0,7); ctx.fill(); }
+      ctx.fillStyle="#8be2a4"; ctx.beginPath(); ctx.ellipse(-2.6*s,-0.4*s,1.3*s,0.8*s,0.2,0,7); ctx.fill(); }
+    else if(kind==="conifer"){ // 台灣杉幼苗：深青綠針葉尖塔
+      ctx.strokeStyle="#3c5a40"; ctx.lineWidth=1.4*s; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(Math.sin(sway)*1.4*s,-10*s); ctx.stroke();
+      ctx.fillStyle="#2e8a68"; ctx.beginPath(); ctx.moveTo(0,-11*s); ctx.lineTo(-3.2*s,-4*s); ctx.lineTo(3.2*s,-4*s); ctx.closePath(); ctx.fill();
+      ctx.fillStyle="#5cc79c"; ctx.beginPath(); ctx.moveTo(0,-11*s); ctx.lineTo(-1.4*s,-6.5*s); ctx.lineTo(0,-6.5*s); ctx.closePath(); ctx.fill(); }
+    else if(kind==="mangrove"){ // 水筆仔胎生苗：紅棕筆狀苗最搶眼
       ctx.strokeStyle="#5a4030"; ctx.lineWidth=1.4*s; ctx.lineCap="round";
       ctx.beginPath(); ctx.moveTo(-2*s,0); ctx.lineTo(-1*s,-3*s); ctx.stroke(); ctx.beginPath(); ctx.moveTo(2*s,0); ctx.lineTo(1*s,-3*s); ctx.stroke();
-      ctx.fillStyle="#548a52"; ctx.beginPath(); ctx.ellipse(0,-7*s,3*s,4.6*s,0,0,7); ctx.fill(); }
-    else if(kind==="juniper"){ // 玉山圓柏幼苗：矮小貼地，已呈現匍匐狀
+      ctx.fillStyle="#c25b3f"; ctx.beginPath(); ctx.ellipse(0,-6*s,1.6*s,5.2*s,0,0,7); ctx.fill();   // 紅棕色筆狀胎生苗
+      ctx.fillStyle="#4e9a52"; ctx.beginPath(); ctx.ellipse(0,-11.5*s,2.2*s,1.6*s,0,0,7); ctx.fill(); }
+    else if(kind==="juniper"){ // 玉山圓柏幼苗：霜白藍綠匍匐
       ctx.strokeStyle="#6b5842"; ctx.lineWidth=1.6*s; ctx.beginPath(); ctx.moveTo(-3*s,0); ctx.quadraticCurveTo(0,-2*s,3*s,-0.5*s); ctx.stroke();
-      ctx.fillStyle="#5f7f5a"; for(const o of [[-2,-2.5,0.7],[1.5,-3,0.8]]){ ctx.beginPath(); ctx.ellipse(o[0]*s,o[1]*s,3*s*o[2],1.8*s*o[2],0.1,0,7); ctx.fill(); } }
-    else if(kind==="heron"){ // 欖李幼苗：厚實的鹽生葉片，成叢貼地生長
-      ctx.fillStyle="#5c6b3f"; for(const o of [[-2.6,-3,0.8],[0,-4,0.9],[2.6,-2.8,0.75]]){ ctx.beginPath(); ctx.ellipse(o[0]*s,o[1]*s,2.6*s*o[2],3.6*s*o[2],0,0,7); ctx.fill(); } }
-    else { // round（台灣欒樹）與其餘：維持原本雙葉子幼苗樣式
+      ctx.fillStyle="#7da884"; for(const o of [[-2,-2.5,0.7],[1.5,-3,0.8]]){ ctx.beginPath(); ctx.ellipse(o[0]*s,o[1]*s,3*s*o[2],1.8*s*o[2],0.1,0,7); ctx.fill(); }
+      ctx.fillStyle="rgba(230,245,255,0.85)"; for(const o of [[-2.4,-3.4],[1.2,-4],[0,-2.2]]){ ctx.beginPath(); ctx.arc(o[0]*s,o[1]*s,0.55*s,0,7); ctx.fill(); } }   // 霜點
+    else if(kind==="heron"){ // 欖李幼苗：橄欖色厚葉 + 鹽腺白點
+      ctx.fillStyle="#8a9a5a"; for(const o of [[-2.6,-3,0.8],[0,-4,0.9],[2.6,-2.8,0.75]]){ ctx.beginPath(); ctx.ellipse(o[0]*s,o[1]*s,2.6*s*o[2],3.6*s*o[2],0,0,7); ctx.fill(); }
+      ctx.fillStyle="rgba(255,255,240,0.9)"; for(const o of [[-2.6,-3.6],[0.2,-5],[2.6,-3.3]]){ ctx.beginPath(); ctx.arc(o[0]*s,o[1]*s,0.5*s,0,7); ctx.fill(); } }
+    else { // round（台灣欒樹）：黃綠雙葉 + 一點金黃花苞（欒樹的記憶點）
       ctx.strokeStyle="#6b8f3e"; ctx.lineWidth=1.6*s; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(Math.sin(sway)*2*s,-9*s); ctx.stroke();
-      ctx.fillStyle="#7cb342"; ctx.beginPath(); ctx.ellipse(-3*s,-8*s,4*s,2.2*s,-0.5,0,7); ctx.fill();
-      ctx.beginPath(); ctx.ellipse(3*s,-9*s,4*s,2.2*s,0.5,0,7); ctx.fill(); }
+      ctx.fillStyle="#9ccc65"; ctx.beginPath(); ctx.ellipse(-3*s,-8*s,4*s,2.2*s,-0.5,0,7); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(3*s,-9*s,4*s,2.2*s,0.5,0,7); ctx.fill();
+      ctx.fillStyle="#ffd54f"; ctx.beginPath(); ctx.arc(Math.sin(sway)*2*s,-10*s,1.2*s,0,7); ctx.fill(); }
     ctx.restore(); }
 
   // stage：同一格反覆收成後的「歲月感」——0=初熟 1=盛開茂盛（收成3次+） 2=老欉（收成7次+），越養越壯觀，不是每次都長一樣
@@ -795,7 +810,12 @@
   function openHabitat(){ data=load(); applyTheme();
     checkStageProgress(true);   // 進基地先靜默補算離線期間可能已達成的關卡（照發獎勵，不洗版慶祝），再渲染面板
     renderStagePanel();
-    const doOpen=()=>{ show(); resize(); running=true; last=0; raf=requestAnimationFrame(loop); };
+    const doOpen=()=>{ show(); resize(); running=true; last=0; raf=requestAnimationFrame(loop);
+      // 介面簡化：教學提示只在第一次進棲地顯示（9 秒後自動收起），之後不再常駐佔畫面
+      const hint=$("habHint");
+      if(hint){ let seen=false; try{ seen=localStorage.getItem("shoutu_hab_hint")==="1"; }catch(e){}
+        if(seen) hint.classList.add("hide");
+        else { hint.classList.remove("hide"); setTimeout(()=>{ hint.classList.add("hide"); },9000); try{ localStorage.setItem("shoutu_hab_hint","1"); }catch(e){} } } };
     if(window.__tx) window.__tx(doOpen); else doOpen(); }
   function show(){ const e=$("habitat"); if(e) e.classList.remove("hide"); }
   function closeHabitat(){ const e=$("habitat"); if(e) e.classList.add("hide"); running=false; cancelAnimationFrame(raf); save(data); window.__lobbyRefresh && window.__lobbyRefresh(); }
