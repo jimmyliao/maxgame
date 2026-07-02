@@ -806,10 +806,31 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   function cosEquipSet(hk,k){ try{ if(k) localStorage.setItem("shoutu_cos_"+hk,k); else localStorage.removeItem("shoutu_cos_"+hk); }catch(e){} }
   function cosStar(g,x,y,r){ g.beginPath(); for(let i=0;i<5;i++){ const a=-1.5708+i*1.2566; g.lineTo(x+Math.cos(a)*r,y+Math.sin(a)*r); const a2=a+0.628; g.lineTo(x+Math.cos(a2)*r*0.45,y+Math.sin(a2)*r*0.45); } g.closePath(); g.fill(); }
   // 畫在守護者(x,y 中心、大小 s)上的裝飾；純程序繪製、無狀態，動畫吃 t 不 push 陣列（零外部資源＋無粒子洩漏）
+  // 真圖頭部錨點：掃描插畫不透明像素，找「頭頂帶」的加權中心——每張插畫頭的位置都不同，用演算法對位而不是用猜的
+  const _headAnchor={};
+  function spriteHeadAnchor(kind){ const sp=SPRITES[kind]; if(!sp||!sp.naturalWidth) return null;
+    if(_headAnchor[kind]) return _headAnchor[kind];
+    try{ const W=64,H=64,c=document.createElement("canvas"); c.width=W; c.height=H; const g2=c.getContext("2d");
+      g2.drawImage(sp,0,0,W,H); const d=g2.getImageData(0,0,W,H).data;
+      let topY=-1; for(let yy=0;yy<H&&topY<0;yy++){ for(let xx=0;xx<W;xx++){ if(d[(yy*W+xx)*4+3]>60){ topY=yy; break; } } }
+      if(topY<0) return null;
+      const band=Math.max(2,Math.round(H*0.12)); let sx=0,n=0;
+      for(let yy=topY;yy<Math.min(H,topY+band);yy++) for(let xx=0;xx<W;xx++){ if(d[(yy*W+xx)*4+3]>60){ sx+=xx; n++; } }
+      const a={x:(sx/Math.max(1,n))/W, y:topY/H}; _headAnchor[kind]=a; return a;
+    }catch(e){ return null; } }
+  const HEAD_ITEMS={crown:1,bow:1,halo:1};   // 頭飾：要精準戴在頭上；其餘為環繞特效包住全身
   function drawCosmetic(g,key,x,y,s,t,kind){ if(!key) return; t=t||0;
-    // 真圖模式重定位：寫實插畫比程式畫的角色高很多(hh=s*2.7、頂到 -1.78s)，沿用舊錨點會整個卡在身體中間。
-    // 偵測到該角色有已載入的插畫時：錨點上移到插畫視覺中心(-0.43s)、尺寸放大 1.55 倍，讓皇冠/光環落在頭上、環繞特效包住全身。
-    const _sp=kind&&SPRITES[kind]; if(_sp&&_sp.naturalWidth>0){ y-=s*0.43; s*=1.55; }
+    // 真圖模式重定位：寫實插畫比程式畫的角色高很多(hh=s*2.7)，且每張頭的位置不同。
+    // 頭飾 → 用 spriteHeadAnchor 掃出頭頂精準對位、比例縮小(1.1x)不壓過寫實角色；
+    // 環繞特效 → 錨點移到插畫視覺中心、放大 1.55x 包住全身。無插畫時行為不變(canvas fallback)。
+    const _sp=kind&&SPRITES[kind];
+    if(_sp&&_sp.naturalWidth>0){
+      const a=HEAD_ITEMS[key]?spriteHeadAnchor(kind):null;
+      if(a){ const hh=s*2.7, ww=hh*(_sp.naturalWidth/_sp.naturalHeight);
+        const headX=x+(a.x-0.5)*ww, headY=y+s*0.92-hh+a.y*hh;
+        s*=1.3; x=headX; y=headY+s*0.56; }   // 稍大、稍下沉：戴「進」頭頂而不是浮在耳尖
+      else { y-=s*0.43; s*=1.55; }
+    }
     g.save(); g.translate(x,y); const hy=-s*0.5;
     if(key==="crown"){ const w=s*0.5,h=s*0.3;
       // 精緻版皇冠：柔金光暈 + 立體漸層金 + 冠底環帶 + 尖頂珠 + 三寶石含高光
