@@ -811,14 +811,64 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     // 偵測到該角色有已載入的插畫時：錨點上移到插畫視覺中心(-0.43s)、尺寸放大 1.55 倍，讓皇冠/光環落在頭上、環繞特效包住全身。
     const _sp=kind&&SPRITES[kind]; if(_sp&&_sp.naturalWidth>0){ y-=s*0.43; s*=1.55; }
     g.save(); g.translate(x,y); const hy=-s*0.5;
-    if(key==="crown"){ const w=s*0.52,h=s*0.28; g.fillStyle="#ffd54f"; g.strokeStyle="#b8860b"; g.lineWidth=Math.max(1,s*0.03);
-      g.beginPath(); g.moveTo(-w/2,hy); g.lineTo(-w/2,hy-h*0.4); g.lineTo(-w*0.25,hy-h*0.95); g.lineTo(0,hy-h*0.4); g.lineTo(w*0.25,hy-h*0.95); g.lineTo(w/2,hy-h*0.4); g.lineTo(w/2,hy); g.closePath(); g.fill(); g.stroke();
-      g.fillStyle="#e53935"; g.beginPath(); g.arc(0,hy-h*0.15,s*0.045,0,7); g.fill(); }
-    else if(key==="bow"){ const by=hy-s*0.02, r=s*0.14; g.fillStyle="#ff6f91"; for(const sg of [-1,1]){ g.beginPath(); g.moveTo(0,by); g.lineTo(sg*r*1.7,by-r); g.lineTo(sg*r*1.7,by+r); g.closePath(); g.fill(); } g.fillStyle="#e91e63"; g.beginPath(); g.arc(0,by,r*0.5,0,7); g.fill(); }
-    else if(key==="wreath"){ const n=10, rr=s*0.62; for(let i=0;i<n;i++){ const a=i/n*6.283+t*0.3, px=Math.cos(a)*rr, py=Math.sin(a)*rr*0.7-s*0.05; g.fillStyle=i%2?"#ffb7c5":"#fff59d"; g.beginPath(); g.arc(px,py,s*0.06,0,7); g.fill(); g.fillStyle="#ff8a80"; g.beginPath(); g.arc(px,py,s*0.022,0,7); g.fill(); } }
-    else if(key==="star"){ g.globalCompositeOperation="lighter"; for(let i=0;i<8;i++){ const a=t*1.6+i*0.785, rr=s*(0.7+0.12*Math.sin(t*3+i)), px=Math.cos(a)*rr, py=Math.sin(a)*rr*0.6-s*0.1, tw=0.5+0.5*Math.sin(t*4+i*2); g.fillStyle="rgba(255,240,150,"+tw.toFixed(2)+")"; cosStar(g,px,py,s*0.05*(0.6+tw*0.6)); } g.globalCompositeOperation="source-over"; }
-    else if(key==="leaf"){ for(let i=0;i<6;i++){ const a=t*1.1+i*1.047, rr=s*0.66, px=Math.cos(a)*rr, py=(Math.sin(t*1.5+i)*0.5)*s*0.5-s*0.05+Math.sin(a)*rr*0.4; g.save(); g.translate(px,py); g.rotate(a+t); g.fillStyle=i%2?"#c0894a":"#8a5a2b"; g.beginPath(); g.ellipse(0,0,s*0.09,s*0.045,0,0,7); g.fill(); g.restore(); } }
-    else if(key==="snow"){ g.fillStyle="rgba(255,255,255,0.92)"; for(let i=0;i<14;i++){ const px=(-0.7+((i*0.19)%1.4))*s, py=(((t*0.4+i*0.37)%1.4)-0.7)*s; g.beginPath(); g.arc(px,py,s*0.022,0,7); g.fill(); } }
+    if(key==="crown"){ const w=s*0.5,h=s*0.3;
+      // 精緻版皇冠：柔金光暈 + 立體漸層金 + 冠底環帶 + 尖頂珠 + 三寶石含高光
+      g.save(); g.globalCompositeOperation="lighter"; const glw=g.createRadialGradient(0,hy-h*0.3,2,0,hy-h*0.3,w*0.9);
+      glw.addColorStop(0,"rgba(255,215,110,0.35)"); glw.addColorStop(1,"rgba(255,215,110,0)"); g.fillStyle=glw; g.beginPath(); g.arc(0,hy-h*0.3,w*0.9,0,7); g.fill(); g.restore();
+      const gold=g.createLinearGradient(0,hy-h,0,hy); gold.addColorStop(0,"#fff3b0"); gold.addColorStop(0.45,"#ffd54f"); gold.addColorStop(1,"#c99700");
+      g.fillStyle=gold; g.strokeStyle="#8a6d1a"; g.lineWidth=Math.max(1,s*0.028); g.lineJoin="round";
+      g.beginPath(); g.moveTo(-w/2,hy); g.lineTo(-w/2,hy-h*0.42);
+      g.lineTo(-w*0.28,hy-h*0.95); g.lineTo(-w*0.12,hy-h*0.5); g.lineTo(0,hy-h*1.05); g.lineTo(w*0.12,hy-h*0.5); g.lineTo(w*0.28,hy-h*0.95);
+      g.lineTo(w/2,hy-h*0.42); g.lineTo(w/2,hy); g.closePath(); g.fill(); g.stroke();
+      g.fillStyle="#b8860b"; g.fillRect(-w/2,hy-h*0.12,w,h*0.14);
+      for(const p of [[-w*0.28,-0.95],[0,-1.05],[w*0.28,-0.95]]){ g.fillStyle="#fff8dc"; g.beginPath(); g.arc(p[0],hy+p[1]*h,s*0.02,0,7); g.fill(); }
+      for(const gm of [[0,"#e53935"],[-w*0.3,"#43a047"],[w*0.3,"#43a047"]]){ g.fillStyle=gm[1]; g.beginPath(); g.arc(gm[0],hy-h*0.06,s*0.04,0,7); g.fill();
+        g.fillStyle="rgba(255,255,255,0.85)"; g.beginPath(); g.arc(gm[0]-s*0.012,hy-h*0.06-s*0.012,s*0.013,0,7); g.fill(); } }
+    else if(key==="bow"){ const by=hy-s*0.02, r=s*0.15;
+      // 精緻版蝶結：漸層粉緞面圓弧結翼 + 內摺陰影 + 垂帶 + 中心結高光
+      const pk=g.createLinearGradient(0,by-r,0,by+r); pk.addColorStop(0,"#ffa8bf"); pk.addColorStop(1,"#f06292");
+      g.lineJoin="round";
+      for(const sg of [-1,1]){
+        g.strokeStyle="#e2749a"; g.lineWidth=Math.max(1,s*0.03); g.beginPath(); g.moveTo(sg*r*0.4,by+r*0.5); g.quadraticCurveTo(sg*r*0.6,by+r*1.3,sg*r*0.35,by+r*1.8); g.stroke();
+        g.fillStyle=pk; g.strokeStyle="#ad2c55"; g.lineWidth=Math.max(1,s*0.022);
+        g.beginPath(); g.moveTo(0,by);
+        g.quadraticCurveTo(sg*r*1.1,by-r*1.15,sg*r*1.8,by-r*0.55); g.quadraticCurveTo(sg*r*2.0,by,sg*r*1.8,by+r*0.55);
+        g.quadraticCurveTo(sg*r*1.1,by+r*1.05,0,by); g.closePath(); g.fill(); g.stroke();
+        g.fillStyle="rgba(173,44,85,0.3)"; g.beginPath(); g.moveTo(0,by); g.quadraticCurveTo(sg*r*0.9,by-r*0.35,sg*r*1.5,by-r*0.2); g.quadraticCurveTo(sg*r*0.8,by+r*0.1,0,by); g.fill(); }
+      g.fillStyle="#e91e63"; g.strokeStyle="#ad2c55"; g.beginPath(); g.arc(0,by,r*0.42,0,7); g.fill(); g.stroke();
+      g.fillStyle="rgba(255,255,255,0.7)"; g.beginPath(); g.arc(-r*0.12,by-r*0.14,r*0.13,0,7); g.fill(); }
+    else if(key==="wreath"){ const n=8, rr=s*0.62;
+      // 精緻版花環：五瓣櫻花 + 葉片交錯環繞
+      for(let i=0;i<n;i++){ const a=i/n*6.283+t*0.25, px=Math.cos(a)*rr, py=Math.sin(a)*rr*0.7-s*0.05;
+        g.save(); g.translate(px,py);
+        if(i%2){ for(let p2=0;p2<5;p2++){ const pa=p2/5*6.283+a; g.fillStyle="#ffb7c5"; g.beginPath(); g.ellipse(Math.cos(pa)*s*0.045,Math.sin(pa)*s*0.045,s*0.038,s*0.024,pa,0,7); g.fill(); }
+          g.fillStyle="#fff176"; g.beginPath(); g.arc(0,0,s*0.024,0,7); g.fill(); }
+        else { g.rotate(a+0.6); g.fillStyle="#66bb6a"; g.beginPath(); g.ellipse(0,0,s*0.075,s*0.032,0,0,7); g.fill();
+          g.strokeStyle="#2e7d32"; g.lineWidth=Math.max(0.8,s*0.012); g.beginPath(); g.moveTo(-s*0.07,0); g.lineTo(s*0.07,0); g.stroke(); }
+        g.restore(); } }
+    else if(key==="star"){ g.globalCompositeOperation="lighter";
+      // 精緻版星塵：星點 + 十字閃芒
+      for(let i=0;i<8;i++){ const a=t*1.6+i*0.785, rr=s*(0.7+0.12*Math.sin(t*3+i)), px=Math.cos(a)*rr, py=Math.sin(a)*rr*0.6-s*0.1, tw=0.5+0.5*Math.sin(t*4+i*2);
+        g.strokeStyle="rgba(255,246,190,"+(tw*0.7).toFixed(2)+")"; g.lineWidth=Math.max(0.8,s*0.012);
+        const fl=s*0.085*tw; g.beginPath(); g.moveTo(px-fl,py); g.lineTo(px+fl,py); g.moveTo(px,py-fl); g.lineTo(px,py+fl); g.stroke();
+        g.fillStyle="rgba(255,240,150,"+tw.toFixed(2)+")"; cosStar(g,px,py,s*0.05*(0.6+tw*0.6)); }
+      g.globalCompositeOperation="source-over"; }
+    else if(key==="leaf"){ for(let i=0;i<6;i++){ const a=t*1.1+i*1.047, rr=s*0.66, px=Math.cos(a)*rr, py=(Math.sin(t*1.5+i)*0.5)*s*0.5-s*0.05+Math.sin(a)*rr*0.4;
+      // 精緻版落葉：漸層雙色葉身 + 中肋葉脈
+      g.save(); g.translate(px,py); g.rotate(a+t);
+      const lc=i%2?["#e09a52","#b06a2c"]:["#c0894a","#8a5a2b"];
+      const lg2=g.createLinearGradient(-s*0.09,0,s*0.09,0); lg2.addColorStop(0,lc[0]); lg2.addColorStop(1,lc[1]);
+      g.fillStyle=lg2; g.beginPath(); g.ellipse(0,0,s*0.095,s*0.05,0,0,7); g.fill();
+      g.strokeStyle="rgba(90,50,15,0.75)"; g.lineWidth=Math.max(0.8,s*0.011); g.beginPath(); g.moveTo(-s*0.09,0); g.lineTo(s*0.095,0); g.stroke();
+      g.restore(); } }
+    else if(key==="snow"){
+      // 精緻版初雪：六芒雪花結晶(交錯大小、緩慢旋轉)，不再是單調白點
+      for(let i=0;i<10;i++){ const px=(-0.7+((i*0.27)%1.4))*s, py=(((t*0.4+i*0.37)%1.4)-0.7)*s, sz=s*(i%3===0?0.05:0.032), rot=t*0.8+i;
+        g.save(); g.translate(px,py); g.rotate(rot);
+        g.strokeStyle="rgba(230,245,255,0.9)"; g.lineWidth=Math.max(0.8,s*0.012); g.lineCap="round";
+        for(let k2=0;k2<3;k2++){ g.rotate(1.047); g.beginPath(); g.moveTo(-sz,0); g.lineTo(sz,0); g.stroke(); }
+        g.fillStyle="rgba(255,255,255,0.85)"; g.beginPath(); g.arc(0,0,sz*0.22,0,7); g.fill();
+        g.restore(); } }
     // ===== 通行證專屬特殊服裝（更華麗）=====
     else if(key==="halo"){ const ry=hy-s*0.32; g.globalCompositeOperation="lighter"; for(let i=0;i<3;i++){ g.strokeStyle="rgba(255,224,130,"+(0.55-i*0.15).toFixed(2)+")"; g.lineWidth=s*(0.055-i*0.014); g.beginPath(); g.ellipse(0,ry,s*0.32,s*0.11,0,0,7); g.stroke(); }
       for(let i=0;i<8;i++){ const a=t*1.4+i*0.785, px=Math.cos(a)*s*0.32, py=ry+Math.sin(a)*s*0.11, tw=0.5+0.5*Math.sin(t*4+i); g.fillStyle="rgba(255,245,180,"+tw.toFixed(2)+")"; g.beginPath(); g.arc(px,py,s*0.03*tw+s*0.012,0,7); g.fill(); } g.globalCompositeOperation="source-over"; }
