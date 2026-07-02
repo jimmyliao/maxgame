@@ -702,8 +702,9 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     HEROES.forEach((h,idx)=>{ const unlocked=isHeroUnlocked(h.key);
       const div=document.createElement("div"); div.className="card"; div.style.cssText="flex-direction:column;align-items:stretch;";
       const top=document.createElement("div"); top.style.cssText="display:flex;align-items:center;gap:12px;width:100%;";
-      const cv=document.createElement("canvas"); cv.width=104; cv.height=104; cv.style.cssText="width:52px;height:52px;flex:none;"; top.appendChild(cv);
-      const cc=cv.getContext("2d"); drawCreature(cc,h.key,52,60,34,{t:0}); if(!unlocked){ cc.globalAlpha=0.55; cc.fillStyle="#000"; cc.fillRect(0,0,104,104); cc.globalAlpha=1; cc.font="30px serif"; cc.textAlign="center"; cc.fillText("🔒",52,64); }
+      // 用跟大廳一樣的寫實插畫(drawCreature 圖檔優先)，加大尺寸讓玩家看得清楚
+      const cv=document.createElement("canvas"); cv.width=144; cv.height=144; cv.style.cssText="width:72px;height:72px;flex:none;"; top.appendChild(cv);
+      const cc=cv.getContext("2d"); drawCreature(cc,h.key,72,82,46,{t:0}); if(!unlocked){ cc.globalAlpha=0.55; cc.fillStyle="#000"; cc.fillRect(0,0,144,144); cc.globalAlpha=1; cc.font="40px serif"; cc.textAlign="center"; cc.fillText("🔒",72,88); }
       const info=document.createElement("div"); info.className="info";
       if(!unlocked){
         info.innerHTML=`<div class="t">${h.name} 🔒</div><div class="d">${h.status}<br>解鎖花 🌿 ${h.cost}</div>`;
@@ -982,10 +983,14 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     // 自適應安全區：量測下方名稱列(.lb-bottom)實際位置，角色一律落在它上方，永不擋字
     // 旋轉橫向時，getBoundingClientRect 量到的是「螢幕座標」，跟畫布內部橫向座標系軸向不一致
     // （90度旋轉會讓寬高軸互換），量測比例會失真，改用針對橫向版面調校過的安全值，不用動態量測。
-    const topBound=Hd*0.1; let lbTop=rot? Hd*0.4 : Hd*0.62;
+    // 手機橫向(高度矮)：上方跑馬燈占比更高，主角起始線往下移，避免頭頂到字
+    const topBound=(!rot&&Hd<560)? Hd*0.2 : Hd*0.1; let lbTop=rot? Hd*0.4 : Hd*0.62;
     if(!rot){ const lbEl=document.querySelector("#lobby .lb-bottom");
       if(lbEl && heroShow){ const r=lbEl.getBoundingClientRect(), cr=heroShow.getBoundingClientRect();
-        const t=(r.top-cr.top)*(Hd/Math.max(1,cr.height)); if(t>topBound+60) lbTop=t; } }
+        const t=(r.top-cr.top)*(Hd/Math.max(1,cr.height));
+        // 之前門檻太嚴(+60)：手機橫向名稱列很高時量測被丟棄、退回 0.62 → 主角被畫進文字底下。
+        // 改成放寬接受實測值：名稱列再高，主角就縮小站在它上方，寧可小也絕不被字擋住。
+        if(t>topBound+40) lbTop=Math.min(t,Hd*0.66); } }
     const region=Math.max(90, lbTop-topBound);
     // 角色尺寸與站位都由安全區推導：故意留寬鬆margin，寧可角色小一點，也不要有任何機會擋到下面的圖鑑列/文字
     const s=Math.min(Math.min(Wd,Hd)*0.15, region*0.32), h=HEROES[featured];
@@ -1336,7 +1341,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   document.getElementById("navSet").onclick=()=>transition(goSettings);
   document.getElementById("statsBack").onclick=()=>transition(goLobby);
   document.getElementById("setBack").onclick=()=>transition(goLobby);
-  document.getElementById("setShare").onclick=()=>{ const url="https://jimmyliao.github.io/maxgame/"; if(navigator.share){ navigator.share({title:"守土 · 福爾摩沙衛士", text:"一起來守護台灣特有種！", url}).catch(()=>{}); } else { try{ navigator.clipboard.writeText(url); }catch(e){} alert("遊戲連結已複製，分享給朋友一起守護台灣生態！\n"+url); } };
+  document.getElementById("setShare").onclick=()=>{ const url="https://jimmyliao.github.io/maxgame/"; if(navigator.share){ navigator.share({title:"守土 · 成為臺灣山林守護者", text:"一起來成為臺灣山林守護者，守護台灣特有種！", url}).catch(()=>{}); } else { try{ navigator.clipboard.writeText(url); }catch(e){} alert("遊戲連結已複製，分享給朋友一起守護台灣生態！\n"+url); } };
   window.__tx=transition;
   // ===== 守護神木 MOBA 模組接點（不改既有合約，只導出唯讀資訊與回大廳刷新） =====
   window.__featuredKey=()=> (HEROES[featured]&&HEROES[featured].key)||"leopard";

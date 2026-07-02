@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "守土 · 福爾摩沙衛士 — 台灣生態保育對戰遊戲",
+  "description": "守土 · 成為臺灣山林守護者 — 台灣生態保育對戰遊戲",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

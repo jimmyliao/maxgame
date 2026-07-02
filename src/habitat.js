@@ -202,7 +202,7 @@
     { name:"物種齊聚",     goals:[{type:"visitors",target:6},{type:"harvests",target:40}],reward:110, title:"濕地見證者" },
     { name:"豐饒之地",     goals:[{type:"health",target:85},{type:"eco",target:700}],    reward:140, title:"高山寒原守衛" },
     { name:"全境暢通",     goals:[{type:"corridors",target:2},{type:"visitors",target:9}],reward:180, title:"跨物種協力大使" },
-    { name:"福爾摩沙衛士", goals:[{type:"eco",target:1200},{type:"visitors",target:12},{type:"harvests",target:80}], reward:260, title:"福爾摩沙衛士" },
+    { name:"臺灣山林守護者", goals:[{type:"eco",target:1200},{type:"visitors",target:12},{type:"harvests",target:80}], reward:260, title:"臺灣山林守護者" },
   ];
   function loadStageIdx(){ try{ const v=parseInt(localStorage.getItem(STAGE_KEY),10); if(!isNaN(v)) return clamp(v,0,STAGES.length); }catch(e){} return 0; }
   function saveStageIdx(i){ try{ localStorage.setItem(STAGE_KEY, String(clamp(i,0,STAGES.length))); }catch(e){} }
@@ -672,7 +672,7 @@
     const s=stageStatus();
     if(s.allDone){
       box.innerHTML='<div class="hstg-hdr">🏅 全關卡達成！<span class="hstg-num">'+s.total+'/'+s.total+'</span></div>'+
-                    '<div class="hstg-name">你已成為福爾摩沙衛士，繼續守護這片土地吧！</div>';
+                    '<div class="hstg-name">你已成為臺灣山林守護者，繼續守護這片土地吧！</div>';
       return;
     }
     let html='<div class="hstg-hdr">🎯 保育關卡 Lv.'+s.num+'　'+s.name+'<span class="hstg-num">'+s.num+'/'+s.total+'</span></div>';

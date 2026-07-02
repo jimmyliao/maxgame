@@ -321,7 +321,7 @@
   tap("coopJoinGo",()=>{ const ci=$("roomCodeInput"); joinRoom(ci?ci.value:""); });
   // 「邀請隊友」流程收尾：務實做法——沒有使用者目錄可搜尋朋友帳號，所以延用房間代碼機制，
   // 但包裝成「複製代碼傳給隊友」的邀請語感（可貼到 LINE/訊息軟體），而不是讓玩家感覺在操作抽象房間系統。
-  tap("coopCopyCode",()=>{ const code=currentRoom||""; if(!code) return; const text="一起來守土 · 福爾摩沙衛士 🌳 我的隊友邀請碼："+code+"　打開遊戲 → 邀請隊友 → 輸入這組代碼加入我！";
+  tap("coopCopyCode",()=>{ const code=currentRoom||""; if(!code) return; const text="一起來守土・成為臺灣山林守護者 🌳 我的隊友邀請碼："+code+"　打開遊戲 → 邀請隊友 → 輸入這組代碼加入我！";
     if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(()=>netMsg("✅ 邀請訊息已複製，貼給隊友吧！")).catch(()=>netMsg("邀請碼："+code)); }
     else { netMsg("邀請碼："+code); } });
   tap("coopReady",toggleReady);
