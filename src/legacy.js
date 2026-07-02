@@ -13,6 +13,10 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     deer:"assets/heroes/deer.png", magpie:"assets/heroes/magpie.png"
   };
   function loadSprites(){ for(const k in SPRITE_SRC){ const img=new Image(); img.onload=()=>{ if(img.naturalWidth>0) SPRITES[k]=img; }; img.src=SPRITE_SRC[k]; } }
+  // 多視角立繪（偽 3D 建模）：assets/views/{kind}_{front|right|back|left}.png，大廳拖曳 360° 旋轉看每一面。
+  // 有哪隻的視角圖就載哪隻（缺圖 onerror 靜默、自動退回翻面過渡）；要幫新角色開 360° 只要把四張圖放進 assets/views/。
+  const SPRITE_VIEWS={};
+  ["leopard"].forEach(k=>{ const o={}; ["front","right","back","left"].forEach(v=>{ const im=new Image(); im.onerror=()=>{}; im.onload=()=>{ if(im.naturalWidth>0) o[v]=im; }; im.src="assets/views/"+k+"_"+v+".png"; }); SPRITE_VIEWS[k]=o; });
   loadSprites();
 
   /* ===== 角色繪製（優先用寫實圖，否則程式畫）===== */
@@ -827,7 +831,16 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
       for(let yy=topY;yy<Math.min(H,topY+band);yy++) for(let xx=0;xx<W;xx++){ if(d[(yy*W+xx)*4+3]>60){ sx+=xx; n++; } }
       const a={x:(sx/Math.max(1,n))/W, y:topY/H}; _headAnchor[kind]=a; return a;
     }catch(e){ return null; } }
-  const HEAD_ITEMS={crown:1,bow:1,halo:1};   // 頭飾：要精準戴在頭上；其餘為環繞特效包住全身
+  const HEAD_ITEMS={crown:1,bow:1,halo:1,x_deer:1,x_magpie:1};   // 頭飾：要精準戴在頭上；其餘為環繞特效包住全身
+  // 每角色專屬服裝（依需求）：各角色有自己獨一無二的服裝，只在「該角色」的通行證頁出現
+  const EXCLUSIVE_COS={
+    leopard:  {key:"x_leopard",  name:"夜行獵手星幕", icon:"🌙", pp:6, lv:4},
+    bear:     {key:"x_bear",     name:"月光胸甲",     icon:"🌗", pp:6, lv:4},
+    cicada:   {key:"x_cicada",   name:"蟬鳴音浪",     icon:"🎵", pp:6, lv:4},
+    dragonfly:{key:"x_dragonfly",name:"疾風殘影",     icon:"💨", pp:6, lv:4},
+    deer:     {key:"x_deer",     name:"森之花冠",     icon:"🌺", pp:6, lv:4},
+    magpie:   {key:"x_magpie",   name:"藍羽長冠",     icon:"🪶", pp:6, lv:4},
+  };
   function drawCosmetic(g,key,x,y,s,t,kind){ if(!key) return; t=t||0;
     // 真圖模式重定位：寫實插畫比程式畫的角色高很多(hh=s*2.7)，且每張頭的位置不同。
     // 頭飾 → 用 spriteHeadAnchor 掃出頭頂精準對位、比例縮小(1.1x)不壓過寫實角色；
@@ -908,6 +921,46 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
       for(const sg of [-1,1]){ for(let i=0;i<5;i++){ g.strokeStyle=cols[i]; g.globalAlpha=0.30+0.2*Math.sin(t*3+i); g.lineWidth=s*0.05; g.beginPath();
         for(let k=0;k<=6;k++){ const yy=hy+(k/6)*s*0.72, xx=sg*(s*0.3+Math.sin(t*2+i*0.5+k*0.6)*s*0.14+k*s*0.03); if(k===0) g.moveTo(xx,yy); else g.lineTo(xx,yy); } g.stroke(); } }
       g.globalAlpha=1; g.globalCompositeOperation="source-over"; }
+    // ===== 每角色專屬服裝 =====
+    else if(key==="x_leopard"){ // 夜行獵手星幕：深藍星空披風感——身後弦月+星星環繞
+      g.globalCompositeOperation="lighter";
+      g.fillStyle="rgba(120,150,255,0.30)"; g.beginPath(); g.arc(0,-s*0.1,s*0.72,0,7); g.fill();
+      g.strokeStyle="rgba(220,230,255,0.9)"; g.lineWidth=s*0.05; g.beginPath(); g.arc(s*0.42,-s*0.55,s*0.16,0.6,4.2); g.stroke();   // 弦月
+      for(let i=0;i<7;i++){ const a=t*1.2+i*0.9, rr=s*(0.6+0.1*Math.sin(t*2.5+i)); const tw=0.5+0.5*Math.sin(t*4+i*1.7);
+        g.fillStyle="rgba(200,220,255,"+tw.toFixed(2)+")"; cosStar(g,Math.cos(a)*rr,Math.sin(a)*rr*0.65-s*0.08,s*0.04*(0.5+tw*0.6)); }
+      g.globalCompositeOperation="source-over"; }
+    else if(key==="x_bear"){ // 月光胸甲：胸前銀白弦月徽 + 柔光
+      g.globalCompositeOperation="lighter";
+      const my=s*0.05; g.fillStyle="rgba(210,225,255,0.25)"; g.beginPath(); g.arc(0,my,s*0.34,0,7); g.fill();
+      g.strokeStyle="rgba(235,242,255,0.95)"; g.lineWidth=s*0.07; g.lineCap="round"; g.beginPath(); g.arc(0,my,s*0.2,0.7,4.1); g.stroke();
+      for(const p of [[-0.26,-0.12],[0.24,-0.16],[0,0.3]]){ const tw=0.5+0.5*Math.sin(t*3+p[0]*9); g.fillStyle="rgba(255,255,255,"+tw.toFixed(2)+")"; g.beginPath(); g.arc(p[0]*s,my+p[1]*s,s*0.02,0,7); g.fill(); }
+      g.globalCompositeOperation="source-over"; }
+    else if(key==="x_cicada"){ // 蟬鳴音浪：環形聲波 + 跳動音符
+      g.globalCompositeOperation="lighter";
+      for(let i=0;i<3;i++){ const ph=(t*0.9+i/3)%1; g.strokeStyle="rgba(170,255,200,"+(0.5*(1-ph)).toFixed(2)+")"; g.lineWidth=s*0.035;
+        g.beginPath(); g.ellipse(0,-s*0.05,s*(0.3+ph*0.55),s*(0.18+ph*0.34),0,0,7); g.stroke(); }
+      g.fillStyle="rgba(200,255,220,0.95)"; g.font="bold "+Math.round(s*0.3)+"px serif"; g.textAlign="center";
+      for(let i=0;i<3;i++){ const a=t*1.5+i*2.1; g.fillText("♪",Math.cos(a)*s*0.55,Math.sin(a)*s*0.4-s*0.15+Math.sin(t*3+i)*s*0.06); }
+      g.globalCompositeOperation="source-over"; }
+    else if(key==="x_dragonfly"){ // 疾風殘影：水平風痕拖尾
+      g.globalCompositeOperation="lighter"; g.lineCap="round";
+      for(let i=0;i<6;i++){ const yy=(-0.45+i*0.18)*s, ph=(t*2+i*0.35)%1, ln=s*(0.5+0.3*Math.sin(i*1.3));
+        g.strokeStyle="rgba(180,240,255,"+(0.55*(1-ph)).toFixed(2)+")"; g.lineWidth=s*0.045*(1-ph*0.5);
+        g.beginPath(); g.moveTo(-s*0.2-ph*ln,yy); g.lineTo(-s*0.2-ph*ln-ln*0.6,yy); g.stroke(); }
+      g.globalCompositeOperation="source-over"; }
+    else if(key==="x_deer"){ // 森之花冠：粉白花朵編成的頭冠（頭飾）
+      const cy2=hy-s*0.02;
+      for(let i=0;i<5;i++){ const px=(-0.3+i*0.15)*s, py=cy2-Math.sin(i/4*3.14)*s*0.1;
+        for(let p2=0;p2<5;p2++){ const pa=p2/5*6.283+i; g.fillStyle=i%2?"#ffb7c5":"#fff5f7"; g.beginPath(); g.ellipse(px+Math.cos(pa)*s*0.035,py+Math.sin(pa)*s*0.035,s*0.03,s*0.02,pa,0,7); g.fill(); }
+        g.fillStyle="#ffd54f"; g.beginPath(); g.arc(px,py,s*0.018,0,7); g.fill(); }
+      g.strokeStyle="#66bb6a"; g.lineWidth=s*0.02; g.beginPath(); g.moveTo(-s*0.34,cy2+s*0.02); g.quadraticCurveTo(0,cy2-s*0.1,s*0.34,cy2+s*0.02); g.stroke(); }
+    else if(key==="x_magpie"){ // 藍羽長冠：三根飄逸藍羽（頭飾）
+      const cy2=hy;
+      for(const o of [[-0.12,-0.4,-1],[0,-0.52,0],[0.12,-0.42,1]]){
+        g.save(); g.translate(o[0]*s,cy2); g.rotate(o[2]*0.25+Math.sin(t*2+o[2])*0.06);
+        const fg=g.createLinearGradient(0,0,0,-s*0.5); fg.addColorStop(0,"#1e88e5"); fg.addColorStop(1,"#90caf9");
+        g.fillStyle=fg; g.beginPath(); g.ellipse(0,o[1]*s*0.5,s*0.045,s*0.28,0,0,7); g.fill();
+        g.strokeStyle="rgba(255,255,255,0.7)"; g.lineWidth=s*0.012; g.beginPath(); g.moveTo(0,0); g.lineTo(0,o[1]*s); g.stroke(); g.restore(); } }
     else if(key==="phoenix"){ for(let i=0;i<7;i++){ const a=-2.5+i*0.5; g.save(); g.rotate(a); const grd=g.createLinearGradient(0,-s*0.2,0,-s*0.72); grd.addColorStop(0,"#ffca28"); grd.addColorStop(0.6,"#ff8a00"); grd.addColorStop(1,"#ff3d00");
       g.fillStyle=grd; g.beginPath(); g.ellipse(0,-s*0.5,s*0.05,s*0.24,0,0,7); g.fill(); g.restore(); }
       const cy2=hy-s*0.06; g.fillStyle="#ff6f00"; g.beginPath(); g.moveTo(0,cy2-s*0.18); g.lineTo(-s*0.08,cy2); g.lineTo(s*0.08,cy2); g.closePath(); g.fill();
@@ -985,6 +1038,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
       :"🌿 點數換保育值、經驗值——任務打得勤，養成快一截！";
     if(passTab==="reward"){ PASS_REWARDS.forEach(rw=> wrap.appendChild(mkRewardCard(rw))); return; }
     wrap.appendChild(mkCosCard(null, owned, equipped, hk));   // 「不穿」選項
+    const ex=EXCLUSIVE_COS[hk]; if(ex) wrap.appendChild(mkPassCard(ex, owned, equipped, hk));   // ★ 這隻角色的專屬服裝(每角色不同)
     COSMETICS.forEach(c=> wrap.appendChild(mkPassCard(c, owned, equipped, hk)));        // 基本服裝(點數兌換)
     PASS_COSMETICS.forEach(c=> wrap.appendChild(mkPassCard(c, owned, equipped, hk))); } // 華麗特殊服裝(點數兌換)
   function rebuildShops(){ buildCostumeShop(); buildPassShop(); }   // 買/裝備後同步重繪兩個面板(哪個開著都正確)
@@ -1063,6 +1117,20 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   const SEASON_TINT={ spring:"rgba(255,183,197,0.09)", summer:"rgba(120,220,160,0.07)", autumn:"rgba(230,150,70,0.11)", winter:"rgba(190,215,255,0.11)" };
   const SEASON_PARTICLE={ spring:"#ffc4d6", summer:"#c8f0a8", autumn:"#e6a24a", winter:"#ffffff" };
 
+  // 大廳 360° 旋轉：heroSpin 為目前旋轉角(拖曳角色改變)。依角度挑對應視角圖(front/right/back/left)；
+  // 沒有視角圖的角色 → 左半圈自動翻面(至少能看左右兩面)，之後補圖即自動升級成全視角。
+  let heroSpin=0;
+  function drawHeroView(g,key,x,y,s,tt){
+    const TAU=Math.PI*2, a=((heroSpin%TAU)+TAU)%TAU;
+    const sector=Math.round(a/(Math.PI/2))%4;   // 0=正面 1=右側 2=背面 3=左側
+    const views=SPRITE_VIEWS[key], name=["front","right","back","left"][sector];
+    const img=views&&views[name];
+    if(img){ const hh=s*2.7, ww=hh*img.naturalWidth/img.naturalHeight;
+      g.save(); g.translate(x,y);
+      g.fillStyle="rgba(0,0,0,0.25)"; g.beginPath(); g.ellipse(0,s*0.86,s*0.55,s*0.13,0,0,7); g.fill();
+      g.drawImage(img,-ww/2,s*0.92-hh,ww,hh); g.restore(); return; }
+    drawCreature(g,key,x,y,s,{t:tt,mood:"happy",flip:(sector===3)});   // 無視角圖：左側面時翻面
+  }
   function drawLobby(ts){ if(!hsW) resizeHeroShow(); if(!hsW) return;
     const g=hctx, Wd=hsW, Hd=hsH, tt=ts/1000;
     const th=skyTheme();
@@ -1121,7 +1189,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     aura.addColorStop(0,"rgba(255,228,130,"+(0.22+0.18*pl).toFixed(3)+")"); aura.addColorStop(1,"rgba(255,228,130,0)");
     g.fillStyle=aura; g.beginPath(); g.arc(Wd/2,cy,s*1.1,0,7); g.fill();
     g.save(); g.translate(Wd/2,cy); g.rotate(Math.sin(tt*1.2)*0.05); const sc=1+0.035*Math.sin(tt*2.2); g.scale(sc,sc);
-    drawCreature(g, h.key, 0, 0, s, {t:tt, mood:"happy"}); drawCosmetic(g, cosEquipOf(h.key), 0, 0, s, tt, h.key); g.restore();
+    drawHeroView(g, h.key, 0, 0, s, tt); drawCosmetic(g, cosEquipOf(h.key), 0, 0, s, tt, h.key); g.restore();
     g.save(); g.globalCompositeOperation="lighter";
     for(let i=0;i<9;i++){ const a=tt*1.4+i*0.7, rr=s*(1.05+0.18*Math.sin(tt*2+i)); const sx=Wd/2+Math.cos(a)*rr, sy=cy+Math.sin(a)*rr*0.62; const tw=0.4+0.6*(0.5+0.5*Math.sin(tt*4+i*2)); g.fillStyle="rgba(255,245,180,"+tw.toFixed(3)+")"; g.beginPath(); g.arc(sx,sy,1.6+1.7*tw,0,7); g.fill(); }
     g.restore();
@@ -1440,7 +1508,18 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     const ar=document.getElementById("aiRename"); if(ar) ar.onclick=()=>{ renameAccount(); openAccountInfo(); };   // 改名後重繪帳號面板
     const ai=document.getElementById("accountInfo"); if(ai) ai.addEventListener("pointerdown",(e)=>{ if(e.target===ai) closeAccountInfo(); }); }
   // 點大廳角色 → 開啟守護者個人資訊（等級/經驗值）；只在大廳有效
-  { if(heroShow) heroShow.addEventListener("pointerdown",(e)=>{ if(state!=="lobby") return; e.preventDefault(); openHeroInfo(); },{passive:false});
+  // 大廳角色互動：拖曳=360°旋轉看每一面；點一下(位移<10px)=開個人資訊
+  { let spinDrag=null;
+    if(heroShow){
+      heroShow.addEventListener("pointerdown",(e)=>{ if(state!=="lobby") return; e.preventDefault();
+        spinDrag={x0:e.clientX, last:e.clientX, moved:false}; heroShow.setPointerCapture&&heroShow.setPointerCapture(e.pointerId); },{passive:false});
+      heroShow.addEventListener("pointermove",(e)=>{ if(!spinDrag) return; e.preventDefault();
+        const dx=e.clientX-spinDrag.last; spinDrag.last=e.clientX;
+        if(Math.abs(e.clientX-spinDrag.x0)>10) spinDrag.moved=true;
+        heroSpin+=dx*0.012; },{passive:false});
+      const endDrag=(e)=>{ if(!spinDrag) return; const wasTap=!spinDrag.moved; spinDrag=null; if(wasTap && state==="lobby") openHeroInfo(); };
+      heroShow.addEventListener("pointerup",endDrag,{passive:false});
+      heroShow.addEventListener("pointercancel",()=>{ spinDrag=null; },{passive:false}); }
     const hib=document.getElementById("hiClose"); if(hib) hib.onclick=closeHeroInfo;
     const hbk=document.getElementById("hiBack"); if(hbk) hbk.onclick=closeHeroInfo;
     const hi=document.getElementById("heroInfo"); if(hi) hi.addEventListener("pointerdown",(e)=>{ if(e.target===hi) closeHeroInfo(); }); }
