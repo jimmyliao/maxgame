@@ -614,7 +614,15 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   // 通行證點數（完成每日任務累積，用來在通行證兌換特殊服裝）
   function getPassPts(){ try{ return parseInt(localStorage.getItem("shoutu_pass_pts")||"0",10)||0; }catch(e){ return 0; } }
   function setPassPts(v){ try{ localStorage.setItem("shoutu_pass_pts",String(Math.max(0,v|0))); }catch(e){} }
-  function addPassPts(n){ setPassPts(getPassPts()+(n|0)); }
+  // 通行證等級：看「累計獲得」點數(花掉不扣、只增不減)，每 5 點升 1 級、上限 Lv.30；等級解鎖更高級的服裝與獎勵
+  const PASS_LV_STEP=5, PASS_LV_MAX=30;
+  function getPassEarned(){ try{ const v=parseInt(localStorage.getItem("shoutu_pass_earned")||"0",10)||0; return Math.max(v,getPassPts()); }catch(e){ return getPassPts(); } }   // 舊玩家遷移：至少等於目前持有
+  function passLevel(){ return Math.min(PASS_LV_MAX, Math.floor(getPassEarned()/PASS_LV_STEP)+1); }
+  function addPassPts(n){ n=n|0; if(n>0){ const before=passLevel();
+      try{ localStorage.setItem("shoutu_pass_earned",String(getPassEarned()+n)); }catch(e){}
+      setPassPts(getPassPts()+n);
+      if(passLevel()>before && window.__sfx) window.__sfx.play("levelup");   // 通行證升級音效
+    } else setPassPts(getPassPts()+n); }
   // 每日任務（每天刷新、完成領「通行證點數」）——精簡成 3 個一目了然、玩主線就會自然進度的任務
   const DAILY_DEFS=[ {id:"win",name:"打贏 1 場對戰",goal:1,pp:3}, {id:"eco",name:"賺取 150 保育值",goal:150,pp:2}, {id:"boss",name:"擊敗 1 位大首領",goal:1,pp:4} ];
   function todayKey(){ try{ const d=new Date(); return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate(); }catch(e){ return "x"; } }
@@ -794,12 +802,12 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   /* ===== 保育服裝店：用保育值買裝飾，穿在守護者身上（大廳展示＋選角彈窗），每隻各自記憶裝備 ===== */
   // 服裝店已移除（依需求）：基本服裝改用通行證點數(pp)兌換，全部收進通行證「專屬服裝」分頁；cost 保留僅供舊資料相容
   const COSMETICS=[
-    {key:"crown", name:"守護皇冠", icon:"👑", cost:120, pp:3},
-    {key:"bow",   name:"櫻花蝶結", icon:"🎀", cost:70,  pp:2},
-    {key:"wreath",name:"山林花環", icon:"🌸", cost:100, pp:3},
-    {key:"star",  name:"星塵光環", icon:"✨", cost:160, pp:4},
-    {key:"leaf",  name:"落葉之舞", icon:"🍂", cost:110, pp:3},
-    {key:"snow",  name:"初雪結晶", icon:"❄️", cost:130, pp:3},
+    {key:"crown", name:"守護皇冠", icon:"👑", cost:120, pp:3, lv:1},
+    {key:"bow",   name:"櫻花蝶結", icon:"🎀", cost:70,  pp:2, lv:1},
+    {key:"wreath",name:"山林花環", icon:"🌸", cost:100, pp:3, lv:2},
+    {key:"star",  name:"星塵光環", icon:"✨", cost:160, pp:4, lv:3},
+    {key:"leaf",  name:"落葉之舞", icon:"🍂", cost:110, pp:3, lv:2},
+    {key:"snow",  name:"初雪結晶", icon:"❄️", cost:130, pp:3, lv:3},
   ];
   function cosOwned(){ try{ return JSON.parse(localStorage.getItem("shoutu_cosmetics")||"[]")||[]; }catch(e){ return []; } }
   function cosOwnedSet(a){ try{ localStorage.setItem("shoutu_cosmetics",JSON.stringify(a)); }catch(e){} }
@@ -926,38 +934,50 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   function closeCostumeShop(){ const p=document.getElementById("costumeShop"); if(p) p.classList.add("hide"); }
   // ===== 通行證：專屬特殊服裝（只能用「通行證點數」兌換，跟保育值服裝店分開）=====
   const PASS_COSMETICS=[
-    {key:"halo",    name:"神聖光輪", icon:"😇", pp:8},
-    {key:"flame",   name:"聖焰之環", icon:"🔥", pp:12},
-    {key:"aurora",  name:"極光之翼", icon:"🌌", pp:16},
-    {key:"phoenix", name:"鳳凰之羽", icon:"🦅", pp:22},
+    {key:"halo",    name:"神聖光輪", icon:"😇", pp:8,  lv:5},
+    {key:"flame",   name:"聖焰之環", icon:"🔥", pp:12, lv:8},
+    {key:"aurora",  name:"極光之翼", icon:"🌌", pp:16, lv:12},
+    {key:"phoenix", name:"鳳凰之羽", icon:"🦅", pp:22, lv:16},
   ];
   function mkPassCard(c, owned, equipped, hk){ const key=c.key, isOwned=owned.includes(key), isEq=equipped===key;
+    const locked=!isOwned && (c.lv||1)>passLevel();   // 通行證等級未達 → 上鎖(已擁有不影響)
     const b=document.createElement("button"); b.className="cos-card"+(isEq?" sel":"");
     const cv=document.createElement("canvas"); cv.width=120; cv.height=120; b.appendChild(cv);
     const cc=cv.getContext("2d"); drawCreature(cc, hk, 60, 66, 40, {t:0}); drawCosmetic(cc, key, 60, 66, 40, 0, hk);
+    if(locked){ cc.fillStyle="rgba(0,0,0,0.55)"; cc.fillRect(0,0,120,120); cc.font="30px serif"; cc.textAlign="center"; cc.textBaseline="middle"; cc.fillText("🔒",60,58); }
     const nm=document.createElement("div"); nm.className="cos-name"; nm.textContent=c.icon+" "+c.name; b.appendChild(nm);
-    const st=document.createElement("div"); st.className="cos-status"; st.textContent=isEq?"✅ 已裝備":isOwned?"點我裝備":("🎟 "+c.pp+" 點"); if(!isOwned) st.style.color=getPassPts()>=c.pp?"#ffd54f":"#ff8a65"; b.appendChild(st);
-    b.onclick=()=>{ if(!isOwned){ if(getPassPts()>=c.pp){ setPassPts(getPassPts()-c.pp); const o=cosOwned(); o.push(key); cosOwnedSet(o); if(window.__sfx)window.__sfx.play("levelup"); buildPassShop(); } else if(window.__sfx) window.__sfx.play("back"); return; }
+    const st=document.createElement("div"); st.className="cos-status";
+    st.textContent=isEq?"✅ 已裝備":isOwned?"點我裝備":locked?("🔒 通行證 Lv."+c.lv+" 解鎖"):("🎟 "+c.pp+" 點");
+    if(!isOwned) st.style.color=locked?"#90a4ae":(getPassPts()>=c.pp?"#ffd54f":"#ff8a65"); b.appendChild(st);
+    b.onclick=()=>{ if(locked){ if(window.__sfx) window.__sfx.play("back"); return; }
+      if(!isOwned){ if(getPassPts()>=c.pp){ setPassPts(getPassPts()-c.pp); const o=cosOwned(); o.push(key); cosOwnedSet(o); if(window.__sfx)window.__sfx.play("levelup"); buildPassShop(); } else if(window.__sfx) window.__sfx.play("back"); return; }
       cosEquipSet(hk, isEq?"":key); if(window.__sfx)window.__sfx.play(isEq?"back":"levelup"); buildPassShop(); updateLobby(); };
     return b; }
   // 通行證兌換獎勵：點數換保育值/EXP 等（依需求「通行證要有保育值等東西」）
   const PASS_REWARDS=[
-    { key:"eco80",  name:"保育值 ×80",  icon:"🌿", pp:2, give:()=>gainEco(80) },
-    { key:"eco250", name:"保育值 ×250", icon:"🌿", pp:5, give:()=>gainEco(250) },
-    { key:"xp100",  name:"目前守護者 EXP+100", icon:"⭐", pp:3, give:()=>gainXP(HEROES[featured].key,100) },
+    { key:"eco80",  name:"保育值 ×80",  icon:"🌿", pp:2, lv:1, give:()=>gainEco(80) },
+    { key:"eco250", name:"保育值 ×250", icon:"🌿", pp:5, lv:3, give:()=>gainEco(250) },
+    { key:"xp100",  name:"目前守護者 EXP+100", icon:"⭐", pp:3, lv:2, give:()=>gainXP(HEROES[featured].key,100) },
   ];
   let passTab="pass";   // 通行證分頁：pass=專屬服裝(點數) / cos=服裝店(保育值，已併入) / reward=兌換獎勵
-  function mkRewardCard(rw){ const b=document.createElement("button"); b.className="cos-card";
-    const ic=document.createElement("div"); ic.style.cssText="font-size:42px;line-height:64px;height:64px;"; ic.textContent=rw.icon; b.appendChild(ic);
+  function mkRewardCard(rw){ const locked=(rw.lv||1)>passLevel();
+    const b=document.createElement("button"); b.className="cos-card";
+    const ic=document.createElement("div"); ic.style.cssText="font-size:42px;line-height:64px;height:64px;"+(locked?"filter:grayscale(1);opacity:.5;":""); ic.textContent=locked?"🔒":rw.icon; b.appendChild(ic);
     const nm=document.createElement("div"); nm.className="cos-name"; nm.textContent=rw.name; b.appendChild(nm);
-    const st=document.createElement("div"); st.className="cos-status"; st.textContent="🎟 "+rw.pp+" 點";
-    st.style.color=getPassPts()>=rw.pp?"#ffd54f":"#ff8a65"; b.appendChild(st);
-    b.onclick=()=>{ if(getPassPts()>=rw.pp){ setPassPts(getPassPts()-rw.pp); rw.give(); if(window.__sfx)window.__sfx.play("coin"); updateLobby(); rebuildShops(); }
+    const st=document.createElement("div"); st.className="cos-status"; st.textContent=locked?("🔒 通行證 Lv."+rw.lv+" 解鎖"):("🎟 "+rw.pp+" 點");
+    st.style.color=locked?"#90a4ae":(getPassPts()>=rw.pp?"#ffd54f":"#ff8a65"); b.appendChild(st);
+    b.onclick=()=>{ if(locked){ if(window.__sfx) window.__sfx.play("back"); return; }
+      if(getPassPts()>=rw.pp){ setPassPts(getPassPts()-rw.pp); rw.give(); if(window.__sfx)window.__sfx.play("coin"); updateLobby(); rebuildShops(); }
       else if(window.__sfx) window.__sfx.play("back"); };
     return b; }
   function buildPassShop(){ const wrap=document.getElementById("passGrid"); if(!wrap) return; wrap.innerHTML="";
     const hk=HEROES[featured].key, owned=cosOwned(), equipped=cosEquipOf(hk);
     const v=document.getElementById("passPtsVal"); if(v) v.textContent="🎟 "+getPassPts()+" 點　🌿 "+getEco();
+    // 通行證等級列：Lv + 升級進度(累計獲得點數，每 5 點升 1 級)
+    const lv=passLevel(), prog=getPassEarned()%PASS_LV_STEP, maxed=lv>=PASS_LV_MAX;
+    const lvEl=document.getElementById("passLv"); if(lvEl) lvEl.textContent="通行證 Lv."+lv+(maxed?" 👑":"");
+    const lf=document.getElementById("passLvFill"); if(lf) lf.style.width=(maxed?100:prog/PASS_LV_STEP*100)+"%";
+    const lt=document.getElementById("passLvTxt"); if(lt) lt.textContent=maxed?"已滿級":("升級 "+prog+"/"+PASS_LV_STEP);
     document.querySelectorAll("#passTabs .pass-tab").forEach(b=>b.classList.toggle("on",b.dataset.pt===passTab));
     const hn=document.getElementById("passHero"); if(hn) hn.textContent=passTab==="reward"?"用通行證點數兌換獎勵":"正在打扮："+HEROES[featured].name;
     const tip=document.getElementById("passTip");

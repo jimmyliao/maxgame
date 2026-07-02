@@ -534,6 +534,12 @@
       <div id="passShop" class="hide">
         <div class="hp-panel">
           <div class="hp-head"><span>🎟 通行證</span><span id="passPtsVal" style="font-size:13px;color:#ffd54f;font-weight:800"></span><button id="passClose" class="hp-close">✕</button></div>
+          <!-- 通行證等級列：完成任務累計點數升級，等級解鎖更高級的服裝與獎勵 -->
+          <div id="passLvRow" style="display:flex;align-items:center;gap:8px;padding:8px 16px 0;">
+            <span id="passLv" style="font-size:15px;font-weight:900;color:#ffd54f;flex:none;">通行證 Lv.1</span>
+            <div style="flex:1;height:12px;background:rgba(0,0,0,.42);border-radius:7px;overflow:hidden;"><div id="passLvFill" style="height:100%;width:0%;background:linear-gradient(90deg,#ffd54f,#ffb300);border-radius:7px;transition:width .5s;"></div></div>
+            <span id="passLvTxt" style="font-size:10.5px;color:#a5d6a7;flex:none;">升級 0/5</span>
+          </div>
           <!-- 服裝店已併入通行證：三分頁＝專屬服裝(點數)/服裝店(保育值)/兌換獎勵(點數換保育值等) -->
           <div class="row" id="passTabs" style="gap:6px;padding:6px 12px 0;margin:0;">
             <button class="pass-tab on" data-pt="pass">🎟 專屬服裝</button>
