@@ -887,6 +887,27 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
       drawCreature(c,h.key,cv.width/2,cv.height*0.6,cv.height*0.33,{t:0}); drawCosmetic(c,cosEquipOf(h.key),cv.width/2,cv.height*0.6,cv.height*0.33,0); }
     p.classList.remove("hide"); }
   function closeHeroInfo(){ const p=document.getElementById("heroInfo"); if(p) p.classList.add("hide"); }
+  // ===== 帳號資訊（點左上角帳號徽章，全螢幕）：帳號名稱/保育等級/戰績 + 守護者圖鑑等級一覽（仿荒野亂鬥個人檔案） =====
+  const DUEL_TIER_NAMES=["見習","初階","中階","高階","大師"];
+  function openAccountInfo(){ const p=document.getElementById("accountInfo"); if(!p) return; const $=(id)=>document.getElementById(id);
+    $("aiName").textContent=getAccountName();
+    const alv=Math.floor(getEcoEarned()/100)+1, prog=getEcoEarned()%100;
+    $("aiLv").textContent="保育等級 Lv."+alv;
+    $("aiEcoFill").style.width=prog+"%"; $("aiEcoTxt").textContent=prog+"/100";
+    const unlocked=HEROES.filter(h=>isHeroUnlocked(h.key)).length;
+    let dlv=1; try{ dlv=Math.min(5,Math.max(1,parseInt(localStorage.getItem("shoutu_duel_level")||"1",10)||1)); }catch(e){}
+    const cells=[["🌿 保育值",getEco()],["🏆 累計保育值",getEcoEarned()],["🛡️ 驅逐外來種",getWins()+" 次"],["🎟 通行證點數",getPassPts()],["⚔ 首領難度",DUEL_TIER_NAMES[dlv-1]+"級"],["🐾 守護者",unlocked+"/"+HEROES.length]];
+    $("aiStatGrid").innerHTML=cells.map(c=>'<div class="ai-cell"><div class="v">'+c[1]+'</div><div class="k">'+c[0]+'</div></div>').join("");
+    $("aiCollected").textContent="已收集 "+unlocked+"/"+HEROES.length;
+    const grid=$("aiHeroGrid"); grid.innerHTML="";
+    HEROES.forEach(h=>{ const un=isHeroUnlocked(h.key); const cell=document.createElement("div"); cell.className="ai-hero"+(un?"":" locked");
+      const cv=document.createElement("canvas"); cv.width=120; cv.height=120; cell.appendChild(cv);
+      const c=cv.getContext("2d"); try{ drawCreature(c,h.key,60,66,38,{t:0}); }catch(e){}
+      if(un){ const b=document.createElement("div"); b.className="lv"; b.textContent="Lv."+heroLevel(h.key); cell.appendChild(b); }
+      else { const lk=document.createElement("div"); lk.className="lk"; lk.textContent="🔒"; cell.appendChild(lk); }
+      grid.appendChild(cell); });
+    p.classList.remove("hide"); }
+  function closeAccountInfo(){ const p=document.getElementById("accountInfo"); if(p) p.classList.add("hide"); }
   function updateLobby(){ const h=HEROES[featured];
     document.getElementById("hsName").textContent=h.name;
     document.getElementById("hsType").textContent=TYPE[h.type];
@@ -1286,8 +1307,12 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   { const sw=document.getElementById("heroSwitchBtn"); if(sw) sw.onclick=openHeroPicker;
     const hc=document.getElementById("heroPickerClose"); if(hc) hc.onclick=closeHeroPicker;
     const hp=document.getElementById("heroPicker"); if(hp) hp.addEventListener("pointerdown",(e)=>{ if(e.target===hp) closeHeroPicker(); }); }   // 點彈窗外圍空白處也可關閉
-  // 左上角帳號名稱：點一下改名
-  { const pf=document.getElementById("lbProfile"); if(pf) pf.addEventListener("pointerdown",(e)=>{ e.preventDefault(); renameAccount(); },{passive:false}); }
+  // 左上角帳號徽章：點開全螢幕帳號資訊（等級/戰績/守護者圖鑑）
+  { const pf=document.getElementById("lbProfile"); if(pf) pf.addEventListener("pointerdown",(e)=>{ e.preventDefault(); openAccountInfo(); },{passive:false});
+    const ac=document.getElementById("aiClose"); if(ac) ac.onclick=closeAccountInfo;
+    const ab=document.getElementById("aiBack"); if(ab) ab.onclick=closeAccountInfo;
+    const ar=document.getElementById("aiRename"); if(ar) ar.onclick=()=>{ renameAccount(); openAccountInfo(); };   // 改名後重繪帳號面板
+    const ai=document.getElementById("accountInfo"); if(ai) ai.addEventListener("pointerdown",(e)=>{ if(e.target===ai) closeAccountInfo(); }); }
   // 點大廳角色 → 開啟守護者個人資訊（等級/經驗值）；只在大廳有效
   { if(heroShow) heroShow.addEventListener("pointerdown",(e)=>{ if(state!=="lobby") return; e.preventDefault(); openHeroInfo(); },{passive:false});
     const hib=document.getElementById("hiClose"); if(hib) hib.onclick=closeHeroInfo;

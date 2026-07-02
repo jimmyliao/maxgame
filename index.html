@@ -394,23 +394,36 @@
   #passShop .cos-card canvas{ width:64px; height:64px; }
   #passShop .cos-card .cos-name{ font-size:11.5px; font-weight:800; }
   #passShop .cos-card .cos-status{ font-size:11px; color:#a5d6a7; }
-  /* 守護者個人資訊（全螢幕） */
-  #heroInfo{ position:absolute; inset:0; z-index:22; display:flex; align-items:center; justify-content:center; background:rgba(6,14,10,.92); backdrop-filter:blur(5px); }
-  #heroInfo.hide{ display:none; }
-  #heroInfo .hi-panel{ position:relative; width:min(94%,460px); max-height:92%; overflow-y:auto; background:linear-gradient(160deg,#1e3a2a,#0d1c14); border:2px solid rgba(255,213,79,.4); border-radius:22px; padding:20px 20px 18px; text-align:center; color:#e8f5e0; box-shadow:0 14px 44px rgba(0,0,0,.6); }
-  #heroInfo .hp-close{ position:absolute; top:12px; right:12px; z-index:2; width:34px; height:34px; border:none; border-radius:50%; background:rgba(255,255,255,.14); color:#fff; font-size:16px; cursor:pointer; }
+  /* 守護者個人資訊 / 帳號資訊（全螢幕） */
+  #heroInfo, #accountInfo{ position:absolute; inset:0; z-index:22; display:flex; align-items:center; justify-content:center; background:rgba(6,14,10,.92); backdrop-filter:blur(5px); }
+  #heroInfo.hide, #accountInfo.hide{ display:none; }
+  #heroInfo .hi-panel, #accountInfo .hi-panel{ position:relative; width:min(94%,460px); max-height:92%; overflow-y:auto; background:linear-gradient(160deg,#1e3a2a,#0d1c14); border:2px solid rgba(255,213,79,.4); border-radius:22px; padding:20px 20px 18px; text-align:center; color:#e8f5e0; box-shadow:0 14px 44px rgba(0,0,0,.6); }
+  #heroInfo .hp-close, #accountInfo .hp-close{ position:absolute; top:12px; right:12px; z-index:2; width:34px; height:34px; border:none; border-radius:50%; background:rgba(255,255,255,.14); color:#fff; font-size:16px; cursor:pointer; }
   #heroInfo canvas{ width:200px; height:200px; }
-  #heroInfo .hi-name{ font-size:23px; font-weight:900; color:#fff; }
+  #heroInfo .hi-name, #accountInfo .hi-name{ font-size:23px; font-weight:900; color:#fff; }
   #heroInfo .hi-name .ht{ font-size:13px; margin-left:6px; vertical-align:middle; }
-  #heroInfo .hi-status{ font-size:12.5px; color:#ffe082; margin:3px 0 6px; }
-  #heroInfo .hi-lvrow{ display:flex; align-items:center; gap:9px; justify-content:center; margin:10px 0 6px; }
-  #heroInfo .hi-lv{ font-size:19px; font-weight:900; color:#ffd54f; }
-  #heroInfo .hi-xpbar{ flex:1; max-width:210px; height:14px; background:rgba(0,0,0,.42); border-radius:8px; overflow:hidden; box-shadow:inset 0 1px 3px rgba(0,0,0,.5); }
-  #heroInfo .hi-xpfill{ height:100%; background:linear-gradient(90deg,#66bb6a,#aed581); border-radius:8px; transition:width .5s ease; }
-  #heroInfo .hi-xptxt{ font-size:11px; color:#a5d6a7; }
+  #heroInfo .hi-status, #accountInfo .hi-status{ font-size:12.5px; color:#ffe082; margin:3px 0 6px; }
+  #heroInfo .hi-lvrow, #accountInfo .hi-lvrow{ display:flex; align-items:center; gap:9px; justify-content:center; margin:10px 0 6px; }
+  #heroInfo .hi-lv, #accountInfo .hi-lv{ font-size:19px; font-weight:900; color:#ffd54f; }
+  #heroInfo .hi-xpbar, #accountInfo .hi-xpbar{ flex:1; max-width:210px; height:14px; background:rgba(0,0,0,.42); border-radius:8px; overflow:hidden; box-shadow:inset 0 1px 3px rgba(0,0,0,.5); }
+  #heroInfo .hi-xpfill, #accountInfo .hi-xpfill{ height:100%; background:linear-gradient(90deg,#66bb6a,#aed581); border-radius:8px; transition:width .5s ease; }
+  #heroInfo .hi-xptxt, #accountInfo .hi-xptxt{ font-size:11px; color:#a5d6a7; }
   #heroInfo .hi-fact{ font-size:12.5px; line-height:1.65; color:#c8e6c9; margin:8px 4px; }
-  #heroInfo .hi-stats{ font-size:12.5px; color:#e8f5e0; margin:6px 0; line-height:1.7; }
-  #heroInfo .hi-account{ font-size:11.5px; color:#b0bec5; background:rgba(0,0,0,.28); border:1px dashed rgba(255,255,255,.14); border-radius:12px; padding:9px 12px; margin:12px 0 10px; }
+  #heroInfo .hi-stats, #accountInfo .hi-stats{ font-size:12.5px; color:#e8f5e0; margin:6px 0; line-height:1.7; }
+  #heroInfo .hi-account, #accountInfo .hi-account{ font-size:11.5px; color:#b0bec5; background:rgba(0,0,0,.28); border:1px dashed rgba(255,255,255,.14); border-radius:12px; padding:9px 12px; margin:12px 0 10px; }
+  #accountInfo .ai-ava{ font-size:64px; line-height:1; margin-bottom:2px; }
+  #accountInfo .ai-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:10px 0; }
+  #accountInfo .ai-cell{ background:rgba(0,0,0,.26); border-radius:12px; padding:9px 6px; }
+  #accountInfo .ai-cell .v{ font-size:18px; font-weight:900; color:#ffd54f; }
+  #accountInfo .ai-cell .k{ font-size:11px; color:#a5d6a7; margin-top:2px; }
+  #accountInfo .ai-edit{ font-size:11px; font-weight:800; color:#0d1c14; background:#ffd54f; border:none; border-radius:10px; padding:3px 9px; cursor:pointer; vertical-align:middle; margin-left:6px; }
+  #accountInfo .ai-section{ font-size:13px; font-weight:800; color:#c8e6c9; text-align:left; margin:12px 2px 6px; border-top:1px solid rgba(255,255,255,.1); padding-top:10px; }
+  #accountInfo .ai-heroes{ display:grid; grid-template-columns:repeat(auto-fill,minmax(64px,1fr)); gap:8px; }
+  #accountInfo .ai-hero{ position:relative; background:radial-gradient(circle at 50% 32%, rgba(255,255,255,.08), rgba(0,0,0,.36) 74%); border:2px solid rgba(255,255,255,.14); border-radius:12px; padding:3px 2px 4px; }
+  #accountInfo .ai-hero.locked{ opacity:.42; filter:grayscale(.7); }
+  #accountInfo .ai-hero canvas{ width:100%; height:auto; display:block; }
+  #accountInfo .ai-hero .lv{ position:absolute; right:3px; bottom:2px; font-size:10.5px; font-weight:900; color:#0d1c14; background:#ffd54f; border-radius:7px; padding:0 5px; }
+  #accountInfo .ai-hero .lk{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:20px; }
   #lobby .roster{ display:flex; gap:9px; justify-content:center; padding:11px 0 12px; flex-wrap:wrap; }
   #lobby .rb{ width:56px; height:56px; border-radius:16px; border:2px solid rgba(255,255,255,.22);
     background:radial-gradient(circle at 50% 30%, rgba(255,255,255,.12), rgba(0,0,0,.4) 70%); cursor:pointer; padding:0; overflow:hidden;
@@ -515,6 +528,23 @@
           <div class="hi-stats" id="hiStats"></div>
           <div class="hi-account" id="hiAccount">🔒 帳號綁定（即將推出）：綁定帳號後可跨裝置同步等級、收藏與通行證進度</div>
           <button id="hiBack" class="btn sec">返回</button>
+        </div>
+      </div>
+      <!-- 帳號資訊（點左上角帳號徽章打開，全螢幕）：帳號名稱/等級/戰績 + 守護者圖鑑等級一覽（仿荒野亂鬥個人檔案） -->
+      <div id="accountInfo" class="hide">
+        <div class="hi-panel">
+          <button id="aiClose" class="hp-close">✕</button>
+          <div class="ai-ava">🛡️</div>
+          <div class="hi-name"><span id="aiName">守護者</span> <button id="aiRename" class="ai-edit">✎ 改名</button></div>
+          <div class="hi-status" id="aiTitle">福爾摩沙衛士</div>
+          <div class="hi-lvrow"><span class="hi-lv" id="aiLv">保育等級 Lv.1</span>
+            <div class="hi-xpbar"><div class="hi-xpfill" id="aiEcoFill"></div></div>
+            <span class="hi-xptxt" id="aiEcoTxt"></span></div>
+          <div class="ai-grid" id="aiStatGrid"></div>
+          <div class="ai-section">🐾 守護者圖鑑　<span id="aiCollected"></span></div>
+          <div class="ai-heroes" id="aiHeroGrid"></div>
+          <div class="hi-account">🔒 帳號綁定（即將推出）：綁定後可跨裝置同步等級、收藏與通行證進度</div>
+          <button id="aiBack" class="btn sec">返回</button>
         </div>
       </div>
       <!-- 選角彈窗：大廳「更換守護者」按鈕點開，一次瀏覽全部守護者、點選即選定變身。放在 #lobby 內以跟隨旋轉。 -->
