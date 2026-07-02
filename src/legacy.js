@@ -782,7 +782,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     HEROES.forEach((h,i)=>{ const unlocked=isHeroUnlocked(h.key);
       const b=document.createElement("button"); b.className="hp-card"+(i===featured&&unlocked?" sel":"");
       const cv=document.createElement("canvas"); cv.width=144; cv.height=144; b.appendChild(cv);
-      const cc=cv.getContext("2d"); drawCreature(cc, h.key, 72, 80, 50, {t:0}); if(unlocked) drawCosmetic(cc, cosEquipOf(h.key), 72, 80, 50, 0);
+      const cc=cv.getContext("2d"); drawCreature(cc, h.key, 72, 80, 50, {t:0}); if(unlocked) drawCosmetic(cc, cosEquipOf(h.key), 72, 80, 50, 0, h.key);
       if(!unlocked){ cc.fillStyle="rgba(0,0,0,.5)"; cc.fillRect(0,0,144,144); cc.font="40px serif"; cc.textAlign="center"; cc.textBaseline="middle"; cc.fillText("🔒",72,74); }
       const nm=document.createElement("div"); nm.className="hp-name"; nm.textContent=h.name; b.appendChild(nm);
       if(!unlocked){ const lk=document.createElement("div"); lk.className="hp-lock"; lk.textContent="🔒 去復育解鎖"; b.appendChild(lk); }
@@ -806,7 +806,11 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   function cosEquipSet(hk,k){ try{ if(k) localStorage.setItem("shoutu_cos_"+hk,k); else localStorage.removeItem("shoutu_cos_"+hk); }catch(e){} }
   function cosStar(g,x,y,r){ g.beginPath(); for(let i=0;i<5;i++){ const a=-1.5708+i*1.2566; g.lineTo(x+Math.cos(a)*r,y+Math.sin(a)*r); const a2=a+0.628; g.lineTo(x+Math.cos(a2)*r*0.45,y+Math.sin(a2)*r*0.45); } g.closePath(); g.fill(); }
   // 畫在守護者(x,y 中心、大小 s)上的裝飾；純程序繪製、無狀態，動畫吃 t 不 push 陣列（零外部資源＋無粒子洩漏）
-  function drawCosmetic(g,key,x,y,s,t){ if(!key) return; t=t||0; g.save(); g.translate(x,y); const hy=-s*0.5;
+  function drawCosmetic(g,key,x,y,s,t,kind){ if(!key) return; t=t||0;
+    // 真圖模式重定位：寫實插畫比程式畫的角色高很多(hh=s*2.7、頂到 -1.78s)，沿用舊錨點會整個卡在身體中間。
+    // 偵測到該角色有已載入的插畫時：錨點上移到插畫視覺中心(-0.43s)、尺寸放大 1.55 倍，讓皇冠/光環落在頭上、環繞特效包住全身。
+    const _sp=kind&&SPRITES[kind]; if(_sp&&_sp.naturalWidth>0){ y-=s*0.43; s*=1.55; }
+    g.save(); g.translate(x,y); const hy=-s*0.5;
     if(key==="crown"){ const w=s*0.52,h=s*0.28; g.fillStyle="#ffd54f"; g.strokeStyle="#b8860b"; g.lineWidth=Math.max(1,s*0.03);
       g.beginPath(); g.moveTo(-w/2,hy); g.lineTo(-w/2,hy-h*0.4); g.lineTo(-w*0.25,hy-h*0.95); g.lineTo(0,hy-h*0.4); g.lineTo(w*0.25,hy-h*0.95); g.lineTo(w/2,hy-h*0.4); g.lineTo(w/2,hy); g.closePath(); g.fill(); g.stroke();
       g.fillStyle="#e53935"; g.beginPath(); g.arc(0,hy-h*0.15,s*0.045,0,7); g.fill(); }
@@ -833,7 +837,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     const key=c?c.key:"", isOwned=!c||owned.includes(key), isEq=equipped===key;
     const b=document.createElement("button"); b.className="cos-card"+(isEq?" sel":"");
     const cv=document.createElement("canvas"); cv.width=120; cv.height=120; b.appendChild(cv);
-    const cc=cv.getContext("2d"); drawCreature(cc, hk, 60, 66, 40, {t:0}); if(c) drawCosmetic(cc, key, 60, 66, 40, 0);
+    const cc=cv.getContext("2d"); drawCreature(cc, hk, 60, 66, 40, {t:0}); if(c) drawCosmetic(cc, key, 60, 66, 40, 0, hk);
     const nm=document.createElement("div"); nm.className="cos-name"; nm.textContent=c?(c.icon+" "+c.name):"🚫 不穿"; b.appendChild(nm);
     const st=document.createElement("div"); st.className="cos-status"; st.textContent=isEq?"✅ 已裝備":isOwned?"點我裝備":("🌿 "+c.cost);
     if(c && !isOwned) st.style.color=getEco()>=c.cost?"#ffd54f":"#ff8a65"; b.appendChild(st);
@@ -858,7 +862,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   function mkPassCard(c, owned, equipped, hk){ const key=c.key, isOwned=owned.includes(key), isEq=equipped===key;
     const b=document.createElement("button"); b.className="cos-card"+(isEq?" sel":"");
     const cv=document.createElement("canvas"); cv.width=120; cv.height=120; b.appendChild(cv);
-    const cc=cv.getContext("2d"); drawCreature(cc, hk, 60, 66, 40, {t:0}); drawCosmetic(cc, key, 60, 66, 40, 0);
+    const cc=cv.getContext("2d"); drawCreature(cc, hk, 60, 66, 40, {t:0}); drawCosmetic(cc, key, 60, 66, 40, 0, hk);
     const nm=document.createElement("div"); nm.className="cos-name"; nm.textContent=c.icon+" "+c.name; b.appendChild(nm);
     const st=document.createElement("div"); st.className="cos-status"; st.textContent=isEq?"✅ 已裝備":isOwned?"點我裝備":("🎟 "+c.pp+" 點"); if(!isOwned) st.style.color=getPassPts()>=c.pp?"#ffd54f":"#ff8a65"; b.appendChild(st);
     b.onclick=()=>{ if(!isOwned){ if(getPassPts()>=c.pp){ setPassPts(getPassPts()-c.pp); const o=cosOwned(); o.push(key); cosOwnedSet(o); if(window.__sfx)window.__sfx.play("levelup"); buildPassShop(); } else if(window.__sfx) window.__sfx.play("back"); return; }
@@ -885,7 +889,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     $("hiStats").innerHTML="🎖️ 帳號保育等級：<b>Lv."+(Math.floor(getEcoEarned()/100)+1)+"</b>　🛡️ 累計驅逐外來種：<b>"+getWins()+"</b> 次"
       +(tal?("<br>🌟 天賦：<b>"+tal.pathName+" Lv."+tal.tier+"</b>"+(tal.active?("（主動："+tal.active.name+"）"):"")):"<br>🌱 尚未點天賦（到「復育」培養）");
     const cv=$("hiPortrait"); if(cv){ const c=cv.getContext("2d"); c.clearRect(0,0,cv.width,cv.height);
-      drawCreature(c,h.key,cv.width/2,cv.height*0.6,cv.height*0.33,{t:0}); drawCosmetic(c,cosEquipOf(h.key),cv.width/2,cv.height*0.6,cv.height*0.33,0); }
+      drawCreature(c,h.key,cv.width/2,cv.height*0.6,cv.height*0.33,{t:0}); drawCosmetic(c,cosEquipOf(h.key),cv.width/2,cv.height*0.6,cv.height*0.33,0,h.key); }
     p.classList.remove("hide"); }
   function closeHeroInfo(){ const p=document.getElementById("heroInfo"); if(p) p.classList.add("hide"); }
   // ===== 帳號資訊（點左上角帳號徽章，全螢幕）：帳號名稱/保育等級/戰績 + 守護者圖鑑等級一覽（仿荒野亂鬥個人檔案） =====
@@ -1003,7 +1007,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     aura.addColorStop(0,"rgba(255,228,130,"+(0.22+0.18*pl).toFixed(3)+")"); aura.addColorStop(1,"rgba(255,228,130,0)");
     g.fillStyle=aura; g.beginPath(); g.arc(Wd/2,cy,s*1.1,0,7); g.fill();
     g.save(); g.translate(Wd/2,cy); g.rotate(Math.sin(tt*1.2)*0.05); const sc=1+0.035*Math.sin(tt*2.2); g.scale(sc,sc);
-    drawCreature(g, h.key, 0, 0, s, {t:tt, mood:"happy"}); drawCosmetic(g, cosEquipOf(h.key), 0, 0, s, tt); g.restore();
+    drawCreature(g, h.key, 0, 0, s, {t:tt, mood:"happy"}); drawCosmetic(g, cosEquipOf(h.key), 0, 0, s, tt, h.key); g.restore();
     g.save(); g.globalCompositeOperation="lighter";
     for(let i=0;i<9;i++){ const a=tt*1.4+i*0.7, rr=s*(1.05+0.18*Math.sin(tt*2+i)); const sx=Wd/2+Math.cos(a)*rr, sy=cy+Math.sin(a)*rr*0.62; const tw=0.4+0.6*(0.5+0.5*Math.sin(tt*4+i*2)); g.fillStyle="rgba(255,245,180,"+tw.toFixed(3)+")"; g.beginPath(); g.arc(sx,sy,1.6+1.7*tw,0,7); g.fill(); }
     g.restore();
