@@ -4,6 +4,8 @@
    4 種棲地類型可切換，各對應一種真實物種、且畫風彼此不同（睡蓮/圓冠喬木/針葉巨木/紅樹林）。
    模擬天氣／晝夜循環（不需外部 API）。獨立模組，不影響單機對戰／MOBA／好友連線。 */
 (() => {
+  // 棲地改版：動漫草地材質(與對戰共用、sw 已預快取)；載不到就純漸層 fallback
+  const HGROUND=new Image(); HGROUND.onerror=()=>{}; HGROUND.src="assets/field/ground.png";
   "use strict";
   const N = 16;
   const SPROUT_S = 60, SAPLING_S = 300, MATURE_S = 900;   // 生長門檻（秒，基準值）
@@ -308,6 +310,10 @@
     // 地面
     const ga=(night? shade(info.ground[0],-40): info.ground[0]), gb=(night? shade(info.ground[1],-40): info.ground[1]);
     const g=ctx.createLinearGradient(0,VH*0.30,0,VH); g.addColorStop(0,ga); g.addColorStop(1,gb); ctx.fillStyle=g; ctx.fillRect(0,VH*0.30,VW,VH*0.70);
+    // 棲地改版：動漫草地材質鋪底（跟對戰同一張、已預快取零新下載），半透明疊加保留每區地色差異
+    if(HGROUND.naturalWidth>0){ ctx.save(); ctx.globalAlpha=night?0.24:0.42;
+      const T=Math.max(320,VH*0.9); for(let tx=0;tx<VW;tx+=T) ctx.drawImage(HGROUND,tx,VH*0.30,T,VH*0.72);
+      ctx.restore(); }
     // 各地區專屬地貌特徵（不只換色，要看得出是哪種棲地）
     drawTerrain(data.current, night);
     // 天氣色調
@@ -766,8 +772,23 @@
 
   /* ---------- 主迴圈 ---------- */
   let last=0;
+  // 棲地改版：你的守護者站在棲地左下陪你顧田（動漫立繪、呼吸待機＋腳下柔影），跟大廳同一張圖零新資源
+  function drawGuardianCompanion(t){
+    try{
+      const key=(window.__featuredKey&&window.__featuredKey())||"leopard";
+      const sp=window.__spriteOf&&window.__spriteOf(key); if(!sp) return;
+      const H=VH*0.24, W=H*sp.naturalWidth/sp.naturalHeight;
+      const gx=VW*0.12, gyb=VH*0.9, br=1+Math.sin(t*2)*0.015;
+      ctx.save();
+      ctx.fillStyle="rgba(0,0,0,0.26)"; ctx.beginPath(); ctx.ellipse(gx,gyb,W*0.34,H*0.05,0,0,7); ctx.fill();
+      ctx.translate(gx,gyb); ctx.scale(1,br);
+      ctx.drawImage(sp,-W/2,-H,W,H);
+      ctx.restore();
+    }catch(e){}
+  }
   function loop(ts){ if(!running) return; const dt=Math.min(0.05,(ts-last)/1000||0); last=ts;
     if(ctx){ paintBackground(ts/1000); const ordered=spots.slice().sort((a,b)=>spotPos(a.i).depth-spotPos(b.i).depth); for(const sp of ordered) drawSpot(sp);
+      drawGuardianCompanion(ts/1000);
       refreshVisitor(); drawVisitorEntity(dt); drawParts(dt); }
     updateHUD(); raf=requestAnimationFrame(loop); }
 

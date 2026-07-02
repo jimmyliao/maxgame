@@ -792,13 +792,14 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   function closeHeroPicker(){ const p=document.getElementById("heroPicker"); if(p) p.classList.add("hide"); }
 
   /* ===== 保育服裝店：用保育值買裝飾，穿在守護者身上（大廳展示＋選角彈窗），每隻各自記憶裝備 ===== */
+  // 服裝店已移除（依需求）：基本服裝改用通行證點數(pp)兌換，全部收進通行證「專屬服裝」分頁；cost 保留僅供舊資料相容
   const COSMETICS=[
-    {key:"crown", name:"守護皇冠", icon:"👑", cost:120},
-    {key:"bow",   name:"櫻花蝶結", icon:"🎀", cost:70},
-    {key:"wreath",name:"山林花環", icon:"🌸", cost:100},
-    {key:"star",  name:"星塵光環", icon:"✨", cost:160},
-    {key:"leaf",  name:"落葉之舞", icon:"🍂", cost:110},
-    {key:"snow",  name:"初雪結晶", icon:"❄️", cost:130},
+    {key:"crown", name:"守護皇冠", icon:"👑", cost:120, pp:3},
+    {key:"bow",   name:"櫻花蝶結", icon:"🎀", cost:70,  pp:2},
+    {key:"wreath",name:"山林花環", icon:"🌸", cost:100, pp:3},
+    {key:"star",  name:"星塵光環", icon:"✨", cost:160, pp:4},
+    {key:"leaf",  name:"落葉之舞", icon:"🍂", cost:110, pp:3},
+    {key:"snow",  name:"初雪結晶", icon:"❄️", cost:130, pp:3},
   ];
   function cosOwned(){ try{ return JSON.parse(localStorage.getItem("shoutu_cosmetics")||"[]")||[]; }catch(e){ return []; } }
   function cosOwnedSet(a){ try{ localStorage.setItem("shoutu_cosmetics",JSON.stringify(a)); }catch(e){} }
@@ -960,13 +961,12 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     document.querySelectorAll("#passTabs .pass-tab").forEach(b=>b.classList.toggle("on",b.dataset.pt===passTab));
     const hn=document.getElementById("passHero"); if(hn) hn.textContent=passTab==="reward"?"用通行證點數兌換獎勵":"正在打扮："+HEROES[featured].name;
     const tip=document.getElementById("passTip");
-    if(tip) tip.textContent=passTab==="pass"?"🎟 專屬特殊服裝只能用通行證點數兌換（完成每日任務累積），是任務玩家的榮耀！"
-      :passTab==="cos"?"👒 一般服裝用保育值購買（服裝店已併入通行證）。"
+    if(tip) tip.textContent=passTab==="pass"?"🎟 服裝用通行證點數兌換（完成每日任務累積）——愈稀有的愈華麗！"
       :"🌿 點數換保育值、經驗值——任務打得勤，養成快一截！";
     if(passTab==="reward"){ PASS_REWARDS.forEach(rw=> wrap.appendChild(mkRewardCard(rw))); return; }
     wrap.appendChild(mkCosCard(null, owned, equipped, hk));   // 「不穿」選項
-    if(passTab==="pass") PASS_COSMETICS.forEach(c=> wrap.appendChild(mkPassCard(c, owned, equipped, hk)));
-    else COSMETICS.forEach(c=> wrap.appendChild(mkCosCard(c, owned, equipped, hk))); }
+    COSMETICS.forEach(c=> wrap.appendChild(mkPassCard(c, owned, equipped, hk)));        // 基本服裝(點數兌換)
+    PASS_COSMETICS.forEach(c=> wrap.appendChild(mkPassCard(c, owned, equipped, hk))); } // 華麗特殊服裝(點數兌換)
   function rebuildShops(){ buildCostumeShop(); buildPassShop(); }   // 買/裝備後同步重繪兩個面板(哪個開著都正確)
   function openPassShop(tab){ if(typeof tab==="string") passTab=tab; const p=document.getElementById("passShop"); if(!p) return; buildPassShop(); p.classList.remove("hide"); }
   function closePassShop(){ const p=document.getElementById("passShop"); if(p) p.classList.add("hide"); }
@@ -1424,9 +1424,9 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     const hib=document.getElementById("hiClose"); if(hib) hib.onclick=closeHeroInfo;
     const hbk=document.getElementById("hiBack"); if(hbk) hbk.onclick=closeHeroInfo;
     const hi=document.getElementById("heroInfo"); if(hi) hi.addEventListener("pointerdown",(e)=>{ if(e.target===hi) closeHeroInfo(); }); }
-  { const cb=document.getElementById("navCostume"); if(cb) cb.onclick=()=>openPassShop("cos");   // 服裝店已併入通行證：導向合併面板的服裝店分頁
-    const cc=document.getElementById("costumeClose"); if(cc) cc.onclick=closeCostumeShop;
-    const cs=document.getElementById("costumeShop"); if(cs) cs.addEventListener("pointerdown",(e)=>{ if(e.target===cs) closeCostumeShop(); }); }   // 舊服裝店彈窗保留於 DOM(相容)
+  // 服裝店已移除（依需求）：所有服裝統一在通行證用點數兌換；舊 #costumeShop 彈窗保留於 DOM 但無入口(相容)
+  { const cc=document.getElementById("costumeClose"); if(cc) cc.onclick=closeCostumeShop;
+    const cs=document.getElementById("costumeShop"); if(cs) cs.addEventListener("pointerdown",(e)=>{ if(e.target===cs) closeCostumeShop(); }); }
   { const pb=document.getElementById("navPass"); if(pb) pb.onclick=()=>openPassShop("pass");
     const pc=document.getElementById("passClose"); if(pc) pc.onclick=closePassShop;
     const ps=document.getElementById("passShop"); if(ps) ps.addEventListener("pointerdown",(e)=>{ if(e.target===ps) closePassShop(); });   // 通行證開關
