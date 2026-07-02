@@ -472,6 +472,13 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   // 記住上次選的守護者（跨 session 持久化）：讀 localStorage，驗證在範圍內且已解鎖才採用，否則回到 0
   let featured=(()=>{ try{ const v=parseInt(localStorage.getItem("shoutu_featured")||"0",10); if(v>=0&&v<HEROES.length&&isHeroUnlocked(HEROES[v].key)) return v; }catch(e){} return 0; })(), hsW=0, hsH=0;
   function saveFeatured(){ try{ localStorage.setItem("shoutu_featured",String(featured)); }catch(e){} }
+  // 遊戲帳號名稱（沿用好友連線的暱稱鍵 shoutu_nick，跨模組共用同一個名字）
+  function getAccountName(){ try{ return (localStorage.getItem("shoutu_nick")||"").trim()||"守護者"; }catch(e){ return "守護者"; } }
+  function setAccountName(v){ try{ localStorage.setItem("shoutu_nick",(v||"").trim()); }catch(e){} }
+  function renameAccount(){ const cur=getAccountName(); const v=window.prompt("輸入你的遊戲帳號名稱：", cur==="守護者"?"":cur);
+    if(v===null) return; const name=(v||"").trim().slice(0,16); setAccountName(name);
+    const ni=document.getElementById("nickInput"); if(ni) ni.value=name;   // 同步好友連線的暱稱輸入
+    if(window.__sfx) window.__sfx.play("levelup"); updateLobby(); }
   function getEco(){ try{ return parseInt(localStorage.getItem("shoutu_eco")||"0",10)||0; }catch(e){ return 0; } }
   function setEco(v){ try{ localStorage.setItem("shoutu_eco",String(v)); }catch(e){} }
   // 累積獲得的保育值（終身；只增不減——花費保育值不會扣，保育等級才不會退等）
@@ -886,6 +893,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     document.getElementById("hsTag").textContent=LOBBY_TAG[h.key]||h.status;
     document.getElementById("ecoVal").textContent=getEco();
     document.getElementById("trophyVal").textContent=Math.floor(getEcoEarned()/100)+1;
+    const nel=document.getElementById("lbAccountName"); if(nel) nel.textContent=getAccountName();   // 左上角顯示遊戲帳號名稱
     const cl=dailyClaimable(), nd=document.getElementById("navDaily"); if(nd) nd.textContent=cl>0?("📋 任務 ("+cl+")"):"📋 任務";
     const sw=document.getElementById("heroSwitchBtn"); if(sw) sw.textContent="🔄 更換守護者（目前："+h.name+"）";
     const p=document.getElementById("heroPicker"); if(p && !p.classList.contains("hide")) [...document.querySelectorAll("#heroPickerGrid .hp-card")].forEach((b,i)=>b.classList.toggle("sel",i===featured)); }
@@ -1278,6 +1286,8 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   { const sw=document.getElementById("heroSwitchBtn"); if(sw) sw.onclick=openHeroPicker;
     const hc=document.getElementById("heroPickerClose"); if(hc) hc.onclick=closeHeroPicker;
     const hp=document.getElementById("heroPicker"); if(hp) hp.addEventListener("pointerdown",(e)=>{ if(e.target===hp) closeHeroPicker(); }); }   // 點彈窗外圍空白處也可關閉
+  // 左上角帳號名稱：點一下改名
+  { const pf=document.getElementById("lbProfile"); if(pf) pf.addEventListener("pointerdown",(e)=>{ e.preventDefault(); renameAccount(); },{passive:false}); }
   // 點大廳角色 → 開啟守護者個人資訊（等級/經驗值）；只在大廳有效
   { if(heroShow) heroShow.addEventListener("pointerdown",(e)=>{ if(state!=="lobby") return; e.preventDefault(); openHeroInfo(); },{passive:false});
     const hib=document.getElementById("hiClose"); if(hib) hib.onclick=closeHeroInfo;
