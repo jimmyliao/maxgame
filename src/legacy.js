@@ -889,8 +889,11 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   function closeHeroInfo(){ const p=document.getElementById("heroInfo"); if(p) p.classList.add("hide"); }
   // ===== 帳號資訊（點左上角帳號徽章，全螢幕）：帳號名稱/保育等級/戰績 + 守護者圖鑑等級一覽（仿荒野亂鬥個人檔案） =====
   const DUEL_TIER_NAMES=["見習","初階","中階","高階","大師"];
+  // 玩家 ID 代碼（產生一次、永久保存，像荒野亂鬥的好友代碼）
+  function getPlayerCode(){ try{ let c=localStorage.getItem("shoutu_pid"); if(!c){ const ch="ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; c=""; for(let i=0;i<6;i++) c+=ch[Math.floor(Math.random()*ch.length)]; localStorage.setItem("shoutu_pid",c); } return "ID #"+c; }catch(e){ return "ID #------"; } }
   function openAccountInfo(){ const p=document.getElementById("accountInfo"); if(!p) return; const $=(id)=>document.getElementById(id);
     $("aiName").textContent=getAccountName();
+    $("aiTitle").textContent=getPlayerCode();
     const alv=Math.floor(getEcoEarned()/100)+1, prog=getEcoEarned()%100;
     $("aiLv").textContent="保育等級 Lv."+alv;
     $("aiEcoFill").style.width=prog+"%"; $("aiEcoTxt").textContent=prog+"/100";
