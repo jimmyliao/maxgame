@@ -259,7 +259,7 @@
   /* 生態走廊面板 */
   #habCorridorPanel{ position:absolute; inset:0; z-index:5; background:rgba(6,16,10,.82); display:flex; align-items:center; justify-content:center; padding:16px; }
   #habCorridorPanel.hide{ display:none; }
-  #habCorridorCard{ width:100%; max-width:420px; max-height:82vh; overflow:auto; background:rgba(16,34,22,.96); border:2px solid #66bb6a;
+  #habCorridorCard{ width:100%; max-width:420px; max-height:82vh; overflow:auto; touch-action:pan-x pan-y; background:rgba(16,34,22,.96); border:2px solid #66bb6a;
     border-radius:20px; padding:16px; box-shadow:0 10px 30px rgba(0,0,0,.5); }
   .hc-hdr{ font-size:17px; font-weight:900; color:#ffd54f; display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
   .hc-hdr span{ font-size:14px; color:#c8e6c9; cursor:pointer; padding:2px 8px; border-radius:10px; background:rgba(255,255,255,.1); }
@@ -291,11 +291,11 @@
   #modeTabs.hide, #pveTargets.hide, #teamSizeRow.hide, #battleRegions.hide, #duelBox.hide,
   #bestTimeInfo.hide, #pveLevelInfo.hide, #talentHintInfo.hide, #battleBonusInfo.hide{ display:none; }
   .scr{ position:absolute; inset:0; z-index:10; display:flex; flex-direction:column; align-items:center; justify-content:center;
-    text-align:center; padding:20px; background:rgba(7,20,12,.92); overflow:auto; touch-action:pan-y; }
+    text-align:center; padding:20px; background:rgba(7,20,12,.92); overflow:auto; touch-action:pan-x pan-y; }
   .scr.hide{ display:none; }
   /* 復育：卡片多(13隻)，改由上往下排＋手機可上下滑動看到每一隻（body 是 touch-action:none，這裡要開回 pan-y 才滑得動） */
   #upgrade{ justify-content:flex-start; padding-top:16px; }
-  #heroPicker .hp-grid, #costumeShop .hp-grid, #passShop .hp-grid, #heroInfo .hi-panel, #accountInfo .hi-panel{ touch-action:pan-y; }
+  #heroPicker .hp-grid, #costumeShop .hp-grid, #passShop .hp-grid, #heroInfo .hi-panel, #accountInfo .hi-panel{ touch-action:pan-x pan-y; }
   .scr h1{ font-size:22px; letter-spacing:1.5px; margin-bottom:4px; }
   .scr h2{ font-size:13px; color:#a5d6a7; margin-bottom:9px; }
   .scr p{ font-size:12.5px; line-height:1.5; color:#c8e6c9; max-width:460px; margin-bottom:6px; }
@@ -503,8 +503,7 @@
         <div class="lobby-nav primary">
           <button class="navb" id="navDaily">📋 任務</button>
           <button class="navb" id="navUpg">🌱 復育</button>
-          <!-- 棲地模式已移除入口（依需求）；底層 __habitatHealth 等仍在，戰場地區加成不噴錯。要恢復把 hide 拿掉即可 -->
-          <button class="navb hide" id="navHabitat">🏡 棲地</button>
+          <button class="navb" id="navHabitat">🏡 棲地</button>
         </div>
         <div class="lobby-nav secondary">
           <button class="navb sm" id="navCostume">👒 服裝店</button>
