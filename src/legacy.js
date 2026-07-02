@@ -991,10 +991,10 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
         // 之前門檻太嚴(+60)：手機橫向名稱列很高時量測被丟棄、退回 0.62 → 主角被畫進文字底下。
         // 改成放寬接受實測值：名稱列再高，主角就縮小站在它上方，寧可小也絕不被字擋住。
         if(t>topBound+40) lbTop=Math.min(t,Hd*0.66); } }
-    const region=Math.max(90, lbTop-topBound);
-    // 角色尺寸與站位都由安全區推導：故意留寬鬆margin，寧可角色小一點，也不要有任何機會擋到下面的圖鑑列/文字
-    const s=Math.min(Math.min(Wd,Hd)*0.15, region*0.32), h=HEROES[featured];
-    const py=lbTop-region*0.36, pr=s*1.15, cy=py-s*0.62, pl=0.5+0.5*Math.sin(tt*2);
+    // 尺寸與站位用「真實可用空間」算（不用灌水後的下限），極矮視窗時角色才不會被撐大到跟上方文字重疊
+    const realRegion=Math.max(40, lbTop-topBound);
+    const s=Math.min(Math.min(Wd,Hd)*0.15, realRegion*0.34), h=HEROES[featured];
+    const py=lbTop-realRegion*0.3, pr=s*1.15, cy=py-s*0.62, pl=0.5+0.5*Math.sin(tt*2);
     // 台座
     g.fillStyle="rgba(0,0,0,0.34)"; g.beginPath(); g.ellipse(Wd/2,py,pr,pr*0.22,0,0,7); g.fill();
     g.strokeStyle="rgba(255,213,79,0.65)"; g.lineWidth=3; g.beginPath(); g.ellipse(Wd/2,py,pr,pr*0.22,0,0,7); g.stroke();

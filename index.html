@@ -362,18 +362,6 @@
     padding:9px 22px; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.12); }
   #lobby .hero-switch:active{ transform:scale(.96); }
   #app.rot #lobby .hero-switch{ margin:5px auto 6px; padding:6px 16px; font-size:12.5px; }
-  /* 手機橫向(視窗高度矮)：整個下方文字/按鈕堆疊全面縮小並下移，把畫面上半讓給主角——石虎一定要完整看得到 */
-  @media (max-height:560px){
-    #lobby .hero-name{ font-size:15px; }
-    #lobby .hero-name .ht{ font-size:10.5px; margin-left:5px; }
-    #lobby .hero-tag{ font-size:9.5px; margin-top:1px; }
-    #lobby .hero-switch{ margin:3px auto 4px; padding:4px 13px; font-size:11px; }
-    #lobby .play-btn{ padding:7px; font-size:15px; max-width:320px; border-radius:22px; }
-    #lobby .lobby-nav{ max-width:320px; gap:4px; }
-    #lobby .lobby-nav.primary{ margin-top:4px; } #lobby .lobby-nav.secondary{ margin-top:3px; }
-    #lobby .navb{ padding:4px 4px; font-size:10.5px; border-radius:12px; } #lobby .navb.sm{ padding:3px 3px; font-size:9.5px; }
-    #lobby .lb-bottom{ padding-bottom:4px; }
-  }
   /* 選角彈窗 */
   #heroPicker, #costumeShop{ position:absolute; inset:0; z-index:20; display:flex; align-items:center; justify-content:center;
     background:rgba(6,14,10,.78); backdrop-filter:blur(4px); }
@@ -465,6 +453,21 @@
   #lobby .navb:active{ filter:brightness(1.25); transform:scale(.96); }
   #lobby .navb.sm{ flex:1 1 21%; background:linear-gradient(rgba(255,255,255,.1),rgba(255,255,255,.03)); border-color:rgba(255,255,255,.14);
     color:#b9d4c2; font-size:11.5px; font-weight:700; padding:7px 4px; border-radius:14px; box-shadow:0 1px 3px rgba(0,0,0,.25); }
+  /* 手機橫向(視窗高度矮)：整個下方文字/按鈕堆疊全面縮小，把上半留給主角——石虎一定要完整看得到。
+     注意：這段必須放在上面所有 #lobby 基礎規則「之後」，同權重下後者才會贏(之前放前面被蓋掉=沒效)。 */
+  @media (max-height:560px){
+    #lobby .lb-ticker{ display:none; }   /* 跑馬燈讓位給主角，畫面也更乾淨 */
+    #lobby .hero-name{ font-size:15px; }
+    #lobby .hero-name .ht{ font-size:10.5px; margin-left:5px; }
+    #lobby .hero-tag{ font-size:9.5px; margin-top:0; }
+    #lobby .hero-switch{ margin:3px auto 4px; padding:4px 13px; font-size:11px; }
+    #lobby .play-btn{ padding:6px; font-size:14px; max-width:300px; border-radius:20px; box-shadow:0 3px 0 #c99700, 0 5px 10px rgba(0,0,0,.35); }
+    #lobby .lobby-nav{ max-width:300px; gap:4px; }
+    #lobby .lobby-nav.primary{ margin-top:4px; } #lobby .lobby-nav.secondary{ margin-top:3px; }
+    #lobby .navb{ padding:4px 4px; font-size:10.5px; border-radius:12px; }
+    #lobby .navb.sm{ padding:3px 3px; font-size:9.5px; }
+    #lobby .lb-bottom{ padding-bottom:3px; }
+  }
   /* ===== 場景轉場 ===== */
   #xfade{ position:fixed; inset:0; z-index:50; opacity:0; pointer-events:none;
     background:radial-gradient(circle at 50% 45%, #14422a, #06170d);
