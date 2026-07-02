@@ -63,6 +63,8 @@
   const kbelly=(k)=>KBELLY[k]||"#eadfce", kpat=(k)=>KPAT[k]||"#2c1c0c";
   // 圖檔優先：放 assets/top/<kind>.png(俯視角、面向右、去背)就自動改用寫實圖，沒有就用程式圖
   const SPRITES_TOP={};
+  // 動漫風地面材質（對戰背景基底；沒載到就用漸層 fallback，離線 PWA 不破）
+  const GROUND_IMG=new Image(); GROUND_IMG.onerror=()=>{}; GROUND_IMG.src="assets/field/ground.png";
   ["leopard","bear","cicada","dragonfly","deer","magpie","snail","iguana","frog","ibis","anole","muntjac","macaque","salmon","pheasant","pangolin","yellowmarten","mikado"].forEach(k=>{
     try{ const im=new Image(); im.onload=()=>{ if(im.naturalWidth>0) SPRITES_TOP[k]=im; }; im.onerror=()=>{}; im.src="assets/top/"+k+".png"; }catch(e){} });
 
@@ -750,6 +752,16 @@
     // 棲地：枯黃(低復原) → 翠綠(高復原)
     const top=mix("#8a9a5e","#4a8a3e",restore), bot=mix("#6b7742","#2f6a26",restore);
     const g=ctx.createLinearGradient(0,0,0,VH); g.addColorStop(0,top); g.addColorStop(1,bot); ctx.fillStyle=g; ctx.fillRect(0,0,VW,VH);
+    // 動漫風地面材質(圖檔優先、載入前用上面的漸層 fallback)：世界座標鋪貼只畫可視範圍
+    if(GROUND_IMG.naturalWidth>0){
+      ctx.save(); ctx.scale(zoom,zoom); ctx.translate(-cam.x,-cam.y);
+      const T=520, vw2=VW/zoom, vh2=VH/zoom;
+      const x0=Math.floor(cam.x/T)*T, y0=Math.floor(cam.y/T)*T;
+      for(let ty=y0; ty<cam.y+vh2; ty+=T) for(let tx=x0; tx<cam.x+vw2; tx+=T) ctx.drawImage(GROUND_IMG,tx,ty,T+1,T+1);
+      ctx.restore();
+      // 罩一層復原度色調，保留「枯黃→翠綠」的核心回饋
+      ctx.globalAlpha=0.34; ctx.fillStyle=g; ctx.fillRect(0,0,VW,VH); ctx.globalAlpha=1;
+    }
     ctx.save(); if(mshake>0) ctx.translate((Math.random()-0.5)*mshake,(Math.random()-0.5)*mshake); ctx.scale(zoom,zoom); ctx.translate(-cam.x,-cam.y);
     drawField();
     drawRelics();
@@ -987,13 +999,24 @@
     const breath=1+(u.moving?0:Math.sin(gt*2.2+u.phase)*0.03);
     const lunge=u.atkA>0?Math.sin((1-u.atkA/0.2)*3.14159)*r*0.5:0;
     const gy=u.y-bob-(flyer?r*0.5:0);
-    // 圖檔優先：有寫實貼圖就用圖（面向右，依朝向旋轉）
+    // 圖檔優先①：有專屬俯視圖(assets/top/)就依朝向旋轉貼圖
     const spr=SPRITES_TOP[u.kind];
     if(spr){ const S=r*2.7*(u.elite?1.15:1);
       ctx.fillStyle="rgba(0,0,0,0.22)"; ctx.beginPath(); ctx.ellipse(u.x+r*0.2,u.y+r*0.6,r*1.0,r*0.38,0,0,7); ctx.fill();
       ctx.fillStyle=faction==="inv"?"rgba(239,83,80,0.28)":"rgba(102,187,106,0.34)"; ctx.beginPath(); ctx.ellipse(u.x,u.y+r*0.55,r*1.05,r*0.4,0,0,7); ctx.fill();
       ctx.save(); ctx.translate(u.x+Math.cos(f)*lunge,gy+Math.sin(f)*lunge*0.4); ctx.rotate(f); if(u.hitT>0) ctx.globalAlpha=0.85;
       ctx.drawImage(spr,-S/2,-S/2,S,S); ctx.restore(); return; }
+    // 圖檔優先②：動漫立繪「直立顯示」（比照荒野亂鬥）——用大廳同一張立繪，不隨面向旋轉、只依移動方向左右翻面
+    const bb=window.__spriteOf&&window.__spriteOf(u.kind);
+    if(bb){ const H=r*3.2*(u.elite?1.15:1), W=H*bb.naturalWidth/bb.naturalHeight;
+      ctx.fillStyle="rgba(0,0,0,0.22)"; ctx.beginPath(); ctx.ellipse(u.x+r*0.15,u.y+r*0.6,r*1.05,r*0.4,0,0,7); ctx.fill();
+      ctx.fillStyle=faction==="inv"?"rgba(239,83,80,0.28)":"rgba(102,187,106,0.34)"; ctx.beginPath(); ctx.ellipse(u.x,u.y+r*0.55,r*1.1,r*0.42,0,0,7); ctx.fill();
+      const facingLeft=Math.cos(f||0)<0, flip=(faction==="inv")? !facingLeft : facingLeft;   // 守護者圖面向右、入侵種圖面向左
+      ctx.save(); ctx.translate(u.x+Math.cos(f||0)*lunge, gy+Math.sin(f||0)*lunge*0.3+r*0.6);
+      ctx.scale(flip?-1:1, breath);
+      ctx.drawImage(bb,-W/2,-H,W,H);
+      if(u.hitT>0){ ctx.globalCompositeOperation="lighter"; ctx.globalAlpha=Math.min(0.65,u.hitT*3); ctx.drawImage(bb,-W/2,-H,W,H); }   // 受擊閃白
+      ctx.restore(); return; }
     const bLen=r*cfg.long, bW=r*cfg.wide;
     const proud=(u.mood==="proud" && u.moodT>0 && !angry);
     const OUT=Math.max(2.2,r*0.11);

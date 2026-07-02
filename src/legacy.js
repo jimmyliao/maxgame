@@ -1423,6 +1423,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   window.__unlockedKeys=()=> HEROES.filter(h=>isHeroUnlocked(h.key)).map(h=>h.key);
   window.__heroList=()=> HEROES.filter(h=>isHeroUnlocked(h.key)).map(h=>({key:h.key,name:h.name}));   // 給好友大廳選角 UI 用的唯讀清單（不含鎖定角色）
   window.__drawCreature=drawCreature;   // 給好友大廳選角頭像用；簽名/畫法完全沿用鐵則內的 drawCreature，不另寫一份繪製邏輯
+  window.__spriteOf=(k)=>{ const s2=SPRITES[k]; return (s2&&s2.naturalWidth>0)?s2:null; };   // 給對戰(moba)取立繪：動漫立繪直立顯示用
   window.__cosmeticOf=(key)=>{ try{ return cosEquipOf(key)||""; }catch(e){ return ""; } };   // 給對戰(moba)讀取某守護者裝備的服裝，讓買的裝飾在戰場也看得到
   window.__heroLevel=(key)=> heroLevel(key);   // 守護者等級（最高 50、永不退級）
   window.__heroTalent=(key)=> talentSummary(key);   // 天賦加成摘要：{path,pathName,tier,mods:{dmg,speed,spCd,dr},active}|null
