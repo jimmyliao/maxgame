@@ -394,6 +394,23 @@
   #passShop .cos-card canvas{ width:64px; height:64px; }
   #passShop .cos-card .cos-name{ font-size:11.5px; font-weight:800; }
   #passShop .cos-card .cos-status{ font-size:11px; color:#a5d6a7; }
+  /* 守護者個人資訊（全螢幕） */
+  #heroInfo{ position:absolute; inset:0; z-index:22; display:flex; align-items:center; justify-content:center; background:rgba(6,14,10,.92); backdrop-filter:blur(5px); }
+  #heroInfo.hide{ display:none; }
+  #heroInfo .hi-panel{ position:relative; width:min(94%,460px); max-height:92%; overflow-y:auto; background:linear-gradient(160deg,#1e3a2a,#0d1c14); border:2px solid rgba(255,213,79,.4); border-radius:22px; padding:20px 20px 18px; text-align:center; color:#e8f5e0; box-shadow:0 14px 44px rgba(0,0,0,.6); }
+  #heroInfo .hp-close{ position:absolute; top:12px; right:12px; z-index:2; width:34px; height:34px; border:none; border-radius:50%; background:rgba(255,255,255,.14); color:#fff; font-size:16px; cursor:pointer; }
+  #heroInfo canvas{ width:200px; height:200px; }
+  #heroInfo .hi-name{ font-size:23px; font-weight:900; color:#fff; }
+  #heroInfo .hi-name .ht{ font-size:13px; margin-left:6px; vertical-align:middle; }
+  #heroInfo .hi-status{ font-size:12.5px; color:#ffe082; margin:3px 0 6px; }
+  #heroInfo .hi-lvrow{ display:flex; align-items:center; gap:9px; justify-content:center; margin:10px 0 6px; }
+  #heroInfo .hi-lv{ font-size:19px; font-weight:900; color:#ffd54f; }
+  #heroInfo .hi-xpbar{ flex:1; max-width:210px; height:14px; background:rgba(0,0,0,.42); border-radius:8px; overflow:hidden; box-shadow:inset 0 1px 3px rgba(0,0,0,.5); }
+  #heroInfo .hi-xpfill{ height:100%; background:linear-gradient(90deg,#66bb6a,#aed581); border-radius:8px; transition:width .5s ease; }
+  #heroInfo .hi-xptxt{ font-size:11px; color:#a5d6a7; }
+  #heroInfo .hi-fact{ font-size:12.5px; line-height:1.65; color:#c8e6c9; margin:8px 4px; }
+  #heroInfo .hi-stats{ font-size:12.5px; color:#e8f5e0; margin:6px 0; line-height:1.7; }
+  #heroInfo .hi-account{ font-size:11.5px; color:#b0bec5; background:rgba(0,0,0,.28); border:1px dashed rgba(255,255,255,.14); border-radius:12px; padding:9px 12px; margin:12px 0 10px; }
   #lobby .roster{ display:flex; gap:9px; justify-content:center; padding:11px 0 12px; flex-wrap:wrap; }
   #lobby .rb{ width:56px; height:56px; border-radius:16px; border:2px solid rgba(255,255,255,.22);
     background:radial-gradient(circle at 50% 30%, rgba(255,255,255,.12), rgba(0,0,0,.4) 70%); cursor:pointer; padding:0; overflow:hidden;
@@ -482,6 +499,22 @@
           <div id="passHero" style="font-size:12.5px;color:#ffe082;padding:4px 16px 0;font-weight:800"></div>
           <div id="passTip" style="font-size:11.5px;color:#a5d6a7;padding:2px 16px 0;">🎟 通行證點數靠「完成每日任務」累積——這裡的特殊服裝只能用點數兌換，是任務玩家的專屬榮耀！</div>
           <div id="passGrid" class="hp-grid"></div>
+        </div>
+      </div>
+      <!-- 守護者個人資訊（點大廳角色打開，全螢幕）：等級、經驗值、天賦、保育戰績；帳號綁定為之後功能 -->
+      <div id="heroInfo" class="hide">
+        <div class="hi-panel">
+          <button id="hiClose" class="hp-close">✕</button>
+          <canvas id="hiPortrait" width="300" height="300"></canvas>
+          <div class="hi-name"><span id="hiName">石虎</span> <span class="ht" id="hiType">🌲山林</span></div>
+          <div class="hi-status" id="hiStatus"></div>
+          <div class="hi-lvrow"><span class="hi-lv" id="hiLv">Lv.1</span>
+            <div class="hi-xpbar"><div class="hi-xpfill" id="hiXpFill"></div></div>
+            <span class="hi-xptxt" id="hiXpTxt">0/100 EXP</span></div>
+          <div class="hi-fact" id="hiFact"></div>
+          <div class="hi-stats" id="hiStats"></div>
+          <div class="hi-account" id="hiAccount">🔒 帳號綁定（即將推出）：綁定帳號後可跨裝置同步等級、收藏與通行證進度</div>
+          <button id="hiBack" class="btn sec">返回</button>
         </div>
       </div>
       <!-- 選角彈窗：大廳「更換守護者」按鈕點開，一次瀏覽全部守護者、點選即選定變身。放在 #lobby 內以跟隨旋轉。 -->

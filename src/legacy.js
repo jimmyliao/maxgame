@@ -864,6 +864,22 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     PASS_COSMETICS.forEach(c=> wrap.appendChild(mkPassCard(c, owned, equipped, hk))); }
   function openPassShop(){ const p=document.getElementById("passShop"); if(!p) return; buildPassShop(); p.classList.remove("hide"); }
   function closePassShop(){ const p=document.getElementById("passShop"); if(p) p.classList.add("hide"); }
+  // ===== 守護者個人資訊（點大廳角色開啟，全螢幕）：等級/經驗值/天賦/保育戰績 =====
+  function openHeroInfo(){ const h=HEROES[featured], p=document.getElementById("heroInfo"); if(!h||!p) return;
+    const $=(id)=>document.getElementById(id);
+    $("hiName").textContent=h.name; $("hiType").textContent=TYPE[h.type]; $("hiStatus").textContent=h.status||"";
+    const lv=heroLevel(h.key), xp=heroXP(h.key), max=lv>=50, inLv=max?100:(xp%100);
+    $("hiLv").textContent="Lv."+lv+(max?" ★MAX":"");
+    $("hiXpFill").style.width=inLv+"%";
+    $("hiXpTxt").textContent=max?"已滿級（Lv.50）":(inLv+"/100 EXP　累計 "+xp);
+    $("hiFact").textContent=h.fact||"";
+    const tal=talentSummary(h.key);
+    $("hiStats").innerHTML="🎖️ 帳號保育等級：<b>Lv."+(Math.floor(getEcoEarned()/100)+1)+"</b>　🛡️ 累計驅逐外來種：<b>"+getWins()+"</b> 次"
+      +(tal?("<br>🌟 天賦：<b>"+tal.pathName+" Lv."+tal.tier+"</b>"+(tal.active?("（主動："+tal.active.name+"）"):"")):"<br>🌱 尚未點天賦（到「復育」培養）");
+    const cv=$("hiPortrait"); if(cv){ const c=cv.getContext("2d"); c.clearRect(0,0,cv.width,cv.height);
+      drawCreature(c,h.key,cv.width/2,cv.height*0.6,cv.height*0.33,{t:0}); drawCosmetic(c,cosEquipOf(h.key),cv.width/2,cv.height*0.6,cv.height*0.33,0); }
+    p.classList.remove("hide"); }
+  function closeHeroInfo(){ const p=document.getElementById("heroInfo"); if(p) p.classList.add("hide"); }
   function updateLobby(){ const h=HEROES[featured];
     document.getElementById("hsName").textContent=h.name;
     document.getElementById("hsType").textContent=TYPE[h.type];
@@ -1262,6 +1278,11 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   { const sw=document.getElementById("heroSwitchBtn"); if(sw) sw.onclick=openHeroPicker;
     const hc=document.getElementById("heroPickerClose"); if(hc) hc.onclick=closeHeroPicker;
     const hp=document.getElementById("heroPicker"); if(hp) hp.addEventListener("pointerdown",(e)=>{ if(e.target===hp) closeHeroPicker(); }); }   // 點彈窗外圍空白處也可關閉
+  // 點大廳角色 → 開啟守護者個人資訊（等級/經驗值）；只在大廳有效
+  { if(heroShow) heroShow.addEventListener("pointerdown",(e)=>{ if(state!=="lobby") return; e.preventDefault(); openHeroInfo(); },{passive:false});
+    const hib=document.getElementById("hiClose"); if(hib) hib.onclick=closeHeroInfo;
+    const hbk=document.getElementById("hiBack"); if(hbk) hbk.onclick=closeHeroInfo;
+    const hi=document.getElementById("heroInfo"); if(hi) hi.addEventListener("pointerdown",(e)=>{ if(e.target===hi) closeHeroInfo(); }); }
   { const cb=document.getElementById("navCostume"); if(cb) cb.onclick=openCostumeShop;
     const cc=document.getElementById("costumeClose"); if(cc) cc.onclick=closeCostumeShop;
     const cs=document.getElementById("costumeShop"); if(cs) cs.addEventListener("pointerdown",(e)=>{ if(e.target===cs) closeCostumeShop(); }); }   // 服裝店開關
