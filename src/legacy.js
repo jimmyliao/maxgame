@@ -10,7 +10,10 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     cicada:"assets/heroes/cicada.png", dragonfly:"assets/heroes/dragonfly.png",
     snail:"assets/bosses/snail.png", iguana:"assets/bosses/iguana.png",
     frog:"assets/bosses/frog.png", ibis:"assets/bosses/ibis.png",
-    deer:"assets/heroes/deer.png", magpie:"assets/heroes/magpie.png"
+    deer:"assets/heroes/deer.png", magpie:"assets/heroes/magpie.png",
+    muntjac:"assets/heroes/muntjac.png", macaque:"assets/heroes/macaque.png", salmon:"assets/heroes/salmon.png",
+    pheasant:"assets/heroes/pheasant.png", pangolin:"assets/heroes/pangolin.png", yellowmarten:"assets/heroes/yellowmarten.png", mikado:"assets/heroes/mikado.png",
+    anole:"assets/bosses/anole.png", canetoad:"assets/bosses/canetoad.png", python:"assets/bosses/python.png", skink:"assets/bosses/skink.png"
   };
   function loadSprites(){ for(const k in SPRITE_SRC){ const img=new Image(); img.onload=()=>{ if(img.naturalWidth>0) SPRITES[k]=img; }; img.src=SPRITE_SRC[k]; } }
   // 多視角立繪（偽 3D 建模）：assets/views/{kind}_{front|right|back|left}.png，大廳拖曳 360° 旋轉看每一面。
