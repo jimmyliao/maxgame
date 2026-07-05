@@ -65,6 +65,10 @@
   const SPRITES_TOP={};
   // 動漫風地面材質（對戰背景基底；沒載到就用漸層 fallback，離線 PWA 不破）
   const GROUND_IMG=new Image(); GROUND_IMG.onerror=()=>{}; GROUND_IMG.src="assets/field/ground.png";
+  // 動漫風場景物件（神木/苗圃/岩石/花叢/樹木）：圖檔優先、沒圖用既有 canvas 程式繪 fallback
+  const FIELD_IMG={};
+  ["shrine","nursery","rock","bush","tree"].forEach(k=>{ const im=new Image(); im.onerror=()=>{}; im.src="assets/field/"+k+".png"; FIELD_IMG[k]=im; });
+  const fimg=(k)=>{ const im=FIELD_IMG[k]; return (im&&im.naturalWidth>0)?im:null; };
   ["leopard","bear","cicada","dragonfly","deer","magpie","snail","iguana","frog","ibis","anole","muntjac","macaque","salmon","pheasant","pangolin","yellowmarten","mikado"].forEach(k=>{
     try{ const im=new Image(); im.onload=()=>{ if(im.naturalWidth>0) SPRITES_TOP[k]=im; }; im.onerror=()=>{}; im.src="assets/top/"+k+".png"; }catch(e){} });
 
@@ -85,6 +89,14 @@
   /* ---------- 幾何：神木置中、苗圃環繞、入侵種從邊緣湧入 ---------- */
   const SHX=MW/2, SHY=MH/2;
   const NPOS=[ {x:MW*0.5,y:MH*0.22}, {x:MW*0.24,y:MH*0.74}, {x:MW*0.76,y:MH*0.74} ];
+  // 動漫風裝飾樹（純視覺、不擋路）：確定性位置，避開神木/苗圃/溪流帶，參與 y 排序有前後遮擋
+  const FIELD_TREES=(()=>{ const out=[];
+    for(let i=0;i<40 && out.length<10;i++){ const x=hgrid(i+90,1)*0.86+MW*0.07, y=hgrid(i+90,2)*0.86+MH*0.07;
+      if(Math.hypot(x-SHX,y-SHY)<300) continue;                       // 神木核心區
+      if(Math.abs(y-MH*0.4)<110) continue;                            // 溪流帶
+      if(NPOS.some(n=>Math.hypot(x-n.x,y-n.y)<160)) continue;         // 苗圃周圍
+      out.push({kind:"ftree",x,y,sz:150+((i*29)%70)}); }
+    return out; })();
 
   /* ---------- 狀態 ---------- */
   let running=false, raf=0, lastT=0, clock=0, teamSize=3, ended=false;
@@ -112,7 +124,7 @@
   const WEATHER_KEYS=["sunny","night","cold","storm"];
   const WEATHER_INFO={
     sunny:{icon:"☀",name:"晴天"}, night:{icon:"🌙",name:"夜間"}, cold:{icon:"❄",name:"寒流"}, storm:{icon:"🌧",name:"暴雨"} };
-  let weatherBattle="sunny", weatherFx=[];   // weatherFx：雨滴/雪花等天候粒子（獨立於 fx，硬上限＋回收）
+  let weatherBattle="sunny", weatherFx=[], petalCount=0;   // weatherFx：雨滴/雪花/花瓣等氛圍粒子（獨立於 fx，硬上限＋回收）
   const COLD_BLOODED=["cicada","frog"];      // 變溫動物：寒流中行動遲緩
   const FLYERS_KIND=["dragonfly","magpie","ibis"]; // 空中活動物種：暴雨中命中率下降
   function pickWeather(){
@@ -248,7 +260,7 @@
     combo=0; comboT=0; comboBest=0; comboPop=0; hitStop=0; bossIntro=null; specHero=null;
     relics=[]; relicSpawnT=5;   // 開場 5 秒後第一顆守護之力才降臨，避免一開場就有必殺
     if(window.__shopReset) window.__shopReset();
-    fx=[]; floats=[]; invaders=[]; hprojs=[]; weatherFx=[];
+    fx=[]; floats=[]; invaders=[]; hprojs=[]; weatherFx=[]; petalCount=0;
     weatherBattle=pickWeather();
     // PVE 關卡遞增：讀取該 target 目前關卡，用純函數算出本關 need/時限/難度倍率（離線也正確）
     invHpMul=1; invDmgMul=1; invSpawnMul=1;
@@ -516,7 +528,13 @@
       weatherFx.push({type:"rain",x:Math.random()*VW,y:-10,vy:900+Math.random()*300,life:2}); }
     else if(weatherBattle==="cold" && weatherFx.length<WFX_MAX*0.6){ for(let i=0;i<1 && weatherFx.length<WFX_MAX*0.6;i++)
       weatherFx.push({type:"snow",x:Math.random()*VW,y:-10,vy:40+Math.random()*30,vx:(Math.random()-0.5)*20,life:6}); }
-    for(const w of weatherFx){ w.life-=dt; w.y+=w.vy*dt; if(w.vx) w.x+=w.vx*dt; }
+    // 動漫氛圍：飄落花瓣/嫩葉（暴雨/寒流不飄；上限 22 片共用 WFX 回收機制）
+    if(weatherBattle!=="storm" && weatherBattle!=="cold" && petalCount<22 && Math.random()<0.35){
+      weatherFx.push({type:"petal",x:Math.random()*(VW+120)-100,y:-12,vy:30+Math.random()*26,vx:16+Math.random()*20,ph:Math.random()*7,
+        col:["#f8bbd0","#fff3b0","#c5e1a5","#f48fb1"][Math.floor(Math.random()*4)],life:18}); petalCount++; }
+    for(const w of weatherFx){ w.life-=dt; w.y+=w.vy*dt; if(w.vx) w.x+=w.vx*dt;
+      if(w.type==="petal"){ w.ph+=dt*2.6; w.x+=Math.sin(w.ph)*26*dt; } }
+    petalCount=0; for(const w of weatherFx) if(w.type==="petal"&&w.life>0&&w.y<VH+20) petalCount++;
     weatherFx=weatherFx.filter(w=>w.life>0 && w.y<VH+20); if(weatherFx.length>WFX_MAX) weatherFx.splice(0,weatherFx.length-WFX_MAX);
 
     // 鏡頭（依縮放調整可視範圍）；首領挑戰陣亡後改觀戰仍存活的隊友
@@ -767,10 +785,11 @@
     drawRelics();
     // 依 y 疊放
     const ents=[shrine,...nurseries.filter(n=>n.hp>0)];
+    if(fimg("tree")) for(const t of FIELD_TREES) ents.push(t);   // 動漫裝飾樹參與前後遮擋
     for(const v of invaders) ents.push(v);
     for(const h of heroes) if(!h.dead) ents.push(h);
     ents.sort((a,b)=>a.y-b.y);
-    for(const e of ents){ if(e.kind==="shrine") drawShrine(e); else if(e.kind==="nursery") drawNursery(e); else if(e.isPlayer!==undefined) drawHero(e); else drawUnit(e,e.r,true); }
+    for(const e of ents){ if(e.kind==="shrine") drawShrine(e); else if(e.kind==="nursery") drawNursery(e); else if(e.kind==="ftree") drawFTree(e); else if(e.isPlayer!==undefined) drawHero(e); else drawUnit(e,e.r,true); }
     // 鎖定準心（玩家目前普攻的目標）
     if(player && !player.dead && player.aim && !player.aim.dead){ const a=player.aim, rr=(a.r||16)*(kcfg(a.kind).sz)+12, tt=clock*4;
       ctx.strokeStyle="rgba(255,90,80,0.95)"; ctx.lineWidth=2.6; for(let k=0;k<4;k++){ const ang=tt+k*1.5708; ctx.beginPath(); ctx.arc(a.x,a.y,rr,ang+0.35,ang+1.15); ctx.stroke(); } }
@@ -790,6 +809,16 @@
     // 陽光方向光（左上暖光、右下陰影）讓整體像真實日照場景
     const sunL=ctx.createLinearGradient(0,0,VW*0.85,VH); sunL.addColorStop(0,"rgba(255,244,196,0.13)"); sunL.addColorStop(0.45,"rgba(255,255,255,0)"); sunL.addColorStop(1,"rgba(12,26,8,0.17)");
     ctx.fillStyle=sunL; ctx.fillRect(0,0,VW,VH);
+    // 動漫斜射天光：三道緩慢呼吸的林間光束（夜間收斂成月光、暴雨關閉）
+    if(weatherBattle!=="storm"){ ctx.save(); ctx.globalCompositeOperation="lighter";
+      const beamCol=weatherBattle==="night"?"190,210,255":"255,246,190", beamBase=weatherBattle==="night"?0.045:0.075;
+      for(let i=0;i<3;i++){ const a=beamBase+0.03*Math.sin(clock*0.45+i*2.1); if(a<=0.015) continue;
+        const bx=VW*(0.16+i*0.32)+Math.sin(clock*0.22+i*1.7)*36, bw=VW*0.05+i*18, sk=VH*0.42;
+        const lg=ctx.createLinearGradient(0,0,0,VH); lg.addColorStop(0,"rgba("+beamCol+","+a.toFixed(3)+")"); lg.addColorStop(1,"rgba("+beamCol+",0)");
+        ctx.fillStyle=lg; ctx.beginPath(); ctx.moveTo(bx-bw,0); ctx.lineTo(bx+bw,0); ctx.lineTo(bx+bw-sk,VH); ctx.lineTo(bx-bw-sk,VH); ctx.closePath(); ctx.fill(); }
+      ctx.restore(); }
+    // 賽璐璐色調：輕微整體飽和度增益，讓畫面像動畫上色而非寫實攝影
+    ctx.save(); ctx.globalCompositeOperation="saturation"; ctx.globalAlpha=0.16; ctx.fillStyle="#ff0080"; ctx.fillRect(0,0,VW,VH); ctx.restore(); ctx.globalAlpha=1;
     const vg=ctx.createRadialGradient(VW/2,VH*0.52,VH*0.28,VW/2,VH*0.52,VH*0.75);
     vg.addColorStop(0,"rgba(0,0,0,0)"); vg.addColorStop(1,"rgba(0,0,0,0.28)"); ctx.fillStyle=vg; ctx.fillRect(0,0,VW,VH);
     // 神木瀕危：紅色警示閃動
@@ -852,6 +881,12 @@
       for(const w of weatherFx){ if(w.type!=="rain") continue; ctx.beginPath(); ctx.moveTo(w.x,w.y); ctx.lineTo(w.x-4,w.y-18); ctx.stroke(); } ctx.lineCap="butt"; }
     else if(weatherBattle==="cold"){ ctx.fillStyle="rgba(255,255,255,0.85)";
       for(const w of weatherFx){ if(w.type!=="snow") continue; ctx.beginPath(); ctx.arc(w.x,w.y,2.2,0,7); ctx.fill(); } }
+    // 動漫飄落花瓣：小橢圓隨相位旋轉，淡入淡出
+    for(const w of weatherFx){ if(w.type!=="petal") continue;
+      ctx.save(); ctx.translate(w.x,w.y); ctx.rotate(w.ph);
+      ctx.globalAlpha=Math.min(0.8,w.life*0.5,(VH+20-w.y)*0.02);
+      ctx.fillStyle=w.col; ctx.beginPath(); ctx.ellipse(0,0,4.4,2.3,0,0,7); ctx.fill(); ctx.restore(); }
+    ctx.globalAlpha=1;
   }
 
   function drawField(){
@@ -888,8 +923,11 @@
     // 神木周圍核心綠意
     const Rs=200+restore*440; const gs=ctx.createRadialGradient(shrine.x,shrine.y,20,shrine.x,shrine.y,Rs);
     gs.addColorStop(0,"rgba(129,199,132,"+(0.30*restore+0.05).toFixed(3)+")"); gs.addColorStop(1,"rgba(129,199,132,0)"); ctx.fillStyle=gs; ctx.beginPath(); ctx.arc(shrine.x,shrine.y,Rs,0,7); ctx.fill();
-    // 岩石
+    // 岩石 / 花叢（動漫圖檔優先、程式繪 fallback）
+    const rockIm=fimg("rock"), bushIm=fimg("bush");
     for(let i=0;i<14;i++){ const x=hgrid(i+3,1), y=hgrid(i+3,2); if(dist({x,y},shrine)<120) continue;
+      const im=(i%3===2)?bushIm:rockIm;
+      if(im){ const W=52+(i%3)*18, H=W*im.naturalHeight/im.naturalWidth; ctx.drawImage(im,x-W/2,y-H*0.8,W,H); continue; }
       ctx.fillStyle="rgba(120,120,120,0.5)"; ctx.beginPath(); ctx.ellipse(x,y+4,14+(i%3)*5,10+(i%2)*4,0,0,7); ctx.fill();
       ctx.fillStyle="rgba(160,160,160,0.5)"; ctx.beginPath(); ctx.ellipse(x-3,y,10+(i%3)*4,7+(i%2)*3,0,0,7); ctx.fill(); }
     // 草叢（風吹搖曳）
@@ -908,6 +946,12 @@
 
   function drawShrine(n){ const R=n.r, INK="#20140c", cx=n.x, cy=n.y-R*0.35;
     ctx.fillStyle="rgba(0,0,0,0.3)"; ctx.beginPath(); ctx.ellipse(n.x,n.y+R*0.52,R*1.15,R*0.4,0,0,7); ctx.fill();
+    const sim=fimg("shrine");
+    if(sim){ // 動漫風神木插畫：底部對齊樹根、微風極輕搖曳；光暈/血環/名稱沿用下方共用段
+      const H=R*3.15, W=H*sim.naturalWidth/sim.naturalHeight;
+      ctx.save(); ctx.translate(n.x,n.y+R*0.56); ctx.rotate(Math.sin(clock*0.55)*0.008);
+      ctx.drawImage(sim,-W/2,-H,W,H); ctx.restore();
+      drawShrineAura(n,cx,cy,R); return; }
     // 樹幹（粗黑描邊 + 高光）
     ctx.beginPath(); ctx.moveTo(n.x-17,n.y+R*0.56); ctx.lineTo(n.x-13,n.y-R*0.18); ctx.lineTo(n.x+13,n.y-R*0.18); ctx.lineTo(n.x+17,n.y+R*0.56); ctx.closePath();
     ctx.fillStyle="#6d4c2f"; ctx.fill(); ctx.strokeStyle=INK; ctx.lineWidth=5; ctx.stroke();
@@ -925,19 +969,37 @@
     const shd=ctx.createRadialGradient(cx+R*0.34,cy+R*0.28,6,cx+R*0.34,cy+R*0.28,R*0.9);
     shd.addColorStop(0,"rgba(8,28,12,0.26)"); shd.addColorStop(1,"rgba(8,28,12,0)");
     ctx.fillStyle=shd; ctx.beginPath(); ctx.arc(cx+R*0.12,cy+R*0.05,R*0.95,0,7); ctx.fill();
-    // 光暈 + 血環
+    drawShrineAura(n,cx,cy,R);
+  }
+  // 神木共用：光暈 + 血環 + 名稱（圖檔版與 canvas fallback 版都用）
+  function drawShrineAura(n,cx,cy,R){
     const gl=ctx.createRadialGradient(cx,cy,4,cx,cy,R*1.8); gl.addColorStop(0,"rgba(197,225,165,0.28)"); gl.addColorStop(1,"rgba(0,0,0,0)"); ctx.fillStyle=gl; ctx.beginPath(); ctx.arc(cx,cy,R*1.8,0,7); ctx.fill();
     ctx.lineWidth=6; ctx.strokeStyle="rgba(0,0,0,0.4)"; ctx.beginPath(); ctx.arc(cx,cy,R*1.2,0,7); ctx.stroke();
     ctx.strokeStyle=n.hp/n.maxhp>0.3?"#66bb6a":"#ef5350"; ctx.beginPath(); ctx.arc(cx,cy,R*1.2,-1.57,-1.57+6.283*(n.hp/n.maxhp)); ctx.stroke();
     ctx.fillStyle="#fff"; ctx.font="bold 16px sans-serif"; ctx.textAlign="center"; ctx.fillText("🌳 台灣神木",n.x,n.y+R*0.98);
   }
+  // 動漫裝飾樹：純視覺（不擋路），底部錨定 + 微風搖曳；沒圖就不畫（render 端已判斷）
+  function drawFTree(t){ const im=fimg("tree"); if(!im) return;
+    const H=t.sz, W=H*im.naturalWidth/im.naturalHeight;
+    ctx.fillStyle="rgba(0,0,0,0.22)"; ctx.beginPath(); ctx.ellipse(t.x,t.y+5,W*0.3,W*0.12,0,0,7); ctx.fill();
+    ctx.save(); ctx.translate(t.x,t.y+6); ctx.rotate(Math.sin(clock*0.5+t.x*0.01)*0.011);
+    ctx.drawImage(im,-W/2,-H,W,H); ctx.restore();
+  }
   function drawNursery(n){
+    const nim=fimg("nursery");
+    if(nim){ // 動漫風苗圃插畫：成長時微放大 + 綠光擴散（保留「有在長」的回饋）
+      const sc=0.92+n.growth*0.22, W=n.r*2.9*sc, H=W*nim.naturalHeight/nim.naturalWidth;
+      ctx.drawImage(nim,n.x-W/2,n.y-H*0.56,W,H);
+      if(n.growth>0.12){ const gg=ctx.createRadialGradient(n.x,n.y,4,n.x,n.y,n.r*1.5);
+        gg.addColorStop(0,"rgba(139,255,148,"+(0.20*n.growth).toFixed(3)+")"); gg.addColorStop(1,"rgba(139,255,148,0)");
+        ctx.fillStyle=gg; ctx.beginPath(); ctx.arc(n.x,n.y,n.r*1.5,0,7); ctx.fill(); }
+    } else {
     ctx.fillStyle="rgba(0,0,0,0.25)"; ctx.beginPath(); ctx.ellipse(n.x,n.y+n.r*0.4,n.r,n.r*0.4,0,0,7); ctx.fill();
     // 土圃
     ctx.fillStyle="#6d4c33"; ctx.beginPath(); ctx.arc(n.x,n.y,n.r,0,7); ctx.fill();
     // 苗（隨成長變多/變綠）
     const k=Math.round(3+n.growth*5); for(let i=0;i<k;i++){ const a=i/k*6.283, rr=n.r*0.55; ctx.fillStyle=mix("#9e8b4a","#43a047",n.growth);
-      const sx=n.x+Math.cos(a)*rr*0.6, sy=n.y+Math.sin(a)*rr*0.6; ctx.beginPath(); ctx.ellipse(sx,sy-6-n.growth*8,3,7+n.growth*7,0,0,7); ctx.fill(); }
+      const sx=n.x+Math.cos(a)*rr*0.6, sy=n.y+Math.sin(a)*rr*0.6; ctx.beginPath(); ctx.ellipse(sx,sy-6-n.growth*8,3,7+n.growth*7,0,0,7); ctx.fill(); } }
     if(n.contested){ ctx.strokeStyle="#ff7043"; ctx.lineWidth=3; ctx.setLineDash([6,5]); ctx.beginPath(); ctx.arc(n.x,n.y,n.r+8,0,7); ctx.stroke(); ctx.setLineDash([]); }
     bar(n.x,n.y-n.r-10,52,n.hp/n.maxhp,"#9ccc65");
     ctx.fillStyle="#fff"; ctx.font="bold 11px sans-serif"; ctx.textAlign="center"; ctx.fillText("🌱 復育苗圃",n.x,n.y+n.r+14);
