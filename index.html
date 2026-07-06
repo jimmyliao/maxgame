@@ -314,6 +314,8 @@
   .br-name{ flex:1; text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .br-stat{ min-width:58px; text-align:right; color:#e8f5e9; }
   .br-foot{ margin-top:3px; color:#b0bec5; font-size:12px; }
+  #mover svg.ico{ vertical-align:-2px; }
+  .rw-chip svg.ico{ flex:none; }
   /* moba PVE 關卡遞增：過關「下一關」按鈕，未過關時隱藏 */
   #moverNext.hide{ display:none; }
   /* 對戰選單各列的 .hide 之前沒有對應規則(只有 .hregion.hide/.scr.hide)，導致 pveTargets/隊伍人數/地區/duelBox 一直全部同時顯示＝畫面太複雜。補上這些容器的隱藏規則(id+class 特異度確保生效) */
@@ -820,7 +822,7 @@
   <button class="btn hide" id="moverNext"></button>
   <!-- ===== /moba PVE 關卡遞增新增 ===== -->
   <button class="btn" id="moverAgain"></button>
-  <button class="btn sec" id="moverHome">🏠 回大廳</button>
+  <button class="btn sec" id="moverHome">回大廳</button>
 </div>
 
 <!-- ===== 棲地基地：經營/養成（離線也會成長，回來收成） ===== -->

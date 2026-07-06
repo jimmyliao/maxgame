@@ -594,7 +594,7 @@
     updateHUD();
     if(s.ended && !ended){ ended=true; running=false; cancelAnimationFrame(raf);
       if(duelEvent){ const bn=KNAME[duelEvent.bossKind]||"大首領", tn=duelTierName(duelEvent.level||1);
-        showOver(s.win?"🏆 首領挑戰勝利！":"⚔ 首領挑戰失敗", s.win?("「"+tn+"級」"+bn+"王被擊敗了"):("「"+tn+"級」"+bn+"王太強了…"),
+        showOver(s.win?"首領挑戰勝利！":"首領挑戰失敗", s.win?("「"+tn+"級」"+bn+"王被擊敗了"):("「"+tn+"級」"+bn+"王太強了…"),
           s.win?("你和隊友一起擊敗了 "+tn+"級 "+bn+"王！回到小隊可挑戰更高難度。"):("這次沒能在時限內擊敗牠，回到小隊再約隊友一起挑戰！")); }
       else showOver(s.win?"🌳 棲地復原成功！":"神木倒下了…", s.win?"枯黃的土地重新長回翠綠":"棲地失守",
         s.win?"你和朋友一起驅逐了外來入侵種、守住台灣神木與復育苗圃！":"別氣餒，再約朋友一起守一次吧。"); }
@@ -1549,13 +1549,13 @@
       const boostN=6+Math.min(killCount,10);
       window.__habitatBoost&&window.__habitatBoost(battleRegion,boostN);
       const after=(window.__heroLevel&&window.__heroLevel(key))||before;
-      const rewards=[{i:"🌿",l:"保育值",v:"+"+eco},{i:"🛡",l:"驅逐入侵種",v:killCount+" 隻"}];
-      if(comboBest>=3) rewards.push({i:"🔥",l:"最高連擊",v:String(comboBest)});
-      rewards.push({i:"⭐",l:(KNAME[key]||"")+" EXP",v:"+"+xp});
-      if(after>before) rewards.push({i:"⬆",l:"升級！",v:"Lv"+before+" → Lv"+after,big:true});
+      const rewards=[{i:"leaf",l:"保育值",v:"+"+eco},{i:"shield",l:"驅逐入侵種",v:killCount+" 隻"}];
+      if(comboBest>=3) rewards.push({i:"flame",l:"最高連擊",v:String(comboBest)});
+      rewards.push({i:"star",l:(KNAME[key]||"")+" EXP",v:"+"+xp});
+      if(after>before) rewards.push({i:"up",l:"升級！",v:"Lv"+before+" → Lv"+after,big:true});
       if(timeAttack){ const prev=getBest(teamSize), newRecord=!prev||clock<prev; if(newRecord) setBest(teamSize,clock);
-        rewards.push(newRecord?{i:"🏆",l:"新紀錄",v:fmtTime(clock),big:true}:{i:"⏱",l:"用時",v:fmtTime(clock)+(prev?("（最佳 "+fmtTime(prev)+"）"):"")}); }
-      showOver("🌳 棲地復原成功！","枯黃的土地重新長回翠綠","你和守護者小隊驅逐了外來入侵種、守住台灣神木與復育苗圃。<br>🌱 "+(REGION_LABEL[battleRegion]||battleRegion)+"棲地獲得復育核心資產，成長加速！",rewards); }
+        rewards.push(newRecord?{i:"trophy",l:"新紀錄",v:fmtTime(clock),big:true}:{i:"clock",l:"用時",v:fmtTime(clock)+(prev?("（最佳 "+fmtTime(prev)+"）"):"")}); }
+      showOver("棲地復原成功！","枯黃的土地重新長回翠綠","你和守護者小隊驅逐了外來入侵種、守住台灣神木與復育苗圃。<br>"+(REGION_LABEL[battleRegion]||battleRegion)+"棲地獲得復育核心資產，成長加速！",rewards); }
     else { const xp=8+killCount; window.__awardXP&&window.__awardXP(key,xp);  // 輸了也給少量經驗——等級只升不降
       showOver("神木倒下了…","棲地失守","別氣餒！多回防受威脅的苗圃、善用『守護爆發』與『回神木』補血，再守一次。<br>"+(KNAME[key]||"")+" 仍獲得 EXP +"+xp+"（等級永不下降・目前 Lv"+before+"）"); } }
   // PVE 限時外來種防衛戰：獨立的結算文案（達標＝成功→過關升級，時間到未達標＝失敗→可重打同關）
@@ -1567,12 +1567,12 @@
       const after=(window.__heroLevel&&window.__heroLevel(key))||before;
       const nextLv=lv+1; setPveLevel(tKind,nextLv); pveNextLevel=nextLv;   // 過關→永久解鎖下一關（離線保存）
       const np=pveLevelParams(tKind,nextLv);
-      const rewards=[{i:"🌿",l:"保育值",v:"+"+eco},{i:"🎯",l:"清除 "+KNAME[tKind],v:got+"/"+need+" 隻"},{i:"⭐",l:(KNAME[key]||"")+" EXP",v:"+"+xp}];
-      if(after>before) rewards.push({i:"⬆",l:"升級！",v:"Lv"+before+" → Lv"+after,big:true});
-      rewards.push({i:"🔓",l:"解鎖",v:"第 "+nextLv+" 關",big:true});
-      showOver("🎯 第 "+lv+" 關過關！","外來種入侵已排除","你和守護者小隊在限時內排除了棲地危機！<br>⚠ 下一關（第 "+nextLv+" 關）更難：需驅逐 "+np.need+" 隻・限時 "+np.dur+" 秒・入侵種更強更多！",rewards); }
+      const rewards=[{i:"leaf",l:"保育值",v:"+"+eco},{i:"target",l:"清除 "+KNAME[tKind],v:got+"/"+need+" 隻"},{i:"star",l:(KNAME[key]||"")+" EXP",v:"+"+xp}];
+      if(after>before) rewards.push({i:"up",l:"升級！",v:"Lv"+before+" → Lv"+after,big:true});
+      rewards.push({i:"unlock",l:"解鎖",v:"第 "+nextLv+" 關",big:true});
+      showOver("第 "+lv+" 關過關！","外來種入侵已排除","你和守護者小隊在限時內排除了棲地危機！<br>下一關（第 "+nextLv+" 關）更難：需驅逐 "+np.need+" 隻・限時 "+np.dur+" 秒・入侵種更強更多！",rewards); }
     else { const xp=6+got*2; window.__awardXP&&window.__awardXP(key,xp);
-      showOver("⏱ 第 "+lv+" 關失敗","防衛戰未達標","限時內只清除了 "+got+"/"+need+" 隻 "+KNAME[tKind]+"，外來種仍在擴散……可以重打這一關！<br>"+(KNAME[key]||"")+" 仍獲得 EXP +"+xp); } }
+      showOver("第 "+lv+" 關失敗","防衛戰未達標","限時內只清除了 "+got+"/"+need+" 隻 "+KNAME[tKind]+"，外來種仍在擴散……可以重打這一關！<br>"+(KNAME[key]||"")+" 仍獲得 EXP +"+xp); } }
   // 單挑首領戰結算
   function endGameDuel(win,key,before){ const bk=(duelEvent&&duelEvent.bossKind)||"iguana", sz=(duelEvent&&duelEvent.size)||teamSize||1;
     const curLv=(duelEvent&&duelEvent.level)||getDuelLevel();
@@ -1582,18 +1582,37 @@
       const after=(window.__heroLevel&&window.__heroLevel(key))||before;
       // 記錄本次通關時間（每個人數各存一筆最佳，含玩家名字）
       const nm=playerName(), prev=getDuelBest(sz), isNew=saveDuelBest(sz,clock,nm);
-      const rewards=[{i:"🌿",l:"保育值",v:"+"+eco},{i:"⭐",l:(KNAME[key]||"")+" EXP",v:"+"+xp}];
-      if(after>before) rewards.push({i:"⬆",l:"升級！",v:"Lv"+before+" → Lv"+after,big:true});
-      rewards.push(isNew?{i:"🏅",l:DUEL_SZNAME[sz]+"新紀錄",v:fmtTime(clock),big:true}
-                        :{i:"⏱",l:"用時",v:fmtTime(clock)+(prev?("（最佳 "+fmtTime(prev.time)+"）"):"")});
+      const rewards=[{i:"leaf",l:"保育值",v:"+"+eco},{i:"star",l:(KNAME[key]||"")+" EXP",v:"+"+xp}];
+      if(after>before) rewards.push({i:"up",l:"升級！",v:"Lv"+before+" → Lv"+after,big:true});
+      rewards.push(isNew?{i:"medal",l:DUEL_SZNAME[sz]+"新紀錄",v:fmtTime(clock),big:true}
+                        :{i:"clock",l:"用時",v:fmtTime(clock)+(prev?("（最佳 "+fmtTime(prev.time)+"）"):"")});
       // 難度晉級：打贏就升一級，最高「大師」級；已是大師則封頂顯示榮耀
       if(curLv<DUEL_TIERS.length){ setDuelLevel(curLv+1);
-        rewards.push({i:"👑",l:"難度晉級",v:duelTierName(curLv)+" → "+duelTierName(curLv+1)+"級",big:true}); }
-      else rewards.push({i:"👑",l:"大師級守護者",v:"最強首領也被你征服",big:true});
-      showOver("🏆 首領挑戰勝利！","「"+duelTierName(curLv)+"級」大首領被擊敗了","你們"+DUEL_SZNAME[sz]+"擊敗了 "+duelTierName(curLv)+"級 "+KNAME[bk]+"王！下一場首領更強。",rewards); }
+        rewards.push({i:"crown",l:"難度晉級",v:duelTierName(curLv)+" → "+duelTierName(curLv+1)+"級",big:true}); }
+      else rewards.push({i:"crown",l:"大師級守護者",v:"最強首領也被你征服",big:true});
+      showOver("首領挑戰勝利！","「"+duelTierName(curLv)+"級」大首領被擊敗了","你們"+DUEL_SZNAME[sz]+"擊敗了 "+duelTierName(curLv)+"級 "+KNAME[bk]+"王！下一場首領更強。",rewards); }
     else { const xp=12; window.__awardXP&&window.__awardXP(key,xp);
-      showOver("⚔ 首領挑戰失敗","「"+duelTierName(curLv)+"級」大首領太強了…","限時內沒能擊敗 "+duelTierName(curLv)+"級 "+KNAME[bk]+"王（難度不變，可再挑戰）——升級守護者、多找幾個人或換剋制屬性再來！<br>"+(KNAME[key]||"")+" 仍獲得 EXP +"+xp); } }
-  // 獎勵揭曉演出：rewards=[{i:圖示,l:名稱,v:數值,big:是否大獎}]，勝利時逐項彈出徽章＋每項一聲「叮」＋彩帶飄落
+      showOver("首領挑戰失敗","「"+duelTierName(curLv)+"級」大首領太強了…","限時內沒能擊敗 "+duelTierName(curLv)+"級 "+KNAME[bk]+"王（難度不變，可再挑戰）——升級守護者、多找幾個人或換剋制屬性再來！<br>"+(KNAME[key]||"")+" 仍獲得 EXP +"+xp); } }
+  // 結算畫面自繪向量圖示（不用手機內建 emoji——各家手機長相不一且出戲），inline SVG 零外部資源
+  const ICO={
+    leaf:'<path d="M12 21C6.5 16 6 8.5 20 4 18.5 13.5 16 19 12 21Z" fill="#66bb6a"/><path d="M12 20C11.5 15 13.5 9.5 18 6.5" stroke="#2e7d32" stroke-width="1.3" fill="none"/>',
+    shield:'<path d="M12 2 20 5V11C20 16.5 16.6 20.4 12 22 7.4 20.4 4 16.5 4 11V5Z" fill="#90caf9" stroke="#1565c0" stroke-width="1.2"/><path d="M12 5.2 17.4 7.2V11.2C17.4 15 15.2 17.8 12 19.2Z" fill="#bbdefb"/>',
+    star:'<path d="M12 2 14.9 8.6 22 9.3 16.7 14 18.2 21 12 17.4 5.8 21 7.3 14 2 9.3 9.1 8.6Z" fill="#ffd54f" stroke="#c99700" stroke-width="0.8"/>',
+    up:'<path d="M12 3 20 11H15.5V21H8.5V11H4Z" fill="#ffd54f" stroke="#c99700" stroke-width="1"/>',
+    flame:'<path d="M12 2C13.5 5.5 18 7.5 18 13A6 6 0 0 1 6 13C6 9.5 9 8 9.8 5 11 7 12.6 7.4 12 2Z" fill="#ff7043"/><path d="M12 18.5A3.2 3.2 0 0 1 8.8 15.3C8.8 13.6 10.6 12.9 11.5 11.2 12.6 12.9 15.2 13.3 15.2 15.3A3.2 3.2 0 0 1 12 18.5Z" fill="#ffd54f"/>',
+    clock:'<circle cx="12" cy="13" r="8" fill="#eceff1" stroke="#78909c" stroke-width="1.4"/><path d="M12 8V13L15.5 15" stroke="#37474f" stroke-width="1.7" fill="none" stroke-linecap="round"/><path d="M9 2H15" stroke="#78909c" stroke-width="2" stroke-linecap="round"/>',
+    trophy:'<path d="M7 3H17V9A5 5 0 0 1 7 9Z" fill="#ffca28" stroke="#c99700" stroke-width="1"/><path d="M7 4H4C4 8 5.5 9.5 7.5 10M17 4H20C20 8 18.5 9.5 16.5 10" stroke="#c99700" stroke-width="1.4" fill="none"/><path d="M10 13H14L15 19H9Z" fill="#ffca28"/><rect x="7.5" y="19" width="9" height="2.6" rx="1" fill="#c99700"/>',
+    crown:'<path d="M3.5 18 5 8 9.5 12 12 5.5 14.5 12 19 8 20.5 18Z" fill="#ffd54f" stroke="#c99700" stroke-width="1.1"/><rect x="3.5" y="18" width="17" height="2.6" rx="1" fill="#c99700"/>',
+    target:'<circle cx="12" cy="12" r="9" fill="none" stroke="#ef5350" stroke-width="2"/><circle cx="12" cy="12" r="5" fill="none" stroke="#ef5350" stroke-width="2"/><circle cx="12" cy="12" r="1.8" fill="#ef5350"/>',
+    unlock:'<rect x="5" y="10" width="14" height="10" rx="2.4" fill="#a5d6a7" stroke="#2e7d32" stroke-width="1.2"/><path d="M8 10V7A4 4 0 0 1 15.6 5.2" stroke="#2e7d32" stroke-width="1.8" fill="none" stroke-linecap="round"/><circle cx="12" cy="14.6" r="1.7" fill="#2e7d32"/>',
+    sword:'<path d="M5 19 15.8 5.6 19 3 18 6.8 7.4 21Z" fill="#eceff1" stroke="#90a4ae" stroke-width="0.9"/><path d="M4 16 8 20" stroke="#8d6e63" stroke-width="2.6" stroke-linecap="round"/>',
+    heart:'<path d="M12 21C5 15.5 3 11.5 5.2 8.2 7 5.6 10.4 6 12 8.6 13.6 6 17 5.6 18.8 8.2 21 11.5 19 15.5 12 21Z" fill="#ef9a9a" stroke="#c62828" stroke-width="1"/><path d="M12 8.6 10.6 12 13 14 11.6 17.6" stroke="#c62828" stroke-width="1.2" fill="none"/>',
+    report:'<rect x="5" y="4" width="14" height="17" rx="2" fill="#eceff1" stroke="#78909c" stroke-width="1.2"/><rect x="8.6" y="2.4" width="6.8" height="4" rx="1.4" fill="#90a4ae"/><path d="M8 10H16M8 13.5H16M8 17H13" stroke="#546e7a" stroke-width="1.5" stroke-linecap="round"/>',
+    medal:'<path d="M8 2 10.4 8H13.6L16 2Z" fill="#ef5350"/><circle cx="12" cy="14.5" r="6" fill="#ffca28" stroke="#c99700" stroke-width="1.3"/><path d="M12 11.2 13.2 13.7 16 14 14 15.9 14.5 18.6 12 17.3 9.5 18.6 10 15.9 8 14 10.8 13.7Z" fill="#fff8e1"/>',
+    sprout:'<path d="M12 21V12" stroke="#2e7d32" stroke-width="1.8" stroke-linecap="round"/><path d="M12 13C12 9 9.5 7 5 7 5.5 11 8 13 12 13Z" fill="#81c784"/><path d="M12 11.5C12 8 14.5 6 19 6 18.5 10 16 11.5 12 11.5Z" fill="#66bb6a"/>'
+  };
+  function svgIco(n,s){ const p=ICO[n]; if(!p) return ""; return '<svg class="ico" viewBox="0 0 24 24" width="'+(s||15)+'" height="'+(s||15)+'" aria-hidden="true">'+p+"</svg>"; }
+  // 獎勵揭曉演出：rewards=[{i:圖示名,l:名稱,v:數值,big:是否大獎}]，勝利時逐項彈出徽章＋每項一聲「叮」＋彩帶飄落
   let rwTimers=[];
   function showRewards(rewards){ const box=document.getElementById("moverRewards"); if(!box) return;
     for(const tm of rwTimers) clearTimeout(tm); rwTimers=[]; box.innerHTML="";
@@ -1601,12 +1620,13 @@
     const ov=document.getElementById("mover");
     // 彩帶：一次性 16 片、動畫結束自動移除（硬上限＋回收，不常駐）
     if(ov){ ov.querySelectorAll(".rw-conf").forEach(e=>e.remove());
-      const EMO=["🌿","✨","🎉","🍃","⭐"];
-      for(let i=0;i<16;i++){ const c=document.createElement("span"); c.className="rw-conf"; c.textContent=EMO[i%EMO.length];
-        c.style.left=(4+Math.random()*92)+"%"; c.style.fontSize=(13+Math.random()*10)+"px"; c.style.animationDelay=(Math.random()*0.9)+"s";
+      const SHAPES=["leaf","star","sprout","leaf","star"];
+      for(let i=0;i<16;i++){ const c=document.createElement("span"); c.className="rw-conf";
+        c.innerHTML=svgIco(SHAPES[i%SHAPES.length],Math.round(13+Math.random()*9));
+        c.style.left=(4+Math.random()*92)+"%"; c.style.animationDelay=(Math.random()*0.9)+"s";
         ov.appendChild(c); rwTimers.push(setTimeout(()=>c.remove(),3600)); } }
     rewards.forEach((rw,i)=>{ const chip=document.createElement("div"); chip.className="rw-chip"+(rw.big?" big":"");
-      chip.innerHTML=(rw.i?rw.i+" ":"")+escHtml(rw.l)+' <span class="rv">'+escHtml(rw.v)+"</span>";
+      chip.innerHTML=(rw.i?svgIco(rw.i)+" ":"")+escHtml(rw.l)+' <span class="rv">'+escHtml(rw.v)+"</span>";
       box.appendChild(chip);
       rwTimers.push(setTimeout(()=>{ chip.classList.add("on");
         if(window.__sfx) window.__sfx.play(rw.big?"levelup":"coin"); },550+i*420)); }); }
@@ -1615,17 +1635,17 @@
     const rows=[...heroes].map(h=>({h,score:(h.dmgDealt||0)+(h.kills||0)*40}));
     rows.sort((a,b)=>b.score-a.score);
     const top=(rows[0]&&rows[0].score>0)?rows[0].h:null;
-    let html='<div class="br-title">📋 對戰報告</div>'
-      +'<div class="br-head"><span class="br-name">守護者</span><span class="br-stat">🛡 驅逐</span><span class="br-stat">⚔ 傷害</span><span class="br-stat">💔 承受</span></div>';
+    let html='<div class="br-title">'+svgIco("report",15)+' 對戰報告</div>'
+      +'<div class="br-head"><span class="br-name">守護者</span><span class="br-stat">'+svgIco("shield",12)+' 驅逐</span><span class="br-stat">'+svgIco("sword",12)+' 傷害</span><span class="br-stat">'+svgIco("heart",12)+' 承受</span></div>';
     for(const rw of rows){ const h=rw.h;
       html+='<div class="br-row'+(h===player?' me':'')+'">'
-        +'<span class="br-name">'+(top===h?'⭐ ':'')+escHtml(h.name)+(h===player?'（你）':'')+'</span>'
+        +'<span class="br-name">'+(top===h?svgIco('star',13)+' ':'')+escHtml(h.name)+(h===player?'（你）':'')+'</span>'
         +'<span class="br-stat">'+(h.kills||0)+'</span>'
         +'<span class="br-stat">'+Math.round(h.dmgDealt||0)+'</span>'
         +'<span class="br-stat">'+Math.round(h.dmgTaken||0)+'</span></div>'; }
-    html+='<div class="br-foot">⏱ 用時 '+fmtTime(clock)
-      +(duelEvent?'':('　🌿 復原度 '+Math.round(restore*100)+'%'))
-      +(comboBest>=2?('　🔥 最高連擊 '+comboBest):'')+'</div>';
+    html+='<div class="br-foot">'+svgIco('clock',12)+' 用時 '+fmtTime(clock)
+      +(duelEvent?'':('　'+svgIco('leaf',12)+' 復原度 '+Math.round(restore*100)+'%'))
+      +(comboBest>=2?('　'+svgIco('flame',12)+' 最高連擊 '+comboBest):'')+'</div>';
     return html; }
   function showOver(t,s,b,rewards){ root.classList.add("mhide"); txt("moverT",t); txt("moverS",s); const el=document.getElementById("moverB"); if(el) el.innerHTML=b;
     const rp=document.getElementById("moverReport"); if(rp) rp.innerHTML=(heroes&&heroes.length&&clock>1)?buildBattleReport():"";
@@ -1634,12 +1654,12 @@
     const again=document.getElementById("moverAgain"); const next=document.getElementById("moverNext");
     // PVE 過關（pveNextLevel!=null）：主按鈕改成「下一關（更難）」，再守一場保留為重打（同樣讀已推進的關卡）
     if(pveNextLevel){ if(again) again.classList.add("hide");
-      if(next){ next.textContent="➡ 挑戰下一關（第 "+pveNextLevel+" 關・更難）"; next.classList.remove("hide"); } }
-    else { if(again){ again.textContent="⚔ 再守一場"; again.classList.remove("hide"); } if(next) next.classList.add("hide"); }
+      if(next){ next.textContent="挑戰下一關（第 "+pveNextLevel+" 關・更難）"; next.classList.remove("hide"); } }
+    else { if(again){ again.textContent="再守一場"; again.classList.remove("hide"); } if(next) next.classList.add("hide"); }
     // 好友連線：結算按鈕改成「回到小隊」（回共享房間可再玩或離開），家/離開鈕改成「離開小隊」
-    if(netRole){ if(again){ again.textContent="↩ 回到小隊"; again.classList.remove("hide"); } if(next) next.classList.add("hide");
-      const home=document.getElementById("moverHome"); if(home) home.textContent="🚪 離開小隊"; }
-    else { const home=document.getElementById("moverHome"); if(home) home.textContent="🏠 回大廳"; }
+    if(netRole){ if(again){ again.textContent="回到小隊"; again.classList.remove("hide"); } if(next) next.classList.add("hide");
+      const home=document.getElementById("moverHome"); if(home) home.textContent="離開小隊"; }
+    else { const home=document.getElementById("moverHome"); if(home) home.textContent="回大廳"; }
     show("mover"); }
   function show(id){ const e=document.getElementById(id); if(e) e.classList.remove("hide"); }
   function hide(id){ const e=document.getElementById(id); if(e) e.classList.add("hide"); }
