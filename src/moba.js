@@ -200,9 +200,9 @@
   function getDuelBest(size){ const r=getDuelRecords(); return r[size]||null; }
   function saveDuelBest(size,t,name){ try{ const r=getDuelRecords(); const cur=r[size];
     if(!cur || t<cur.time){ r[size]={time:t,name:name||"玩家"}; localStorage.setItem("shoutu_duel_best",JSON.stringify(r)); return true; } }catch(e){} return false; }
-  // pick 畫面的通關紀錄面板：列出 1~5 人各自的最佳（名字＋時間）
+  // pick 畫面的通關紀錄面板：列出單人/三人/五人各自的最佳（名字＋時間）——人數選項與 duelSizeRow 一致
   function renderDuelRecords(){ const box=document.getElementById("duelRecords"); if(!box) return; box.innerHTML="";
-    for(let sz=1;sz<=5;sz++){ const rec=getDuelBest(sz);
+    for(const sz of [1,3,5]){ const rec=getDuelBest(sz);
       const row=document.createElement("div"); row.className="dr-row";
       row.innerHTML='<span class="dr-sz">'+DUEL_SZNAME[sz]+'</span>'+
         (rec? ('<span class="dr-name">🏅 '+escHtml(rec.name)+'</span><span class="dr-time">'+fmtTime(rec.time)+'</span>')
@@ -1660,7 +1660,7 @@
     const descEl=document.getElementById("mpickDesc");
     if(descEl) descEl.innerHTML = m==="time" ? "目標不是守住不倒，而是盡快把棲地復原到 100%！<br>擊退入侵種、守住苗圃，比比看你多快能讓棲地重新翠綠。"
       : m==="pve" ? "選一種外來入侵種當清除目標，限時內驅逐足額數量就成功！<br>善用原生種的生態優勢（生物防治鏈）能大幅提升效率。"
-      : m==="duel" ? ("選 <b>單人～五人</b> 一起挑戰一隻超強大首領（人越多首領越強）！限時內擊敗就贏。<br>目前難度：<b style='color:#ffd54f'>"+dTier+"級</b>"+(isDuelMaster()?"（已達最高的大師級 👑）":"　—　每打贏一場自動晉級，最高「大師」級！")+"<br>走位閃避牠的範圍震波與蓄力衝撞、撿守護之力放必殺。")
+      : m==="duel" ? ("選 <b>單人／三人／五人</b> 一起挑戰一隻超強大首領（人越多首領越強）！限時內擊敗就贏。<br>目前難度：<b style='color:#ffd54f'>"+dTier+"級</b>"+(isDuelMaster()?"（已達最高的大師級 👑）":"　—　每打贏一場自動晉級，最高「大師」級！")+"<br>走位閃避牠的範圍震波與蓄力衝撞、撿守護之力放必殺。")
       : "守護台灣神木與復育苗圃，擊退四面湧入的外來入侵種——讓枯黃的棲地一吋吋復原成翠綠，復原度滿 100% 就守護成功！";
     const info=document.getElementById("bestTimeInfo");
     if(info){ if(m==="time"){ const b3=getBest(3), b5=getBest(5);
