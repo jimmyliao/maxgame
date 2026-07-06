@@ -1061,6 +1061,8 @@
     const breath=1+(u.moving?0:Math.sin(gt*2.2+u.phase)*0.03);
     const lunge=u.atkA>0?Math.sin((1-u.atkA/0.2)*3.14159)*r*0.5:0;
     const gy=u.y-bob-(flyer?r*0.5:0);
+    // 匯出本幀動態位移/立繪高度：讓戰場服裝(光環/王冠等)跟著角色的彈跳、突進一起動
+    u._bobY=u.y-gy; u._lgX=Math.cos(f||0)*lunge; u._bbH=0;
     // 圖檔優先①：有專屬俯視圖(assets/top/)就依朝向旋轉貼圖
     const spr=SPRITES_TOP[u.kind];
     if(spr){ const S=r*2.7*(u.elite?1.15:1);
@@ -1071,12 +1073,23 @@
     // 圖檔優先②：動漫立繪「直立顯示」（比照荒野亂鬥）——用大廳同一張立繪，不隨面向旋轉、只依移動方向左右翻面
     const bb=window.__spriteOf&&window.__spriteOf(u.kind);
     if(bb){ const H=r*3.2*(u.elite?1.15:1), W=H*bb.naturalWidth/bb.naturalHeight;
+      u._bbH=H;
       ctx.fillStyle="rgba(0,0,0,0.22)"; ctx.beginPath(); ctx.ellipse(u.x+r*0.15,u.y+r*0.6,r*1.05,r*0.4,0,0,7); ctx.fill();
       ctx.fillStyle=faction==="inv"?"rgba(239,83,80,0.28)":"rgba(102,187,106,0.34)"; ctx.beginPath(); ctx.ellipse(u.x,u.y+r*0.55,r*1.1,r*0.42,0,0,7); ctx.fill();
       const facingLeft=Math.cos(f||0)<0, flip=(faction==="inv")? !facingLeft : facingLeft;   // 守護者圖面向右、入侵種圖面向左
       ctx.save(); ctx.translate(u.x+Math.cos(f||0)*lunge, gy+Math.sin(f||0)*lunge*0.3+r*0.6);
       ctx.scale(flip?-1:1, breath);
-      ctx.drawImage(bb,-W/2,-H,W,H);
+      if(u.moving){ // 跑動四肢：立繪下半身切成前/後兩半，繞髖部反相擺動＋身體微搖（剪紙木偶式步態）
+        ctx.rotate(walk*0.05);
+        const NW=bb.naturalWidth, NH=bb.naturalHeight, legH=H*0.40, sy2=NH*0.60, sh2=NH*0.40, sw2=walk*0.30;
+        for(const s of[-1,1]){ const px=s*W*0.20, py=-legH*0.92;
+          ctx.save(); ctx.translate(px,py); ctx.rotate(s*sw2);
+          ctx.drawImage(bb, s<0?0:NW/2, sy2, NW/2, sh2, (s<0?-W/2:0)-px, -legH-py, W/2, legH);
+          ctx.restore(); }
+        ctx.drawImage(bb, 0,0,NW,NH*0.64, -W/2,-H, W, H*0.64);   // 上半身蓋住髖部接縫
+      } else {
+        ctx.drawImage(bb,-W/2,-H,W,H);
+      }
       if(u.hitT>0){ ctx.globalCompositeOperation="lighter"; ctx.globalAlpha=Math.min(0.65,u.hitT*3); ctx.drawImage(bb,-W/2,-H,W,H); }   // 受擊閃白
       ctx.restore(); return; }
     const bLen=r*cfg.long, bW=r*cfg.wide;
@@ -1417,20 +1430,30 @@
       if(u.hp<u.maxhp) bar(u.x,u.y-R-8,u.elite?40:26,u.hp/u.maxhp,"#ff8a80");
       if(u.stun>0){ ctx.fillStyle="#ffe082"; for(let s=0;s<3;s++){ const a=clock*7+s*2.1; ctx.beginPath(); ctx.arc(u.x+Math.cos(a)*R*0.9,u.y-R-2+Math.sin(a)*3,2.4,0,7); ctx.fill(); } } } }
   // 服裝店買的裝飾在戰場也看得到：畫在守護者頭上/周圍（螢幕空間、不隨朝向旋轉），純程序繪製無粒子洩漏
-  function drawCosmeticTop(x,y,R,key){ const t=clock; ctx.save();
-    if(key==="crown"){ const cy=y-R-4,w=R*0.7,h=R*0.42; ctx.fillStyle="#ffd54f"; ctx.strokeStyle="#b8860b"; ctx.lineWidth=1.4;
+  // u 為可選：有動漫立繪(u._bbH>0)時，頭飾錨定立繪頭頂、環繞特效錨定身體中心，並由呼叫端帶入彈跳/突進位移
+  function drawCosmeticTop(x,y,R,key,u){ const t=clock; ctx.save();
+    const bh=(u&&u._bbH)||0;
+    const hy=bh? y-bh*0.90 : y-R-4;          // 頭頂錨點（王冠/蝴蝶結/光輪）
+    const cy0=bh? y-bh*0.46 : y;             // 身體中心錨點（環繞類特效）
+    const RR=bh? Math.max(R*1.1,bh*0.36) : R; // 環繞半徑放大到立繪身形
+    if(key==="crown"){ const cy=hy,w=R*0.7,h=R*0.42; ctx.fillStyle="#ffd54f"; ctx.strokeStyle="#b8860b"; ctx.lineWidth=1.4;
       ctx.beginPath(); ctx.moveTo(x-w/2,cy); ctx.lineTo(x-w/2,cy-h*0.4); ctx.lineTo(x-w*0.25,cy-h); ctx.lineTo(x,cy-h*0.4); ctx.lineTo(x+w*0.25,cy-h); ctx.lineTo(x+w/2,cy-h*0.4); ctx.lineTo(x+w/2,cy); ctx.closePath(); ctx.fill(); ctx.stroke(); }
-    else if(key==="bow"){ const cy=y-R-4,r=R*0.22; ctx.fillStyle="#ff6f91"; for(const s of[-1,1]){ ctx.beginPath(); ctx.moveTo(x,cy); ctx.lineTo(x+s*r*1.6,cy-r); ctx.lineTo(x+s*r*1.6,cy+r); ctx.closePath(); ctx.fill(); } ctx.fillStyle="#e91e63"; ctx.beginPath(); ctx.arc(x,cy,r*0.5,0,7); ctx.fill(); }
-    else if(key==="wreath"){ const n=8; for(let i=0;i<n;i++){ const a=i/n*6.283+t*0.4; ctx.fillStyle=i%2?"#ffb7c5":"#fff59d"; ctx.beginPath(); ctx.arc(x+Math.cos(a)*R*1.2,y+Math.sin(a)*R*1.2,R*0.11,0,7); ctx.fill(); } }
-    else if(key==="star"){ ctx.globalCompositeOperation="lighter"; for(let i=0;i<6;i++){ const a=t*1.8+i*1.047, tw=0.5+0.5*Math.sin(t*4+i); ctx.fillStyle="rgba(255,240,150,"+tw.toFixed(2)+")"; ctx.beginPath(); ctx.arc(x+Math.cos(a)*R*1.25,y+Math.sin(a)*R*1.25,R*0.1*tw+1,0,7); ctx.fill(); } }
-    else if(key==="leaf"){ for(let i=0;i<5;i++){ const a=t*1.2+i*1.257; ctx.save(); ctx.translate(x+Math.cos(a)*R*1.2,y+Math.sin(a)*R*1.2); ctx.rotate(a+t); ctx.fillStyle=i%2?"#c0894a":"#8a5a2b"; ctx.beginPath(); ctx.ellipse(0,0,R*0.16,R*0.08,0,0,7); ctx.fill(); ctx.restore(); } }
-    else if(key==="snow"){ ctx.fillStyle="rgba(255,255,255,0.9)"; for(let i=0;i<8;i++){ const px=x+(-1+((i*0.27)%2))*R, py=y+(((t*0.5+i*0.4)%2)-1)*R; ctx.beginPath(); ctx.arc(px,py,R*0.05,0,7); ctx.fill(); } }
+    else if(key==="bow"){ const cy=hy,r=R*0.22; ctx.fillStyle="#ff6f91"; for(const s of[-1,1]){ ctx.beginPath(); ctx.moveTo(x,cy); ctx.lineTo(x+s*r*1.6,cy-r); ctx.lineTo(x+s*r*1.6,cy+r); ctx.closePath(); ctx.fill(); } ctx.fillStyle="#e91e63"; ctx.beginPath(); ctx.arc(x,cy,r*0.5,0,7); ctx.fill(); }
+    else if(key==="wreath"){ const n=8; for(let i=0;i<n;i++){ const a=i/n*6.283+t*0.4; ctx.fillStyle=i%2?"#ffb7c5":"#fff59d"; ctx.beginPath(); ctx.arc(x+Math.cos(a)*RR*1.2,cy0+Math.sin(a)*RR*1.2,R*0.11,0,7); ctx.fill(); } }
+    else if(key==="star"){ ctx.globalCompositeOperation="lighter"; for(let i=0;i<6;i++){ const a=t*1.8+i*1.047, tw=0.5+0.5*Math.sin(t*4+i); ctx.fillStyle="rgba(255,240,150,"+tw.toFixed(2)+")"; ctx.beginPath(); ctx.arc(x+Math.cos(a)*RR*1.25,cy0+Math.sin(a)*RR*1.25,R*0.1*tw+1,0,7); ctx.fill(); } }
+    else if(key==="leaf"){ for(let i=0;i<5;i++){ const a=t*1.2+i*1.257; ctx.save(); ctx.translate(x+Math.cos(a)*RR*1.2,cy0+Math.sin(a)*RR*1.2); ctx.rotate(a+t); ctx.fillStyle=i%2?"#c0894a":"#8a5a2b"; ctx.beginPath(); ctx.ellipse(0,0,R*0.16,R*0.08,0,0,7); ctx.fill(); ctx.restore(); } }
+    else if(key==="snow"){ ctx.fillStyle="rgba(255,255,255,0.9)"; for(let i=0;i<8;i++){ const px=x+(-1+((i*0.27)%2))*RR, py=cy0+(((t*0.5+i*0.4)%2)-1)*RR; ctx.beginPath(); ctx.arc(px,py,R*0.05,0,7); ctx.fill(); } }
     // 通行證專屬特殊服裝（戰場俯視版）
-    else if(key==="halo"){ ctx.globalCompositeOperation="lighter"; ctx.strokeStyle="rgba(255,224,130,0.85)"; ctx.lineWidth=R*0.14; ctx.beginPath(); ctx.ellipse(x,y-R-2,R*0.85,R*0.32,0,0,7); ctx.stroke();
-      for(let i=0;i<6;i++){ const a=t*1.4+i*1.047, tw=0.5+0.5*Math.sin(t*4+i); ctx.fillStyle="rgba(255,245,180,"+tw.toFixed(2)+")"; ctx.beginPath(); ctx.arc(x+Math.cos(a)*R*0.85,y-R-2+Math.sin(a)*R*0.32,R*0.09*tw+1,0,7); ctx.fill(); } ctx.globalCompositeOperation="source-over"; }
-    else if(key==="flame"){ ctx.globalCompositeOperation="lighter"; for(let i=0;i<10;i++){ const a=i/10*6.283, fl=0.5+0.5*Math.sin(t*8+i*1.7); ctx.fillStyle="rgba(255,"+(110+(fl*110|0))+",40,"+(0.3+fl*0.4).toFixed(2)+")"; ctx.beginPath(); ctx.arc(x+Math.cos(a)*R*1.25,y+Math.sin(a)*R*1.25,R*0.12*(0.6+fl),0,7); ctx.fill(); } ctx.globalCompositeOperation="source-over"; }
-    else if(key==="aurora"){ ctx.globalCompositeOperation="lighter"; const cols=["#7cf6c8","#8bd3ff","#c69cff","#8bffdd"]; for(let i=0;i<8;i++){ const a=t*1.5+i*0.785, tw=0.5+0.5*Math.sin(t*3+i); ctx.fillStyle=cols[i%4]; ctx.globalAlpha=0.3+0.35*tw; ctx.beginPath(); ctx.arc(x+Math.cos(a)*R*1.3,y+Math.sin(a)*R*1.3,R*0.11,0,7); ctx.fill(); } ctx.globalAlpha=1; ctx.globalCompositeOperation="source-over"; }
-    else if(key==="phoenix"){ for(let i=0;i<6;i++){ const a=-2.4+i*0.5+Math.sin(t*2)*0.05; ctx.save(); ctx.translate(x,y); ctx.rotate(a); const grd=ctx.createLinearGradient(0,-R*0.4,0,-R*1.5); grd.addColorStop(0,"#ffca28"); grd.addColorStop(1,"#ff3d00"); ctx.fillStyle=grd; ctx.beginPath(); ctx.ellipse(0,-R,R*0.11,R*0.5,0,0,7); ctx.fill(); ctx.restore(); } }
+    else if(key==="halo"){ ctx.globalCompositeOperation="lighter"; ctx.strokeStyle="rgba(255,224,130,0.85)"; ctx.lineWidth=R*0.14; ctx.beginPath(); ctx.ellipse(x,hy,R*0.85,R*0.32,0,0,7); ctx.stroke();
+      for(let i=0;i<6;i++){ const a=t*1.4+i*1.047, tw=0.5+0.5*Math.sin(t*4+i); ctx.fillStyle="rgba(255,245,180,"+tw.toFixed(2)+")"; ctx.beginPath(); ctx.arc(x+Math.cos(a)*R*0.85,hy+Math.sin(a)*R*0.32,R*0.09*tw+1,0,7); ctx.fill(); } ctx.globalCompositeOperation="source-over"; }
+    else if(key==="flame"){ ctx.globalCompositeOperation="lighter"; for(let i=0;i<10;i++){ const a=i/10*6.283, fl=0.5+0.5*Math.sin(t*8+i*1.7); ctx.fillStyle="rgba(255,"+(110+(fl*110|0))+",40,"+(0.3+fl*0.4).toFixed(2)+")"; ctx.beginPath(); ctx.arc(x+Math.cos(a)*RR*1.25,cy0+Math.sin(a)*RR*1.25,R*0.12*(0.6+fl),0,7); ctx.fill(); } ctx.globalCompositeOperation="source-over"; }
+    else if(key==="aurora"){ ctx.globalCompositeOperation="lighter"; const cols=["#7cf6c8","#8bd3ff","#c69cff","#8bffdd"]; for(let i=0;i<8;i++){ const a=t*1.5+i*0.785, tw=0.5+0.5*Math.sin(t*3+i); ctx.fillStyle=cols[i%4]; ctx.globalAlpha=0.3+0.35*tw; ctx.beginPath(); ctx.arc(x+Math.cos(a)*RR*1.3,cy0+Math.sin(a)*RR*1.3,R*0.11,0,7); ctx.fill(); } ctx.globalAlpha=1; ctx.globalCompositeOperation="source-over"; }
+    else if(key==="phoenix"){ for(let i=0;i<6;i++){ const a=-2.4+i*0.5+Math.sin(t*2)*0.05; ctx.save(); ctx.translate(x,cy0); ctx.rotate(a); const grd=ctx.createLinearGradient(0,-RR*0.4,0,-RR*1.5); grd.addColorStop(0,"#ffca28"); grd.addColorStop(1,"#ff3d00"); ctx.fillStyle=grd; ctx.beginPath(); ctx.ellipse(0,-RR,R*0.11,RR*0.5,0,0,7); ctx.fill(); ctx.restore(); } }
+    else if(key.slice(0,2)==="x_"){ // 角色專屬服裝：戰場通用星光環（之前缺這段，導致專屬服裝在戰場上看不到）
+      ctx.globalCompositeOperation="lighter"; for(let i=0;i<8;i++){ const a=t*1.6+i*0.785, tw=0.5+0.5*Math.sin(t*3.5+i);
+        ctx.fillStyle="rgba(185,230,255,"+(0.25+0.4*tw).toFixed(2)+")"; ctx.beginPath();
+        ctx.arc(x+Math.cos(a)*RR*1.22,cy0+Math.sin(a)*RR*0.7,R*0.1*tw+1,0,7); ctx.fill(); }
+      ctx.globalCompositeOperation="source-over"; }
     ctx.restore(); }
   function drawHero(h){ const r=h.r, R=r*kcfg(h.kind).sz;
     if(h._cos===undefined) h._cos=(window.__cosmeticOf&&window.__cosmeticOf(h.kind))||"";   // 一次性快取該守護者的裝備服裝，避免逐幀讀 localStorage
@@ -1442,7 +1465,7 @@
     const stealthy=h.stealthT>0; if(stealthy) ctx.globalAlpha=0.4;
     drawCreatureTop(h,r,"ally");
     if(stealthy){ ctx.globalAlpha=1; ctx.fillStyle="#b0bec5"; ctx.font="12px sans-serif"; ctx.textAlign="center"; ctx.fillText("👻",h.x,h.y-R-30); }
-    if(h._cos && !stealthy) drawCosmeticTop(h.x,h.y,R,h._cos);   // 戰場上顯示裝備的服裝
+    if(h._cos && !stealthy) drawCosmeticTop(h.x+(h._lgX||0),h.y-(h._bobY||0),R,h._cos,h);   // 戰場上顯示裝備的服裝：跟著彈跳/突進位移一起動
     if(h.shieldT>0){ ctx.strokeStyle="rgba(77,208,225,0.85)"; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(h.x,h.y,R*1.25,0,7); ctx.stroke(); }
     if(h.invulnT>0){ ctx.strokeStyle="rgba(128,222,234,0.7)"; ctx.lineWidth=2; ctx.setLineDash([4,4]); ctx.beginPath(); ctx.arc(h.x,h.y,R*1.15,0,7); ctx.stroke(); ctx.setLineDash([]); }
     ctx.globalAlpha=1;
