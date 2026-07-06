@@ -69,6 +69,12 @@
   const FIELD_IMG={};
   ["shrine","nursery","rock","bush","tree"].forEach(k=>{ const im=new Image(); im.onerror=()=>{}; im.src="assets/field/"+k+".png"; FIELD_IMG[k]=im; });
   const fimg=(k)=>{ const im=FIELD_IMG[k]; return (im&&im.naturalWidth>0)?im:null; };
+  // 立繪預縮小快取：大廳立繪原圖約 512px，戰場只顯示 ~80~200px。每幀縮放大圖(尤其軟體渲染/中階手機)是掉幀主因，
+  // 這裡把每張立繪一次縮到 280px 高存成小 canvas，之後每幀都貼小圖，繪製成本大幅下降。原圖換掉會自動重建。
+  const _spCache=new Map();
+  function spScaled(img){ let c=_spCache.get(img); if(c && c._nw===img.naturalWidth) return c;
+    const TH=280, k=Math.min(1,TH/img.naturalHeight), w=Math.max(1,Math.round(img.naturalWidth*k)), h=Math.max(1,Math.round(img.naturalHeight*k));
+    c=document.createElement("canvas"); c.width=w; c.height=h; const g=c.getContext("2d"); g.imageSmoothingQuality="high"; g.drawImage(img,0,0,w,h); c._nw=img.naturalWidth; _spCache.set(img,c); return c; }
   ["leopard","bear","cicada","dragonfly","deer","magpie","snail","iguana","frog","ibis","anole","muntjac","macaque","salmon","pheasant","pangolin","yellowmarten","mikado"].forEach(k=>{
     try{ const im=new Image(); im.onload=()=>{ if(im.naturalWidth>0) SPRITES_TOP[k]=im; }; im.onerror=()=>{}; im.src="assets/top/"+k+".png"; }catch(e){} });
 
@@ -771,11 +777,13 @@
   function shade(hexc,amt){ const c=hex(hexc); return "rgb("+clamp(c[0]+amt,0,255)+","+clamp(c[1]+amt,0,255)+","+clamp(c[2]+amt,0,255)+")"; }
 
   /* ---------- 繪製 ---------- */
+  const _ents=[];   // render 用的 y 排序實體陣列，重用不重配置
   function render(){
     ctx.clearRect(0,0,VW,VH);
-    // 棲地：枯黃(低復原) → 翠綠(高復原)
+    // 棲地：枯黃(低復原) → 翠綠(高復原)。地面圖已載入時，底漸層會被不透明地磚整片蓋掉，跳過省一次全螢幕填色。
     const top=mix("#8a9a5e","#4a8a3e",restore), bot=mix("#6b7742","#2f6a26",restore);
-    const g=ctx.createLinearGradient(0,0,0,VH); g.addColorStop(0,top); g.addColorStop(1,bot); ctx.fillStyle=g; ctx.fillRect(0,0,VW,VH);
+    const g=ctx.createLinearGradient(0,0,0,VH); g.addColorStop(0,top); g.addColorStop(1,bot);
+    if(GROUND_IMG.naturalWidth<=0){ ctx.fillStyle=g; ctx.fillRect(0,0,VW,VH); }
     // 動漫風地面材質(圖檔優先、載入前用上面的漸層 fallback)：世界座標鋪貼只畫可視範圍
     if(GROUND_IMG.naturalWidth>0){
       ctx.save(); ctx.scale(zoom,zoom); ctx.translate(-cam.x,-cam.y);
@@ -789,8 +797,9 @@
     ctx.save(); if(mshake>0) ctx.translate((Math.random()-0.5)*mshake,(Math.random()-0.5)*mshake); ctx.scale(zoom,zoom); ctx.translate(-cam.x,-cam.y);
     drawField();
     drawRelics();
-    // 依 y 疊放
-    const ents=[shrine,...nurseries.filter(n=>n.hp>0)];
+    // 依 y 疊放：重用同一個陣列(每幀清空再填)，避免每幀 new 陣列+spread+filter 造成 GC 停頓(卡頓來源之一)
+    const ents=_ents; ents.length=0; ents.push(shrine);
+    for(const n of nurseries) if(n.hp>0) ents.push(n);
     if(fimg("tree")) for(const t of FIELD_TREES) ents.push(t);   // 動漫裝飾樹參與前後遮擋
     for(const v of invaders) ents.push(v);
     for(const h of heroes) if(!h.dead) ents.push(h);
@@ -811,22 +820,18 @@
     ctx.textAlign="center"; ctx.textBaseline="middle";
     for(const f of floats){ ctx.globalAlpha=Math.min(1,f.life*1.8); ctx.fillStyle=f.col; ctx.font="bold "+(f.big?20:14)+"px sans-serif"; ctx.fillText(f.txt,f.x,f.y); ctx.globalAlpha=1; }
     ctx.restore();
-    // 邊緣暗角（聚焦中央）
-    // 陽光方向光（左上暖光、右下陰影）讓整體像真實日照場景
-    const sunL=ctx.createLinearGradient(0,0,VW*0.85,VH); sunL.addColorStop(0,"rgba(255,244,196,0.13)"); sunL.addColorStop(0.45,"rgba(255,255,255,0)"); sunL.addColorStop(1,"rgba(12,26,8,0.17)");
-    ctx.fillStyle=sunL; ctx.fillRect(0,0,VW,VH);
+    // 邊緣暗角＋方向光：靜態全螢幕漸層只依 VW/VH，快取起來(resize 時失效)，不再每幀重建
+    if(_ppW!==VW||_ppH!==VH) buildPostGrads();
+    ctx.fillStyle=_sunGrad; ctx.fillRect(0,0,VW,VH);
     // 動漫斜射天光：三道緩慢呼吸的林間光束（夜間收斂成月光、暴雨關閉）
     if(weatherBattle!=="storm"){ ctx.save(); ctx.globalCompositeOperation="lighter";
       const beamCol=weatherBattle==="night"?"190,210,255":"255,246,190", beamBase=weatherBattle==="night"?0.045:0.075;
       for(let i=0;i<3;i++){ const a=beamBase+0.03*Math.sin(clock*0.45+i*2.1); if(a<=0.015) continue;
         const bx=VW*(0.16+i*0.32)+Math.sin(clock*0.22+i*1.7)*36, bw=VW*0.05+i*18, sk=VH*0.42;
-        const lg=ctx.createLinearGradient(0,0,0,VH); lg.addColorStop(0,"rgba("+beamCol+","+a.toFixed(3)+")"); lg.addColorStop(1,"rgba("+beamCol+",0)");
-        ctx.fillStyle=lg; ctx.beginPath(); ctx.moveTo(bx-bw,0); ctx.lineTo(bx+bw,0); ctx.lineTo(bx+bw-sk,VH); ctx.lineTo(bx-bw-sk,VH); ctx.closePath(); ctx.fill(); }
-      ctx.restore(); }
-    // 賽璐璐色調：輕微整體飽和度增益，讓畫面像動畫上色而非寫實攝影
-    ctx.save(); ctx.globalCompositeOperation="saturation"; ctx.globalAlpha=0.16; ctx.fillStyle="#ff0080"; ctx.fillRect(0,0,VW,VH); ctx.restore(); ctx.globalAlpha=1;
-    const vg=ctx.createRadialGradient(VW/2,VH*0.52,VH*0.28,VW/2,VH*0.52,VH*0.75);
-    vg.addColorStop(0,"rgba(0,0,0,0)"); vg.addColorStop(1,"rgba(0,0,0,0.28)"); ctx.fillStyle=vg; ctx.fillRect(0,0,VW,VH);
+        ctx.globalAlpha=Math.min(1,a*13); ctx.fillStyle=beamCol==="190,210,255"?"#bed2ff":"#fff6be";   // 光束改單色半透明(免每幀建漸層)：由 globalAlpha 控制強弱
+        ctx.beginPath(); ctx.moveTo(bx-bw,0); ctx.lineTo(bx+bw,0); ctx.lineTo(bx+bw-sk,VH); ctx.lineTo(bx-bw-sk,VH); ctx.closePath(); ctx.fill(); }
+      ctx.globalAlpha=1; ctx.restore(); }
+    ctx.fillStyle=_vigGrad; ctx.fillRect(0,0,VW,VH);
     // 神木瀕危：紅色警示閃動
     if(shrine.hp/shrine.maxhp<0.3){ const pl=0.5+0.5*Math.sin(clock*6); const rv=ctx.createRadialGradient(VW/2,VH/2,VH*0.3,VW/2,VH/2,VH*0.78);
       rv.addColorStop(0,"rgba(255,0,0,0)"); rv.addColorStop(1,"rgba(255,0,0,"+(0.26*pl).toFixed(3)+")"); ctx.fillStyle=rv; ctx.fillRect(0,0,VW,VH); }
@@ -895,59 +900,72 @@
     ctx.globalAlpha=1;
   }
 
-  function drawField(){
-    const gt=clock;
+  // 靜態地景（森林牆/色塊/光斑/溪流/岩石花叢/草/花）烘焙到離屏世界畫布，每幀只 blit 一次——
+  // 原本每幀在整個 2000×1500 世界重畫 150 根草+350 花瓣弧+256 森林牆圓+多個漸層(無視野裁切)，是掉幀主因。
+  // 只有復原度變化(色調/花量)或岩石花叢圖檔載入時才重建；動態綠意(苗圃/神木)仍每幀即時畫。
+  // 後製全螢幕漸層快取（方向光 sunL + 邊緣暗角 vignette）：只依 VW/VH，resize 時才重建
+  let _sunGrad=null, _vigGrad=null, _ppW=0, _ppH=0;
+  function buildPostGrads(){ _ppW=VW; _ppH=VH;
+    _sunGrad=ctx.createLinearGradient(0,0,VW*0.85,VH); _sunGrad.addColorStop(0,"rgba(255,244,196,0.13)"); _sunGrad.addColorStop(0.45,"rgba(255,255,255,0)"); _sunGrad.addColorStop(1,"rgba(12,26,8,0.17)");
+    _vigGrad=ctx.createRadialGradient(VW/2,VH*0.52,VH*0.28,VW/2,VH*0.52,VH*0.75); _vigGrad.addColorStop(0,"rgba(0,0,0,0)"); _vigGrad.addColorStop(1,"rgba(0,0,0,0.28)"); }
+  let fieldCache=null, fctx=null, fieldKey="";
+  function buildFieldCache(){
+    if(!fieldCache){ fieldCache=document.createElement("canvas"); fieldCache.width=MW; fieldCache.height=MH; fctx=fieldCache.getContext("2d"); }
+    const g=fctx; g.clearRect(0,0,MW,MH);
     // 世界邊界：濃密森林牆（雙色樹冠含受光，像真實林線）
-    ctx.strokeStyle="rgba(16,36,20,0.95)"; ctx.lineWidth=90; ctx.strokeRect(0,0,MW,MH);
+    g.strokeStyle="rgba(16,36,20,0.95)"; g.lineWidth=90; g.strokeRect(0,0,MW,MH);
     for(let i=0;i<64;i++){ const t=i/64, rr=26+((i*13)%16);
       const pts=[[t*MW,0],[t*MW,MH],[0,t*MH],[MW,t*MH]];
-      for(const[px,py]of pts){ ctx.fillStyle="rgba(8,24,12,0.92)"; ctx.beginPath(); ctx.arc(px,py,rr,0,7); ctx.fill();
-        ctx.fillStyle="rgba(64,116,58,0.5)"; ctx.beginPath(); ctx.arc(px-rr*0.3,py-rr*0.34,rr*0.5,0,7); ctx.fill(); } }
-    // 大地色塊變化（讓草地不死板）：兩層色塊交錯，色調更鮮活不混濁
-    ctx.globalAlpha=0.32; for(let i=0;i<26;i++){ const x=hgrid(i,1), y=hgrid(i,2), rr=90+((i*53)%140);
-      ctx.fillStyle=i%2? mix("#6d6b3e","#3e7d36",restore) : mix("#57633a","#2f6b2c",restore);
-      ctx.beginPath(); ctx.ellipse(x,y,rr,rr*0.7,i,0,7); ctx.fill(); } ctx.globalAlpha=1;
-    // 林間光斑（lighter 疊加、確定性位置）：樹蔭間灑落的陽光，整片地面立刻有呼吸感
-    ctx.save(); ctx.globalCompositeOperation="lighter";
+      for(const[px,py]of pts){ g.fillStyle="rgba(8,24,12,0.92)"; g.beginPath(); g.arc(px,py,rr,0,7); g.fill();
+        g.fillStyle="rgba(64,116,58,0.5)"; g.beginPath(); g.arc(px-rr*0.3,py-rr*0.34,rr*0.5,0,7); g.fill(); } }
+    // 大地色塊變化（讓草地不死板）
+    g.globalAlpha=0.32; for(let i=0;i<26;i++){ const x=hgrid(i,1), y=hgrid(i,2), rr=90+((i*53)%140);
+      g.fillStyle=i%2? mix("#6d6b3e","#3e7d36",restore) : mix("#57633a","#2f6b2c",restore);
+      g.beginPath(); g.ellipse(x,y,rr,rr*0.7,i,0,7); g.fill(); } g.globalAlpha=1;
+    // 林間光斑
+    g.save(); g.globalCompositeOperation="lighter";
     for(let i=0;i<9;i++){ const x=hgrid(i+70,1), y=hgrid(i+70,2), rr=110+((i*37)%90);
-      const dg=ctx.createRadialGradient(x,y,10,x,y,rr); dg.addColorStop(0,"rgba(255,244,190,0.055)"); dg.addColorStop(1,"rgba(255,244,190,0)");
-      ctx.fillStyle=dg; ctx.beginPath(); ctx.arc(x,y,rr,0,7); ctx.fill(); }
-    ctx.restore();
-    // 蜿蜒溪流（泥沙河岸 + 水體 + 流動反光）
-    const riv=(w,st)=>{ ctx.strokeStyle=st; ctx.lineWidth=w; ctx.lineCap="round"; ctx.lineJoin="round"; ctx.beginPath(); ctx.moveTo(-40,MH*0.36); ctx.bezierCurveTo(MW*0.3,MH*0.28,MW*0.62,MH*0.5,MW+40,MH*0.42); ctx.stroke(); };
-    riv(84,"rgba(116,100,66,0.5)");                  // 河岸泥沙
-    riv(64,mix("#3f6f80","#4fa6c9",restore*0.6+0.4)); // 水體：一開場就是藍綠水色，不再像灰色柏油路
-    riv(44,"rgba(28,58,74,0.28)");                    // 深水中線，多一層層次
-    riv(26,"rgba(190,230,240,0.28)");                 // 中央淺水高光
-    ctx.save(); ctx.globalCompositeOperation="lighter"; ctx.strokeStyle="rgba(255,255,255,0.10)"; ctx.lineWidth=10;
-    for(let i=0;i<5;i++){ ctx.beginPath(); const off=Math.sin(gt*0.8+i)*10; ctx.moveTo(-40,MH*0.36+off); ctx.bezierCurveTo(MW*0.3,MH*0.28+off,MW*0.62,MH*0.5+off,MW+40,MH*0.42+off); ctx.stroke(); } ctx.restore();
-    ctx.lineCap="butt";
-    // 復原綠意：苗圃周圍隨成長擴散
+      const dg=g.createRadialGradient(x,y,10,x,y,rr); dg.addColorStop(0,"rgba(255,244,190,0.055)"); dg.addColorStop(1,"rgba(255,244,190,0)");
+      g.fillStyle=dg; g.beginPath(); g.arc(x,y,rr,0,7); g.fill(); }
+    g.restore();
+    // 蜿蜒溪流（泥沙河岸 + 水體 + 中線 + 淺水高光，靜態烘焙）
+    const riv=(w,st)=>{ g.strokeStyle=st; g.lineWidth=w; g.lineCap="round"; g.lineJoin="round"; g.beginPath(); g.moveTo(-40,MH*0.36); g.bezierCurveTo(MW*0.3,MH*0.28,MW*0.62,MH*0.5,MW+40,MH*0.42); g.stroke(); };
+    riv(84,"rgba(116,100,66,0.5)");
+    riv(64,mix("#3f6f80","#4fa6c9",restore*0.6+0.4));
+    riv(44,"rgba(28,58,74,0.28)");
+    riv(26,"rgba(190,230,240,0.28)");
+    g.lineCap="butt";
+    // 岩石 / 花叢
+    const rockIm=fimg("rock"), bushIm=fimg("bush");
+    for(let i=0;i<14;i++){ const x=hgrid(i+3,1), y=hgrid(i+3,2); if(dist({x,y},shrine)<120) continue;
+      const im=(i%3===2)?bushIm:rockIm;
+      if(im){ const W=52+(i%3)*18, H=W*im.naturalHeight/im.naturalWidth; g.drawImage(im,x-W/2,y-H*0.8,W,H); continue; }
+      g.fillStyle="rgba(120,120,120,0.5)"; g.beginPath(); g.ellipse(x,y+4,14+(i%3)*5,10+(i%2)*4,0,0,7); g.fill();
+      g.fillStyle="rgba(160,160,160,0.5)"; g.beginPath(); g.ellipse(x-3,y,10+(i%3)*4,7+(i%2)*3,0,0,7); g.fill(); }
+    // 草叢（靜態）
+    g.strokeStyle=mix("#5c5a30","#2e7d32",restore); g.lineWidth=2.4; g.lineCap="round";
+    for(let i=0;i<150;i++){ const x=hgrid(i+11,1), y=hgrid(i+11,2); if(dist({x,y},shrine)<70) continue;
+      g.beginPath(); g.moveTo(x,y); g.quadraticCurveTo(x,y-7,x,y-12);
+      g.moveTo(x+4,y); g.quadraticCurveTo(x+4,y-6,x+4,y-10); g.stroke(); }
+    g.lineCap="butt";
+    // 花朵（隨復原度綻放）
+    const blooms=Math.floor(restore*70);
+    for(let i=0;i<blooms;i++){ const x=hgrid(i+40,1), y=hgrid(i+40,2); if(dist({x,y},shrine)<70) continue;
+      const col=["#ffd54f","#f48fb1","#fff59d","#ce93d8"][i%4]; g.fillStyle=col;
+      for(let p=0;p<5;p++){ const a=p/5*6.28+i; g.beginPath(); g.arc(x+Math.cos(a)*3,y+Math.sin(a)*3,2.2,0,7); g.fill(); }
+      g.fillStyle="#fbc02d"; g.beginPath(); g.arc(x,y,1.8,0,7); g.fill(); } }
+  function drawField(){
+    // 快取鍵：復原度分桶(色調/花量) + 岩石花叢圖檔是否載入 → 只在必要時重建烘焙圖
+    const key=Math.round(restore*20)+"_"+(fimg("rock")?1:0)+(fimg("bush")?1:0);
+    if(key!==fieldKey){ buildFieldCache(); fieldKey=key; }
+    ctx.drawImage(fieldCache,0,0);   // ctx 已在世界座標變換下，一次貼上可視範圍（瀏覽器自動裁切）
+    // 動態綠意：苗圃隨成長擴散（每幀即時，僅 3~數個放射漸層）
     for(const n of nurseries){ if(n.hp<=0) continue; const R=120+n.growth*260;
       const gg=ctx.createRadialGradient(n.x,n.y,10,n.x,n.y,R); gg.addColorStop(0,"rgba(102,187,106,"+(0.32*n.growth+0.06).toFixed(3)+")"); gg.addColorStop(1,"rgba(102,187,106,0)");
       ctx.fillStyle=gg; ctx.beginPath(); ctx.arc(n.x,n.y,R,0,7); ctx.fill(); }
     // 神木周圍核心綠意
     const Rs=200+restore*440; const gs=ctx.createRadialGradient(shrine.x,shrine.y,20,shrine.x,shrine.y,Rs);
-    gs.addColorStop(0,"rgba(129,199,132,"+(0.30*restore+0.05).toFixed(3)+")"); gs.addColorStop(1,"rgba(129,199,132,0)"); ctx.fillStyle=gs; ctx.beginPath(); ctx.arc(shrine.x,shrine.y,Rs,0,7); ctx.fill();
-    // 岩石 / 花叢（動漫圖檔優先、程式繪 fallback）
-    const rockIm=fimg("rock"), bushIm=fimg("bush");
-    for(let i=0;i<14;i++){ const x=hgrid(i+3,1), y=hgrid(i+3,2); if(dist({x,y},shrine)<120) continue;
-      const im=(i%3===2)?bushIm:rockIm;
-      if(im){ const W=52+(i%3)*18, H=W*im.naturalHeight/im.naturalWidth; ctx.drawImage(im,x-W/2,y-H*0.8,W,H); continue; }
-      ctx.fillStyle="rgba(120,120,120,0.5)"; ctx.beginPath(); ctx.ellipse(x,y+4,14+(i%3)*5,10+(i%2)*4,0,0,7); ctx.fill();
-      ctx.fillStyle="rgba(160,160,160,0.5)"; ctx.beginPath(); ctx.ellipse(x-3,y,10+(i%3)*4,7+(i%2)*3,0,0,7); ctx.fill(); }
-    // 草叢（風吹搖曳）
-    ctx.strokeStyle=mix("#5c5a30","#2e7d32",restore); ctx.lineWidth=2.4; ctx.lineCap="round";
-    for(let i=0;i<150;i++){ const x=hgrid(i+11,1), y=hgrid(i+11,2); if(dist({x,y},shrine)<70) continue;
-      const sw=Math.sin(gt*1.6+i)*3; ctx.beginPath(); ctx.moveTo(x,y); ctx.quadraticCurveTo(x+sw,y-7,x+sw*1.4,y-12);
-      ctx.moveTo(x+4,y); ctx.quadraticCurveTo(x+4+sw,y-6,x+4+sw*1.2,y-10); ctx.stroke(); }
-    ctx.lineCap="butt";
-    // 花朵（隨復原度綻放）
-    const blooms=Math.floor(restore*70);
-    for(let i=0;i<blooms;i++){ const x=hgrid(i+40,1), y=hgrid(i+40,2); if(dist({x,y},shrine)<70) continue;
-      const col=["#ffd54f","#f48fb1","#fff59d","#ce93d8"][i%4]; ctx.fillStyle=col;
-      for(let p=0;p<5;p++){ const a=p/5*6.28+i; ctx.beginPath(); ctx.arc(x+Math.cos(a)*3,y+Math.sin(a)*3,2.2,0,7); ctx.fill(); }
-      ctx.fillStyle="#fbc02d"; ctx.beginPath(); ctx.arc(x,y,1.8,0,7); ctx.fill(); } }
+    gs.addColorStop(0,"rgba(129,199,132,"+(0.30*restore+0.05).toFixed(3)+")"); gs.addColorStop(1,"rgba(129,199,132,0)"); ctx.fillStyle=gs; ctx.beginPath(); ctx.arc(shrine.x,shrine.y,Rs,0,7); ctx.fill(); }
   function hgrid(i,k){ const s=Math.sin(i*(k===1?127.1:311.7)+k)*43758.5; const f=s-Math.floor(s); return f*(k===1?MW:MH); }
 
   function drawShrine(n){ const R=n.r, INK="#20140c", cx=n.x, cy=n.y-R*0.35;
@@ -1077,8 +1095,8 @@
       ctx.save(); ctx.translate(u.x+Math.cos(f)*lunge,gy+Math.sin(f)*lunge*0.4); ctx.rotate(f); if(u.hitT>0) ctx.globalAlpha=0.85;
       ctx.drawImage(spr,-S/2,-S/2,S,S); ctx.restore(); return; }
     // 圖檔優先②：動漫立繪「直立顯示」（比照荒野亂鬥）——用大廳同一張立繪，不隨面向旋轉、只依移動方向左右翻面
-    const bb=window.__spriteOf&&window.__spriteOf(u.kind);
-    if(bb){ const H=r*3.2*(u.elite?1.15:1), W=H*bb.naturalWidth/bb.naturalHeight;
+    const bbRaw=window.__spriteOf&&window.__spriteOf(u.kind);
+    if(bbRaw){ const bb=spScaled(bbRaw), H=r*3.2*(u.elite?1.15:1), W=H*bb.width/bb.height;
       u._bbH=H;
       ctx.fillStyle="rgba(0,0,0,0.22)"; ctx.beginPath(); ctx.ellipse(u.x+r*0.15,u.y+r*0.6,r*1.05,r*0.4,0,0,7); ctx.fill();
       ctx.fillStyle=faction==="inv"?"rgba(239,83,80,0.28)":"rgba(102,187,106,0.34)"; ctx.beginPath(); ctx.ellipse(u.x,u.y+r*0.55,r*1.1,r*0.42,0,0,7); ctx.fill();
@@ -1087,7 +1105,7 @@
       ctx.scale(flip?-1:1, breath);
       if(u.moving){ // 跑動四肢：立繪下半身切成前/後兩半，繞髖部反相擺動＋身體微搖（剪紙木偶式步態）
         ctx.rotate(walk*0.05);
-        const NW=bb.naturalWidth, NH=bb.naturalHeight, legH=H*0.40, sy2=NH*0.60, sh2=NH*0.40, sw2=walk*0.30;
+        const NW=bb.width, NH=bb.height, legH=H*0.40, sy2=NH*0.60, sh2=NH*0.40, sw2=walk*0.30;
         for(const s of[-1,1]){ const px=s*W*0.20, py=-legH*0.92;
           ctx.save(); ctx.translate(px,py); ctx.rotate(s*sw2);
           ctx.drawImage(bb, s<0?0:NW/2, sy2, NW/2, sh2, (s<0?-W/2:0)-px, -legH-py, W/2, legH);
