@@ -4,6 +4,7 @@
    外來入侵種從四面湧入；擊退牠們、守住苗圃，棲地就從枯黃復原成翠綠，
    復原度滿 100% = 守護成功；神木倒下 = 失敗。
    俯視角 + 跟隨鏡頭 + 虛擬搖桿；不碰 legacy.js 的 drawCreature／dock／狀態機（鐵則）。 */
+import { createPerfTier } from "./data/perf-tier.js";
 (() => {
   "use strict";
   const root = document.getElementById("moba");
@@ -540,8 +541,8 @@
       weatherFx.push({type:"rain",x:Math.random()*VW,y:-10,vy:900+Math.random()*300,life:2}); }
     else if(weatherBattle==="cold" && weatherFx.length<WFX_MAX*0.6){ for(let i=0;i<1 && weatherFx.length<WFX_MAX*0.6;i++)
       weatherFx.push({type:"snow",x:Math.random()*VW,y:-10,vy:40+Math.random()*30,vx:(Math.random()-0.5)*20,life:6}); }
-    // 動漫氛圍：飄落花瓣/嫩葉（暴雨/寒流不飄；上限 22 片共用 WFX 回收機制）
-    if(weatherBattle!=="storm" && weatherBattle!=="cold" && petalCount<22 && Math.random()<0.35){
+    // 動漫氛圍：飄落花瓣/嫩葉（暴雨/寒流不飄；上限 22 片共用 WFX 回收機制；低效能裝置停止新增、讓既有花瓣自然飄完不硬砍）
+    if(!liteFX && weatherBattle!=="storm" && weatherBattle!=="cold" && petalCount<22 && Math.random()<0.35){
       weatherFx.push({type:"petal",x:Math.random()*(VW+120)-100,y:-12,vy:30+Math.random()*26,vx:16+Math.random()*20,ph:Math.random()*7,
         col:["#f8bbd0","#fff3b0","#c5e1a5","#f48fb1"][Math.floor(Math.random()*4)],life:18}); petalCount++; }
     for(const w of weatherFx){ w.life-=dt; w.y+=w.vy*dt; if(w.vx) w.x+=w.vx*dt;
@@ -800,7 +801,7 @@
     // 依 y 疊放：重用同一個陣列(每幀清空再填)，避免每幀 new 陣列+spread+filter 造成 GC 停頓(卡頓來源之一)
     const ents=_ents; ents.length=0; ents.push(shrine);
     for(const n of nurseries) if(n.hp>0) ents.push(n);
-    if(fimg("tree")) for(const t of FIELD_TREES) ents.push(t);   // 動漫裝飾樹參與前後遮擋
+    if(fimg("tree") && !liteFX) for(const t of FIELD_TREES) ents.push(t);   // 動漫裝飾樹參與前後遮擋(低效能裝置自動跳過，純視覺不影響玩法)
     for(const v of invaders) ents.push(v);
     for(const h of heroes) if(!h.dead) ents.push(h);
     ents.sort((a,b)=>a.y-b.y);
@@ -823,8 +824,8 @@
     // 邊緣暗角＋方向光：靜態全螢幕漸層只依 VW/VH，快取起來(resize 時失效)，不再每幀重建
     if(_ppW!==VW||_ppH!==VH) buildPostGrads();
     ctx.fillStyle=_sunGrad; ctx.fillRect(0,0,VW,VH);
-    // 動漫斜射天光：三道緩慢呼吸的林間光束（夜間收斂成月光、暴雨關閉）
-    if(weatherBattle!=="storm"){ ctx.save(); ctx.globalCompositeOperation="lighter";
+    // 動漫斜射天光：三道緩慢呼吸的林間光束（夜間收斂成月光、暴雨關閉；低效能裝置自動跳過這層 lighter 混合疊圖）
+    if(weatherBattle!=="storm" && !liteFX){ ctx.save(); ctx.globalCompositeOperation="lighter";
       const beamCol=weatherBattle==="night"?"190,210,255":"255,246,190", beamBase=weatherBattle==="night"?0.045:0.075;
       for(let i=0;i<3;i++){ const a=beamBase+0.03*Math.sin(clock*0.45+i*2.1); if(a<=0.015) continue;
         const bx=VW*(0.16+i*0.32)+Math.sin(clock*0.22+i*1.7)*36, bw=VW*0.05+i*18, sk=VH*0.42;
@@ -1540,7 +1541,14 @@
   function txt(id,v){ const el=document.getElementById(id); if(el) el.textContent=v; }
 
   /* ---------- 迴圈 / 流程 ---------- */
-  function loop(ts){ if(!running) return; const dt=Math.min(0.04,(ts-lastT)/1000||0); lastT=ts;
+  // 自動效能分級：中低階手機不硬性砍畫面，而是實測幀時間動態關閉非必要氛圍特效(光束/花瓣/裝飾樹)，
+  // 讓「操作順暢」優先於「畫面好看」——高階裝置全開、低階裝置自動降級，兩者都不用玩家手動設定。
+  // 狀態機邏輯在 src/data/perf-tier.js（純函式、有 vitest 單元測試守住門檻/遲滯行為）。
+  const perfTier=createPerfTier(); let liteFX=false;
+  function loop(ts){ if(!running) return; const rawDt=(ts-lastT)/1000||0, dt=Math.min(0.04,rawDt); lastT=ts;
+    // 用「未夾住」的原始幀間隔量測：模擬用的 dt 有 40ms 上限(避免長停頓弄壞邏輯)，
+    // 若拿夾住後的值偵測，嚴重掉幀(如 200ms/幀)時量不到真實嚴重度，會偵測不到。
+    liteFX=perfTier.track(rawDt);
     if(netRole==="guest"){ if(window.__netCheckStale&&window.__netCheckStale()) toast("⚠ 對方已離線…"); if(bossIntro) bossIntro.t+=dt; render(); }
     else if(hitStop>0){ hitStop=Math.max(0,hitStop-dt); if(bossIntro) bossIntro.t+=dt; render(); }   // 命中定格：只推進登場運鏡與畫面，不推進模擬
     else { step(dt); render(); }
@@ -1803,6 +1811,7 @@
 
   // 給獨立模組 src/battleshop.js 用的橋接（玩家物件/提示文字/購買特效），不直接暴露內部狀態
   window.__mobaPlayer=()=>player;
+  window.__mobaLiteFX=()=>liteFX;   // 除錯/驗收用：查詢自動效能分級目前是否已降級
   window.__dbgEnd=(w)=>{ if(running&&!ended) endGame(!!w); };   // 測試用：直接觸發勝/敗結算（無頭驗收獎勵演出/對戰報告）
   window.__mobaToast=(s)=>toast(s);
   window.__mobaFx=(x,y)=>{ ring(x,y,60,"#ffd54f"); sparks(x,y,18,"#ffd54f"); mshake=Math.max(mshake,5); };

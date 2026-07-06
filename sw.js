@@ -1,6 +1,6 @@
 // 守土 Service Worker — 線上優先、離線可玩
-const CACHE = "shoutu-v129";
-const ASSETS = ["./", "./index.html", "./src/fullscreen.js", "./src/sfx.js", "./src/legacy.js", "./src/moba.js", "./src/battleshop.js", "./src/net.js", "./src/habitat.js", "./src/data/types-chart.js", "./manifest.json", "./icon.svg", "./dino.html",
+const CACHE = "shoutu-v130";
+const ASSETS = ["./", "./index.html", "./src/fullscreen.js", "./src/sfx.js", "./src/legacy.js", "./src/moba.js", "./src/battleshop.js", "./src/net.js", "./src/habitat.js", "./src/data/types-chart.js", "./src/data/perf-tier.js", "./manifest.json", "./icon.svg", "./dino.html",
   // 守護者/入侵種寫實插畫（圖檔優先、沒圖時 canvas fallback）：預快取確保離線也看得到
   "./assets/heroes/leopard.png", "./assets/heroes/bear.png", "./assets/heroes/cicada.png", "./assets/heroes/dragonfly.png", "./assets/heroes/deer.png", "./assets/heroes/magpie.png", "./assets/heroes/muntjac.png", "./assets/heroes/macaque.png", "./assets/heroes/salmon.png", "./assets/heroes/pheasant.png", "./assets/heroes/pangolin.png", "./assets/heroes/yellowmarten.png", "./assets/heroes/mikado.png",
   "./assets/field/ground.png", "./assets/field/shrine.png", "./assets/field/nursery.png", "./assets/field/rock.png", "./assets/field/bush.png", "./assets/field/tree.png", "./assets/views/leopard_front.png", "./assets/views/leopard_right.png", "./assets/views/leopard_back.png", "./assets/views/leopard_left.png",
