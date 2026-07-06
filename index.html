@@ -292,6 +292,28 @@
   @keyframes moverDrift{ from{ background-position:0 0; } to{ background-position:-320px 640px; } }
   #mover h1{ animation:moverPop .5s cubic-bezier(.2,1.6,.4,1); text-shadow:0 4px 18px rgba(255,213,79,.4); }
   @keyframes moverPop{ 0%{ transform:scale(.6); opacity:0; } 70%{ transform:scale(1.08); opacity:1; } 100%{ transform:scale(1); } }
+  /* 獎勵揭曉演出：徽章逐項彈出 + 彩帶飄落 */
+  #moverRewards{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin:8px auto 2px; max-width:540px; min-height:0; }
+  #moverRewards:empty{ margin:0; }
+  .rw-chip{ display:inline-flex; align-items:center; gap:6px; background:rgba(0,0,0,0.38); border:1.5px solid rgba(255,213,79,0.5);
+    border-radius:20px; padding:6px 13px; font-size:14px; color:#fff; opacity:0; transform:scale(0.3); }
+  .rw-chip.on{ animation:rwPop .45s cubic-bezier(.2,1.7,.4,1) forwards; }
+  .rw-chip .rv{ color:#ffd54f; font-weight:800; }
+  .rw-chip.big{ border-color:#ffd54f; background:rgba(122,84,0,0.42); font-size:15.5px; box-shadow:0 0 16px rgba(255,213,79,0.4); }
+  @keyframes rwPop{ 0%{ opacity:0; transform:scale(0.3); } 60%{ opacity:1; transform:scale(1.14); } 100%{ opacity:1; transform:scale(1); } }
+  .rw-conf{ position:absolute; top:-6%; pointer-events:none; z-index:5; animation:rwFall 2.5s ease-in forwards; }
+  @keyframes rwFall{ from{ transform:translateY(0) rotate(0deg); opacity:1; } to{ transform:translateY(112vh) rotate(560deg); opacity:0.55; } }
+  /* 對戰報告：小隊成績表 */
+  #moverReport{ margin:4px auto 6px; width:min(88vw,430px); font-size:13px; }
+  #moverReport:empty{ display:none; }
+  .br-title{ color:#ffd54f; font-weight:800; margin-bottom:3px; }
+  .br-head,.br-row{ display:flex; align-items:center; gap:6px; padding:3px 10px; border-radius:8px; }
+  .br-head{ color:#a5d6a7; font-size:11.5px; }
+  .br-row{ background:rgba(0,0,0,0.32); margin-bottom:3px; }
+  .br-row.me{ border:1px solid rgba(255,213,79,0.6); }
+  .br-name{ flex:1; text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .br-stat{ min-width:58px; text-align:right; color:#e8f5e9; }
+  .br-foot{ margin-top:3px; color:#b0bec5; font-size:12px; }
   /* moba PVE 關卡遞增：過關「下一關」按鈕，未過關時隱藏 */
   #moverNext.hide{ display:none; }
   /* 對戰選單各列的 .hide 之前沒有對應規則(只有 .hregion.hide/.scr.hide)，導致 pveTargets/隊伍人數/地區/duelBox 一直全部同時顯示＝畫面太複雜。補上這些容器的隱藏規則(id+class 特異度確保生效) */
@@ -788,7 +810,12 @@
   <button class="btn sec" id="pickBack">返回大廳</button>
 </div>
 <div id="mover" class="scr hide">
-  <h1 id="moverT"></h1><h2 id="moverS"></h2><p id="moverB"></p>
+  <h1 id="moverT"></h1><h2 id="moverS"></h2>
+  <!-- 獎勵揭曉演出：勝利時獎勵一項一項彈出的徽章列（src/moba.js showOver 驅動） -->
+  <div id="moverRewards"></div>
+  <p id="moverB"></p>
+  <!-- 對戰報告：每位守護者的驅逐/傷害/承受統計（src/moba.js buildBattleReport 產生） -->
+  <div id="moverReport"></div>
   <!-- ===== moba PVE 關卡遞增新增：過關後出現的「下一關（更難）」按鈕（由 src/moba.js 以 .hide 控制顯示/文字）===== -->
   <button class="btn hide" id="moverNext"></button>
   <!-- ===== /moba PVE 關卡遞增新增 ===== -->

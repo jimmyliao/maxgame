@@ -231,6 +231,7 @@
   };
   function mkHero(kind,isPlayer){ const h={ kind, isPlayer:!!isPlayer, x:0,y:0, r:24, hp:340, maxhp:340,
     dmg:28, range:70, cd:0.6, t:0, spCd:0, speed:isPlayer?172:150, face:0, dead:false, respawn:0, name:KNAME[kind]||kind,
+    kills:0, dmgDealt:0, dmgTaken:0,   // 對戰報告統計：個人驅逐數/造成傷害/承受傷害
     hitT:0, anim:0, moving:false, phase:Math.random()*6.28, atkA:0, mood:"n", moodT:0,
     dr:0, invulnT:0, stealthT:0, shieldT:0, talent:null, blessT:0, ult:false, ultCd:0 };   // dr=天賦減傷 0~1；talent=第3級主動技能旗標；blessT=山羌祝福加速剩餘時間；ult=手上是否握有撿到的必殺；ultCd=施放後長冷卻
     const rl=KROLE[kind]; if(rl){ h.maxhp=Math.round(h.maxhp*rl.hpMul); h.hp=h.maxhp; h.dmg=Math.round(h.dmg*rl.dmgMul);
@@ -338,6 +339,10 @@
       if(o.shieldT>0){ o.shieldT=0; ring(o.x,o.y,44,"#4dd0e1"); floats.push({x:o.x,y:o.y-o.r-6,txt:"護盾抵銷！",col:"#4dd0e1",life:0.6}); return; }
       if(o.dr>0) amt*=(1-o.dr); }
     if(evadeRoll(o)){ floats.push({x:o.x,y:o.y-o.r-6,txt:"閃避！",col:"#fff59d",life:0.6}); return; } // 夜間石虎閃避加成
+    // 對戰報告統計：守護者造成/承受傷害累計（取實際扣血量，避免溢出灌水）
+    const real=Math.min(amt,o.hp);
+    if(by && by.dmgDealt!==undefined && o.elite!==undefined) by.dmgDealt+=real;
+    if(o.dmgTaken!==undefined) o.dmgTaken+=real;
     o.hp-=amt; o.hitT=0.14; const big=amt>=40;
     floats.push({x:o.x,y:o.y-o.r-6,txt:"-"+Math.round(amt),col:big?"#fff59d":"#fff",life:0.6,big}); sparks(o.x,o.y,big?9:5,big?"#fff59d":"#fff");
     if(o.hp<=0){ o.hp=0; onDeath(o,by); } }
@@ -355,7 +360,8 @@
       if(by && by.elite!==undefined){ by.mood="proud"; by.moodT=1.6; } // 入侵種擊退守護者：得意
       return; }
     // 入侵種
-    o.dead=true; killCount++; ring(o.x,o.y,o.elite?60:26,"#cddc39"); sparks(o.x,o.y,o.elite?26:12,o.elite?"#ffca28":"#cddc39");
+    o.dead=true; killCount++; if(by && by.kills!==undefined) by.kills++;   // 對戰報告：個人驅逐數
+    ring(o.x,o.y,o.elite?60:26,"#cddc39"); sparks(o.x,o.y,o.elite?26:12,o.elite?"#ffca28":"#cddc39");
     if(o.elite){ mshake=Math.max(mshake,10); ring(o.x,o.y,90,"#ffca28"); }
     // 首領被擊敗：電影級爆發（大爆炸粒子＋雙層衝擊環＋強震＋定格），把最爽的一刻放大
     if(o.isBoss){ mshake=Math.max(mshake,18); eliteFlash=0.6; freeze(0.14);
@@ -476,7 +482,7 @@
 
     // 守護者技能投射物（疾風刃，可穿透）
     for(const p of hprojs){ p.life-=dt; p.x+=p.vx*dt; p.y+=p.vy*dt;
-      for(const v of invaders){ if(v.dead||p.hits.indexOf(v)>=0) continue; if(dist(p,v)<v.r+11){ hurt(v,p.dmg,{isPlayer:true}); knock(v,p.x-p.vx*0.02,p.y-p.vy*0.02,16); p.hits.push(v); p.pierce--; } }
+      for(const v of invaders){ if(v.dead||p.hits.indexOf(v)>=0) continue; if(dist(p,v)<v.r+11){ hurt(v,p.dmg,p.own||{isPlayer:true}); knock(v,p.x-p.vx*0.02,p.y-p.vy*0.02,16); p.hits.push(v); p.pierce--; } }
       if(p.pierce<=0) p.life=0; }
     hprojs=hprojs.filter(p=>p.life>0 && p.x>-40 && p.x<MW+40 && p.y>-40 && p.y<MH+40);
 
@@ -657,7 +663,7 @@
       fx.push({type:"streak",x:h.x,y:h.y,x2:ex,y2:ey,life:0.18,max:0.18,col:"#26c6da"});
       for(const v of invaders){ if(!v.dead && segDist(v.x,v.y,h.x,h.y,ex,ey)<40){ hurt(v,h.dmg*1.4,h); knock(v,h.x,h.y,24); } }
       h.x=ex; h.y=ey; sparks(ex,ey,10,"#26c6da"); }
-    for(let i=-1;i<=1;i++){ const a=h.face+i*0.24; hprojs.push({x:h.x+Math.cos(a)*h.r,y:h.y+Math.sin(a)*h.r,vx:Math.cos(a)*(pierce?620:540),vy:Math.sin(a)*(pierce?620:540),dmg:h.dmg*1.6,life:1.1,hits:[],pierce:pierce?5:3,col:"#b2ff59"}); } }
+    for(let i=-1;i<=1;i++){ const a=h.face+i*0.24; hprojs.push({x:h.x+Math.cos(a)*h.r,y:h.y+Math.sin(a)*h.r,vx:Math.cos(a)*(pierce?620:540),vy:Math.sin(a)*(pierce?620:540),dmg:h.dmg*1.6,life:1.1,hits:[],pierce:pierce?5:3,col:"#b2ff59",own:h}); } }
   function skHeal(h){ const bless=h.talent==="deer_bless", leap=h.talent==="deer_leap", amt=bless?190:120;
     if(leap){ h.invulnT=1.2; ring(h.x,h.y,44,"#80deea"); }
     ring(h.x,h.y,210,"#a5d6a7"); sparks(h.x,h.y,22,"#a5d6a7");
@@ -688,7 +694,7 @@
     for(const v of invaders){ if(!v.dead && dist(v,{x:ex,y:ey})<95){ hurt(v,h.dmg*1.2,h); knock(v,ex,ey,36); } } }
   // 藍腹鷴・金羽連射：五連發扇形箭羽，遠程專精，射程與投射物數量都優於疾風刃
   function skPheasantVolley(h){ for(let i=-2;i<=2;i++){ const a=h.face+i*0.16;
-      hprojs.push({x:h.x+Math.cos(a)*h.r,y:h.y+Math.sin(a)*h.r,vx:Math.cos(a)*580,vy:Math.sin(a)*580,dmg:h.dmg*1.35,life:1.3,hits:[],pierce:2,col:"#c0392b"}); }
+      hprojs.push({x:h.x+Math.cos(a)*h.r,y:h.y+Math.sin(a)*h.r,vx:Math.cos(a)*580,vy:Math.sin(a)*580,dmg:h.dmg*1.35,life:1.3,hits:[],pierce:2,col:"#c0392b",own:h}); }
     ring(h.x,h.y,50,"#2a3a7a"); sparks(h.x,h.y,14,"#c0392b"); }
   // 穿山甲・捲甲防禦：捲成球短暫無敵+護盾+高減傷窗，並震退周圍入侵種（坦克開團/自保）
   function skPangolinCurl(h){ h.invulnT=Math.max(h.invulnT,1.4); h.shieldT=Math.max(h.shieldT,2.6);
@@ -706,7 +712,7 @@
     h.x=cx; h.y=cy; ring(cx,cy,52,"#ffe066"); }
   // 帝雉・帝羽箭雨：七連發寬扇形箭羽，高山遠程壓制，射程與涵蓋角度勝過金羽連射
   function skMikadoArrows(h){ for(let i=-3;i<=3;i++){ const a=h.face+i*0.15;
-      hprojs.push({x:h.x+Math.cos(a)*h.r,y:h.y+Math.sin(a)*h.r,vx:Math.cos(a)*600,vy:Math.sin(a)*600,dmg:h.dmg*1.3,life:1.4,hits:[],pierce:2,col:"#f2f5fb"}); }
+      hprojs.push({x:h.x+Math.cos(a)*h.r,y:h.y+Math.sin(a)*h.r,vx:Math.cos(a)*600,vy:Math.sin(a)*600,dmg:h.dmg*1.3,life:1.4,hits:[],pierce:2,col:"#f2f5fb",own:h}); }
     ring(h.x,h.y,54,"#26386a"); sparks(h.x,h.y,16,"#e5342a"); }
   const SKILL={ leopard:{name:"閃電突進",cd:6,fn:skDash}, bear:{name:"震地",cd:9,fn:skSlam}, cicada:{name:"音爆",cd:9,fn:skSonic},
     dragonfly:{name:"疾風刃",cd:6,fn:skShoot}, magpie:{name:"俯衝啄擊",cd:6,fn:skDive}, deer:{name:"復育號角",cd:8,fn:skHeal},
@@ -737,7 +743,7 @@
     const R=340, dmg=130;
     ring(h.x,h.y,R,"#ffd54f"); ring(h.x,h.y,R*0.6,"#fff59d"); sparks(h.x,h.y,40,"#ffe082"); mshake=Math.max(mshake,14); eliteFlash=0.5; freeze(0.09);
     let hitN=0;
-    for(const v of invaders){ if(v.dead) continue; if(dist(h,v)<R+v.r){ hurt(v,dmg,{isPlayer:true,kind:h.kind}); knock(v,h.x,h.y,60); v.stun=Math.max(v.stun,1.3); hitN++; } }
+    for(const v of invaders){ if(v.dead) continue; if(dist(h,v)<R+v.r){ hurt(v,dmg,h); knock(v,h.x,h.y,60); v.stun=Math.max(v.stun,1.3); hitN++; } }
     restore=clamp(restore+0.03,0,1);
     if(h.isPlayer){ toast("💥 守護怒濤！橫掃 "+hitN+" 隻入侵種"); if(window.__sfx) window.__sfx.play("ult"); }
     floats.push({x:h.x,y:h.y-h.r-10,txt:"守護怒濤！",col:"#ffd54f",life:1.0,big:true}); }
@@ -1543,12 +1549,13 @@
       const boostN=6+Math.min(killCount,10);
       window.__habitatBoost&&window.__habitatBoost(battleRegion,boostN);
       const after=(window.__heroLevel&&window.__heroLevel(key))||before;
-      let timeLine="";
+      const rewards=[{i:"🌿",l:"保育值",v:"+"+eco},{i:"🛡",l:"驅逐入侵種",v:killCount+" 隻"}];
+      if(comboBest>=3) rewards.push({i:"🔥",l:"最高連擊",v:String(comboBest)});
+      rewards.push({i:"⭐",l:(KNAME[key]||"")+" EXP",v:"+"+xp});
+      if(after>before) rewards.push({i:"⬆",l:"升級！",v:"Lv"+before+" → Lv"+after,big:true});
       if(timeAttack){ const prev=getBest(teamSize), newRecord=!prev||clock<prev; if(newRecord) setBest(teamSize,clock);
-        timeLine="<br><br>⏱ 用時 <b>"+fmtTime(clock)+"</b>"+(newRecord?"　🏆 新紀錄！":("　（歷史最佳 "+fmtTime(prev)+"）")); }
-      const comboLine=comboBest>=3?("　🔥 最高連擊 "+comboBest):"";
-      showOver("🌳 棲地復原成功！","枯黃的土地重新長回翠綠","你和守護者小隊驅逐了外來入侵種、守住台灣神木與復育苗圃。<br>🌿 保育值 +"+eco+"　驅逐 "+killCount+" 隻"+comboLine+"　"+(KNAME[key]||"")+" EXP +"+xp+"　Lv"+before+(after>before?(" → "+after+" ⬆升級！"):"")+
-        "<br>🌱 "+(REGION_LABEL[battleRegion]||battleRegion)+"棲地獲得復育核心資產，成長加速！"+timeLine); }
+        rewards.push(newRecord?{i:"🏆",l:"新紀錄",v:fmtTime(clock),big:true}:{i:"⏱",l:"用時",v:fmtTime(clock)+(prev?("（最佳 "+fmtTime(prev)+"）"):"")}); }
+      showOver("🌳 棲地復原成功！","枯黃的土地重新長回翠綠","你和守護者小隊驅逐了外來入侵種、守住台灣神木與復育苗圃。<br>🌱 "+(REGION_LABEL[battleRegion]||battleRegion)+"棲地獲得復育核心資產，成長加速！",rewards); }
     else { const xp=8+killCount; window.__awardXP&&window.__awardXP(key,xp);  // 輸了也給少量經驗——等級只升不降
       showOver("神木倒下了…","棲地失守","別氣餒！多回防受威脅的苗圃、善用『守護爆發』與『回神木』補血，再守一次。<br>"+(KNAME[key]||"")+" 仍獲得 EXP +"+xp+"（等級永不下降・目前 Lv"+before+"）"); } }
   // PVE 限時外來種防衛戰：獨立的結算文案（達標＝成功→過關升級，時間到未達標＝失敗→可重打同關）
@@ -1560,8 +1567,10 @@
       const after=(window.__heroLevel&&window.__heroLevel(key))||before;
       const nextLv=lv+1; setPveLevel(tKind,nextLv); pveNextLevel=nextLv;   // 過關→永久解鎖下一關（離線保存）
       const np=pveLevelParams(tKind,nextLv);
-      showOver("🎯 第 "+lv+" 關過關！","外來種入侵已排除","你和守護者小隊在限時內清除了 "+got+"/"+need+" 隻 "+KNAME[tKind]+"，棲地危機解除！<br>🌿 保育值 +"+eco+"　"+(KNAME[key]||"")+" EXP +"+xp+"　Lv"+before+(after>before?(" → "+after+" ⬆升級！"):"")+
-        "<br><br>⚠ 下一關（第 "+nextLv+" 關）更難：需驅逐 "+np.need+" 隻・限時 "+np.dur+" 秒・入侵種更強更多！"); }
+      const rewards=[{i:"🌿",l:"保育值",v:"+"+eco},{i:"🎯",l:"清除 "+KNAME[tKind],v:got+"/"+need+" 隻"},{i:"⭐",l:(KNAME[key]||"")+" EXP",v:"+"+xp}];
+      if(after>before) rewards.push({i:"⬆",l:"升級！",v:"Lv"+before+" → Lv"+after,big:true});
+      rewards.push({i:"🔓",l:"解鎖",v:"第 "+nextLv+" 關",big:true});
+      showOver("🎯 第 "+lv+" 關過關！","外來種入侵已排除","你和守護者小隊在限時內排除了棲地危機！<br>⚠ 下一關（第 "+nextLv+" 關）更難：需驅逐 "+np.need+" 隻・限時 "+np.dur+" 秒・入侵種更強更多！",rewards); }
     else { const xp=6+got*2; window.__awardXP&&window.__awardXP(key,xp);
       showOver("⏱ 第 "+lv+" 關失敗","防衛戰未達標","限時內只清除了 "+got+"/"+need+" 隻 "+KNAME[tKind]+"，外來種仍在擴散……可以重打這一關！<br>"+(KNAME[key]||"")+" 仍獲得 EXP +"+xp); } }
   // 單挑首領戰結算
@@ -1573,17 +1582,54 @@
       const after=(window.__heroLevel&&window.__heroLevel(key))||before;
       // 記錄本次通關時間（每個人數各存一筆最佳，含玩家名字）
       const nm=playerName(), prev=getDuelBest(sz), isNew=saveDuelBest(sz,clock,nm);
-      const recLine = isNew ? ("<br>🏅 <b>"+DUEL_SZNAME[sz]+"新紀錄！</b> "+escHtml(nm)+"　用時 "+fmtTime(clock))
-                            : ("<br>⏱ 用時 "+fmtTime(clock)+(prev?("　（"+DUEL_SZNAME[sz]+"最佳 "+escHtml(prev.name)+" "+fmtTime(prev.time)+"）"):""));
+      const rewards=[{i:"🌿",l:"保育值",v:"+"+eco},{i:"⭐",l:(KNAME[key]||"")+" EXP",v:"+"+xp}];
+      if(after>before) rewards.push({i:"⬆",l:"升級！",v:"Lv"+before+" → Lv"+after,big:true});
+      rewards.push(isNew?{i:"🏅",l:DUEL_SZNAME[sz]+"新紀錄",v:fmtTime(clock),big:true}
+                        :{i:"⏱",l:"用時",v:fmtTime(clock)+(prev?("（最佳 "+fmtTime(prev.time)+"）"):"")});
       // 難度晉級：打贏就升一級，最高「大師」級；已是大師則封頂顯示榮耀
-      let tierLine;
       if(curLv<DUEL_TIERS.length){ setDuelLevel(curLv+1);
-        tierLine="<br>⬆ <b>難度晉級："+duelTierName(curLv)+" → "+duelTierName(curLv+1)+"級！</b>下一場首領更強。"; }
-      else tierLine="<br>👑 <b>你已是大師級守護者！</b>最強的首領也被你征服了。";
-      showOver("🏆 首領挑戰勝利！","「"+duelTierName(curLv)+"級」大首領被擊敗了","你們"+DUEL_SZNAME[sz]+"擊敗了 "+duelTierName(curLv)+"級 "+KNAME[bk]+"王！<br>🌿 保育值 +"+eco+"　"+(KNAME[key]||"")+" EXP +"+xp+"　Lv"+before+(after>before?(" → "+after+" ⬆升級！"):"")+recLine+tierLine); }
+        rewards.push({i:"👑",l:"難度晉級",v:duelTierName(curLv)+" → "+duelTierName(curLv+1)+"級",big:true}); }
+      else rewards.push({i:"👑",l:"大師級守護者",v:"最強首領也被你征服",big:true});
+      showOver("🏆 首領挑戰勝利！","「"+duelTierName(curLv)+"級」大首領被擊敗了","你們"+DUEL_SZNAME[sz]+"擊敗了 "+duelTierName(curLv)+"級 "+KNAME[bk]+"王！下一場首領更強。",rewards); }
     else { const xp=12; window.__awardXP&&window.__awardXP(key,xp);
       showOver("⚔ 首領挑戰失敗","「"+duelTierName(curLv)+"級」大首領太強了…","限時內沒能擊敗 "+duelTierName(curLv)+"級 "+KNAME[bk]+"王（難度不變，可再挑戰）——升級守護者、多找幾個人或換剋制屬性再來！<br>"+(KNAME[key]||"")+" 仍獲得 EXP +"+xp); } }
-  function showOver(t,s,b){ root.classList.add("mhide"); txt("moverT",t); txt("moverS",s); const el=document.getElementById("moverB"); if(el) el.innerHTML=b;
+  // 獎勵揭曉演出：rewards=[{i:圖示,l:名稱,v:數值,big:是否大獎}]，勝利時逐項彈出徽章＋每項一聲「叮」＋彩帶飄落
+  let rwTimers=[];
+  function showRewards(rewards){ const box=document.getElementById("moverRewards"); if(!box) return;
+    for(const tm of rwTimers) clearTimeout(tm); rwTimers=[]; box.innerHTML="";
+    if(!rewards || !rewards.length) return;
+    const ov=document.getElementById("mover");
+    // 彩帶：一次性 16 片、動畫結束自動移除（硬上限＋回收，不常駐）
+    if(ov){ ov.querySelectorAll(".rw-conf").forEach(e=>e.remove());
+      const EMO=["🌿","✨","🎉","🍃","⭐"];
+      for(let i=0;i<16;i++){ const c=document.createElement("span"); c.className="rw-conf"; c.textContent=EMO[i%EMO.length];
+        c.style.left=(4+Math.random()*92)+"%"; c.style.fontSize=(13+Math.random()*10)+"px"; c.style.animationDelay=(Math.random()*0.9)+"s";
+        ov.appendChild(c); rwTimers.push(setTimeout(()=>c.remove(),3600)); } }
+    rewards.forEach((rw,i)=>{ const chip=document.createElement("div"); chip.className="rw-chip"+(rw.big?" big":"");
+      chip.innerHTML=(rw.i?rw.i+" ":"")+escHtml(rw.l)+' <span class="rv">'+escHtml(rw.v)+"</span>";
+      box.appendChild(chip);
+      rwTimers.push(setTimeout(()=>{ chip.classList.add("on");
+        if(window.__sfx) window.__sfx.play(rw.big?"levelup":"coin"); },550+i*420)); }); }
+  // 對戰報告：每位守護者的驅逐/造成傷害/承受傷害，表現最佳（傷害+驅逐加權）標 ⭐；勝敗都會顯示
+  function buildBattleReport(){ if(!heroes || !heroes.length) return "";
+    const rows=[...heroes].map(h=>({h,score:(h.dmgDealt||0)+(h.kills||0)*40}));
+    rows.sort((a,b)=>b.score-a.score);
+    const top=(rows[0]&&rows[0].score>0)?rows[0].h:null;
+    let html='<div class="br-title">📋 對戰報告</div>'
+      +'<div class="br-head"><span class="br-name">守護者</span><span class="br-stat">🛡 驅逐</span><span class="br-stat">⚔ 傷害</span><span class="br-stat">💔 承受</span></div>';
+    for(const rw of rows){ const h=rw.h;
+      html+='<div class="br-row'+(h===player?' me':'')+'">'
+        +'<span class="br-name">'+(top===h?'⭐ ':'')+escHtml(h.name)+(h===player?'（你）':'')+'</span>'
+        +'<span class="br-stat">'+(h.kills||0)+'</span>'
+        +'<span class="br-stat">'+Math.round(h.dmgDealt||0)+'</span>'
+        +'<span class="br-stat">'+Math.round(h.dmgTaken||0)+'</span></div>'; }
+    html+='<div class="br-foot">⏱ 用時 '+fmtTime(clock)
+      +(duelEvent?'':('　🌿 復原度 '+Math.round(restore*100)+'%'))
+      +(comboBest>=2?('　🔥 最高連擊 '+comboBest):'')+'</div>';
+    return html; }
+  function showOver(t,s,b,rewards){ root.classList.add("mhide"); txt("moverT",t); txt("moverS",s); const el=document.getElementById("moverB"); if(el) el.innerHTML=b;
+    const rp=document.getElementById("moverReport"); if(rp) rp.innerHTML=(heroes&&heroes.length&&clock>1)?buildBattleReport():"";
+    showRewards(rewards);
     if(window.__sfx) window.__sfx.play(/成功|勝利|過關/.test(t)?"victory":"defeat");   // 勝利/失敗結算音效
     const again=document.getElementById("moverAgain"); const next=document.getElementById("moverNext");
     // PVE 過關（pveNextLevel!=null）：主按鈕改成「下一關（更難）」，再守一場保留為重打（同樣讀已推進的關卡）
@@ -1716,6 +1762,7 @@
 
   // 給獨立模組 src/battleshop.js 用的橋接（玩家物件/提示文字/購買特效），不直接暴露內部狀態
   window.__mobaPlayer=()=>player;
+  window.__dbgEnd=(w)=>{ if(running&&!ended) endGame(!!w); };   // 測試用：直接觸發勝/敗結算（無頭驗收獎勵演出/對戰報告）
   window.__mobaToast=(s)=>toast(s);
   window.__mobaFx=(x,y)=>{ ring(x,y,60,"#ffd54f"); sparks(x,y,18,"#ffd54f"); mshake=Math.max(mshake,5); };
 })();
