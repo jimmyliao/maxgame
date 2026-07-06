@@ -1103,14 +1103,16 @@
       const facingLeft=Math.cos(f||0)<0, flip=(faction==="inv")? !facingLeft : facingLeft;   // 守護者圖面向右、入侵種圖面向左
       ctx.save(); ctx.translate(u.x+Math.cos(f||0)*lunge, gy+Math.sin(f||0)*lunge*0.3+r*0.6);
       ctx.scale(flip?-1:1, breath);
-      if(u.moving){ // 跑動四肢：立繪下半身切成前/後兩半，繞髖部反相擺動＋身體微搖（剪紙木偶式步態）
-        ctx.rotate(walk*0.05);
-        const NW=bb.width, NH=bb.height, legH=H*0.40, sy2=NH*0.60, sh2=NH*0.40, sw2=walk*0.30;
-        for(const s of[-1,1]){ const px=s*W*0.20, py=-legH*0.92;
-          ctx.save(); ctx.translate(px,py); ctx.rotate(s*sw2);
-          ctx.drawImage(bb, s<0?0:NW/2, sy2, NW/2, sh2, (s<0?-W/2:0)-px, -legH-py, W/2, legH);
+      if(u.moving){ // 跑動四肢：立繪下半身切左右兩腳，反相位「一腳一腳」交替跨步——往前擺的腳會抬起、另一腳著地
+        const NW=bb.width, NH=bb.height, legFrac=0.42, legH=H*legFrac, sy2=NH*(1-legFrac), sh2=NH*legFrac, ph=u.anim*12;
+        ctx.rotate(Math.sin(ph)*0.03);   // 身體隨步伐極輕搖擺
+        for(const s of[-1,1]){ const legPh=ph+(s>0?Math.PI:0);   // 左右腳反相：一腳前擺時另一腳後蹬
+          const swing=Math.sin(legPh), lift=Math.max(0,swing)*legH*0.20;   // 只有往前跨的那腳抬起，形成交替踏步
+          const hipX=s*W*0.25, hipY=-legH;
+          ctx.save(); ctx.translate(hipX,hipY); ctx.rotate(swing*0.17); ctx.translate(0,-lift);   // 繞髖部擺動＋抬腳
+          ctx.drawImage(bb, s<0?0:NW/2, sy2, NW/2, sh2, -W/4, 0, W/2, legH);
           ctx.restore(); }
-        ctx.drawImage(bb, 0,0,NW,NH*0.64, -W/2,-H, W, H*0.64);   // 上半身蓋住髖部接縫
+        ctx.drawImage(bb, 0,0,NW,NH*(1-legFrac*0.6), -W/2,-H, W, H*(1-legFrac*0.6));   // 上半身蓋住髖部接縫
       } else {
         ctx.drawImage(bb,-W/2,-H,W,H);
       }
