@@ -303,6 +303,9 @@
   @keyframes rwPop{ 0%{ opacity:0; transform:scale(0.3); } 60%{ opacity:1; transform:scale(1.14); } 100%{ opacity:1; transform:scale(1); } }
   .rw-conf{ position:absolute; top:-6%; pointer-events:none; z-index:5; animation:rwFall 2.5s ease-in forwards; }
   @keyframes rwFall{ from{ transform:translateY(0) rotate(0deg); opacity:1; } to{ transform:translateY(112vh) rotate(560deg); opacity:0.55; } }
+  /* 結算頁：內容(獎勵徽章+對戰報告)變長時可上下捲動，「回大廳」等按鈕在手機上一定捲得到 */
+  #mover{ justify-content:flex-start; overflow-y:auto; padding:max(18px,4vh) 0 30px; }
+  #mover>*{ flex:none; }
   /* 對戰報告：小隊成績表 */
   #moverReport{ margin:4px auto 6px; width:min(88vw,430px); font-size:13px; }
   #moverReport:empty{ display:none; }

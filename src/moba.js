@@ -1471,7 +1471,8 @@
     const stealthy=h.stealthT>0; if(stealthy) ctx.globalAlpha=0.4;
     drawCreatureTop(h,r,"ally");
     if(stealthy){ ctx.globalAlpha=1; ctx.fillStyle="#b0bec5"; ctx.font="12px sans-serif"; ctx.textAlign="center"; ctx.fillText("👻",h.x,h.y-R-30); }
-    if(h._cos && !stealthy) drawCosmeticTop(h.x+(h._lgX||0),h.y-(h._bobY||0),R,h._cos,h);   // 戰場上顯示裝備的服裝：跟著彈跳/突進位移一起動
+    // 戰場只顯示「實體頭飾」(王冠/蝴蝶結)：發光光環類服裝特效(光輪/聖焰/極光/鳳凰/星塵/花圈等)戰場一律不畫——玩家定案「角色光環不要了」，大廳/選角仍看得到全部服裝
+    if(h._cos && !stealthy && (h._cos==="crown"||h._cos==="bow")) drawCosmeticTop(h.x+(h._lgX||0),h.y-(h._bobY||0),R,h._cos,h);
     if(h.shieldT>0){ ctx.strokeStyle="rgba(77,208,225,0.85)"; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(h.x,h.y,R*1.25,0,7); ctx.stroke(); }
     if(h.invulnT>0){ ctx.strokeStyle="rgba(128,222,234,0.7)"; ctx.lineWidth=2; ctx.setLineDash([4,4]); ctx.beginPath(); ctx.arc(h.x,h.y,R*1.15,0,7); ctx.stroke(); ctx.setLineDash([]); }
     ctx.globalAlpha=1;

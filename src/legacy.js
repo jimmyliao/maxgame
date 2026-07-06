@@ -19,7 +19,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   // 多視角立繪（偽 3D 建模）：assets/views/{kind}_{front|right|back|left}.png，大廳拖曳 360° 旋轉看每一面。
   // 有哪隻的視角圖就載哪隻（缺圖 onerror 靜默、自動退回翻面過渡）；要幫新角色開 360° 只要把四張圖放進 assets/views/。
   const SPRITE_VIEWS={};
-  ["leopard"].forEach(k=>{ const o={}; ["front","right","back","left"].forEach(v=>{ const im=new Image(); im.onerror=()=>{}; im.onload=()=>{ if(im.naturalWidth>0) o[v]=im; }; im.src="assets/views/"+k+"_"+v+".png"; }); SPRITE_VIEWS[k]=o; });
+  ["leopard","bear","cicada","dragonfly","deer","magpie","muntjac","macaque","salmon","pheasant","pangolin","yellowmarten","mikado"].forEach(k=>{ const o={}; ["front","right","back","left"].forEach(v=>{ const im=new Image(); im.onerror=()=>{}; im.onload=()=>{ if(im.naturalWidth>0) o[v]=im; }; im.src="assets/views/"+k+"_"+v+".png"; }); SPRITE_VIEWS[k]=o; });
   loadSprites();
 
   /* ===== 角色繪製（優先用寫實圖，否則程式畫）===== */
