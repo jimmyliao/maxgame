@@ -59,6 +59,8 @@ test("載入無錯誤、鐵則齊全、能走完一場戰鬥", async ({ page }) 
   // 對戰：守護台灣神木（俯視角 MOBA）— 選 3v3 / 5v5
   await page.locator("#playBtn").click();
   await expect(page.locator("#mpick")).toBeVisible();
+  // 預設模式為「首領挑戰」(單人/三人/五人，隱藏 #teamSizeRow)；先切到「一般模式」才會顯示三人/五人鈕
+  await page.locator("#modeNormal").click();
   await expect(page.locator("#pick3")).toBeVisible();
   await page.locator("#pick3").click();
   // 進入 MOBA：覆蓋層、搖桿、技能鈕都在
