@@ -833,11 +833,14 @@ import { createPerfTier } from "./data/perf-tier.js";
     if(_ppW!==VW||_ppH!==VH) buildPostGrads();
     ctx.fillStyle=_sunGrad; ctx.fillRect(0,0,VW,VH);
     // 動漫斜射天光：三道緩慢呼吸的林間光束（夜間收斂成月光、暴雨關閉；低效能裝置自動跳過這層 lighter 混合疊圖）
+    // 修 v128 引入的「大白條」bug：單色版把 α 誤乘 13 變近不透明，實機看是刺眼白色斜帶。
+    // 改用快取的 α1→0 淡出漸層＋globalAlpha=呼吸強度(0.02~0.11)，恢復 v122 的柔和又零每幀漸層成本。
     if(weatherBattle!=="storm" && !liteFX){ ctx.save(); ctx.globalCompositeOperation="lighter";
-      const beamCol=weatherBattle==="night"?"190,210,255":"255,246,190", beamBase=weatherBattle==="night"?0.045:0.075;
+      const night=weatherBattle==="night", beamBase=night?0.045:0.075;
+      ctx.fillStyle=night?_beamNight:_beamDay;
       for(let i=0;i<3;i++){ const a=beamBase+0.03*Math.sin(clock*0.45+i*2.1); if(a<=0.015) continue;
         const bx=VW*(0.16+i*0.32)+Math.sin(clock*0.22+i*1.7)*36, bw=VW*0.05+i*18, sk=VH*0.42;
-        ctx.globalAlpha=Math.min(1,a*13); ctx.fillStyle=beamCol==="190,210,255"?"#bed2ff":"#fff6be";   // 光束改單色半透明(免每幀建漸層)：由 globalAlpha 控制強弱
+        ctx.globalAlpha=a;
         ctx.beginPath(); ctx.moveTo(bx-bw,0); ctx.lineTo(bx+bw,0); ctx.lineTo(bx+bw-sk,VH); ctx.lineTo(bx-bw-sk,VH); ctx.closePath(); ctx.fill(); }
       ctx.globalAlpha=1; ctx.restore(); }
     ctx.fillStyle=_vigGrad; ctx.fillRect(0,0,VW,VH);
@@ -913,10 +916,13 @@ import { createPerfTier } from "./data/perf-tier.js";
   // 原本每幀在整個 2000×1500 世界重畫 150 根草+350 花瓣弧+256 森林牆圓+多個漸層(無視野裁切)，是掉幀主因。
   // 只有復原度變化(色調/花量)或岩石花叢圖檔載入時才重建；動態綠意(苗圃/神木)仍每幀即時畫。
   // 後製全螢幕漸層快取（方向光 sunL + 邊緣暗角 vignette）：只依 VW/VH，resize 時才重建
-  let _sunGrad=null, _vigGrad=null, _ppW=0, _ppH=0;
+  let _sunGrad=null, _vigGrad=null, _beamDay=null, _beamNight=null, _ppW=0, _ppH=0;
   function buildPostGrads(){ _ppW=VW; _ppH=VH;
     _sunGrad=ctx.createLinearGradient(0,0,VW*0.85,VH); _sunGrad.addColorStop(0,"rgba(255,244,196,0.13)"); _sunGrad.addColorStop(0.45,"rgba(255,255,255,0)"); _sunGrad.addColorStop(1,"rgba(12,26,8,0.17)");
-    _vigGrad=ctx.createRadialGradient(VW/2,VH*0.52,VH*0.28,VW/2,VH*0.52,VH*0.75); _vigGrad.addColorStop(0,"rgba(0,0,0,0)"); _vigGrad.addColorStop(1,"rgba(0,0,0,0.28)"); }
+    _vigGrad=ctx.createRadialGradient(VW/2,VH*0.52,VH*0.28,VW/2,VH*0.52,VH*0.75); _vigGrad.addColorStop(0,"rgba(0,0,0,0)"); _vigGrad.addColorStop(1,"rgba(0,0,0,0.28)");
+    // 天光光束漸層（α=1 淡出到 0，實際強度由 globalAlpha 控制）：快取兩色，恢復 v122 的柔和淡出、又不用每幀重建
+    _beamDay=ctx.createLinearGradient(0,0,0,VH); _beamDay.addColorStop(0,"rgba(255,246,190,1)"); _beamDay.addColorStop(1,"rgba(255,246,190,0)");
+    _beamNight=ctx.createLinearGradient(0,0,0,VH); _beamNight.addColorStop(0,"rgba(190,210,255,1)"); _beamNight.addColorStop(1,"rgba(190,210,255,0)"); }
   let fieldCache=null, fctx=null, fieldKey="";
   function buildFieldCache(){
     if(!fieldCache){ fieldCache=document.createElement("canvas"); fieldCache.width=MW; fieldCache.height=MH; fctx=fieldCache.getContext("2d"); }
@@ -1118,25 +1124,31 @@ import { createPerfTier } from "./data/perf-tier.js";
       // 轉身緩動：翻面不再瞬間鏡像，而是 0.1~0.2 秒內壓扁再展開（紙片轉身），自然又帶點可愛
       const wantF=flip?-1:1; if(u._fx===undefined) u._fx=wantF; u._fx+=(wantF-u._fx)*Math.min(1,dtA*11);
       const afs=(u._fx<0?-1:1)*Math.max(0.14,Math.abs(u._fx));   // 過零瞬間保留一絲厚度，不會消失
-      // 擠壓伸展(squash & stretch)：每一步落地微壓扁、騰起微拉長（步頻兩倍），肉感的關鍵
-      const sq=rb*0.05*Math.sin(u.anim*24);
       ctx.save(); ctx.translate(u.x+Math.cos(f||0)*lunge, gy+Math.sin(f||0)*lunge*0.3+r*0.6);
-      ctx.scale(afs*(1-sq*0.6), breath*(1+sq));
-      // 前傾進跑姿 + 步伐搖擺 + 站立時極輕的重心搖晃（idle 也活著）
-      ctx.rotate(rb*0.055 + walk*0.03 + (1-rb)*Math.sin(gt*1.1+u.phase)*0.014);
+      ctx.scale(afs, breath);
+      // 前傾進跑姿 + 站立時極輕的重心搖晃（idle 也活著）
+      ctx.rotate(rb*0.05 + (1-rb)*Math.sin(gt*1.1+u.phase)*0.014);
       const NW=bb.width, NH=bb.height;
       const noLegs=(u.kind==="salmon"||flyer);   // 魚用擺尾、飛蟲用懸停——切腿動畫對牠們不自然
-      if(rb>0.04 && !noLegs){ // 跑動四肢：下半身切左右兩腳反相位交替跨步；全部幅度乘 rb 平滑進出
-        const legFrac=0.42, legH=H*legFrac, sy2=NH*(1-legFrac), sh2=NH*legFrac, ph=u.anim*12;
-        for(const s of[-1,1]){ const sw=Math.sin(ph+(s>0?Math.PI:0));   // 左右腳反相：一腳前擺時另一腳後蹬
-          const lift=Math.max(0,sw)*legH*0.22*rb;                       // 往前跨的腳抬起、另一腳著地
-          ctx.save(); ctx.translate(s*W*0.25,-legH); ctx.rotate(sw*0.18*rb); ctx.translate(0,-lift);
-          ctx.scale(1, 1-0.10*Math.max(0,sw)*rb);                       // 抬起的腳微縮短＝模擬屈膝收腿
-          ctx.drawImage(bb, s<0?0:NW/2, sy2, NW/2, sh2, -W/4, 0, W/2, legH);
+      if(rb>0.04 && !noLegs){
+        // 四足疾馳(bound)：參考真實貓科奔跑——柔軟感的主體是「脊椎」不是腿。
+        // ① 脊椎收攏/伸展：伸展期拉長壓低、收攏期縮短拱背（貓科疾馳的招牌律動）
+        // ② 俯仰：前落地微低頭、後蹬微抬頭
+        // ③ 前後腿群「剪切掃動」(shear)：髖線固定、腳掌柔軟前後掃，沒有硬鉸鏈支點
+        // ④ 後腿驅動、前腿延遲 ~65° 跟上（疾馳重疊步態）——不是 180° 剪刀式，那是機械不是動物
+        const ph=u.anim*12, ext=Math.cos(ph);
+        ctx.rotate(-0.045*Math.sin(ph)*rb);                 // 俯仰
+        ctx.scale(1+0.05*ext*rb, 1-0.045*ext*rb);           // 脊椎伸展/收攏（全身共用，整隻一起呼吸）
+        const legFrac=0.44, legH=H*legFrac, sy2=NH*(1-legFrac), sh2=NH*legFrac;
+        for(const s of[-1,1]){                              // s=-1 後半身(後腿) / s=+1 前半身(前腿)
+          const lp=ph-(s>0?1.15:0);                         // 前腿相位落後（疾馳步態的重疊）
+          const sw=Math.sin(lp)*rb;
+          const lift=Math.max(0,Math.cos(lp))*legH*0.09*rb; // 前掃收腿期輕輕離地
+          ctx.save(); ctx.translate(0,-legH-lift);
+          ctx.transform(1,0,sw*0.30,1,0,0);                 // 以髖線為基準的水平剪切：腳掌掃動、髖不動
+          ctx.drawImage(bb, s<0?0:NW/2, sy2, NW/2, sh2, s<0?-W/2:0, 0, W/2, legH);
           ctx.restore(); }
-        ctx.save(); ctx.rotate(-walk*0.02);   // 上半身微反向擺（次級動作）：頭胸不跟下盤同步剛動，去掉「整塊木板」感
-        ctx.drawImage(bb, 0,0,NW,NH*(1-legFrac*0.6), -W/2,-H, W, H*(1-legFrac*0.6));   // 上半身蓋住髖部接縫
-        ctx.restore();
+        ctx.drawImage(bb, 0,0,NW,NH*(1-legFrac*0.62), -W/2,-H, W, H*(1-legFrac*0.62));   // 上半身蓋住髖部接縫
       } else if(rb>0.04 && noLegs){ // 魚/飛蟲：整張立繪輕柔波動前進（擺尾/懸停），不切腿
         ctx.rotate(walk*0.05);
         ctx.drawImage(bb,-W/2,-H,W,H);
