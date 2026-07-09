@@ -535,6 +535,10 @@ import { createPerfTier } from "./data/perf-tier.js";
     for(const e of fx){ e.life-=dt; if(e.type==="spark"){ e.x+=e.vx*dt; e.y+=e.vy*dt; } } fx=fx.filter(e=>e.life>0); if(fx.length>150) fx.splice(0,fx.length-150);
     for(const f of floats){ f.life-=dt; f.y-=26*dt; } floats=floats.filter(f=>f.life>0); if(floats.length>60) floats.splice(0,floats.length-60);   // 硬上限+回收（跟 fx 同模式，避免必殺一次大量命中時無天花板）
 
+    // 腳步小土塵：守護者跑動時每次換腳（步態相位跨過半週期）冒一小撮土塵——重量感＋可愛感；效能降級時停用
+    if(!liteFX) for(const h of heroes){ if(h.dead||!h.moving||h.kind==="salmon") continue;
+      const c=Math.floor(h.anim*12/Math.PI); if(c!==h._ff){ h._ff=c; dust(h.x-Math.cos(h.face||0)*5, h.y+h.r*0.5, 2); } }
+
     // 天候粒子：暴雨雨滴 / 寒流雪花，硬上限＋回收（獨立於 fx，畫在螢幕座標，不受鏡頭平移影響）
     const WFX_MAX=140;
     if(weatherBattle==="storm" && weatherFx.length<WFX_MAX){ for(let i=0;i<4 && weatherFx.length<WFX_MAX;i++)
@@ -769,6 +773,10 @@ import { createPerfTier } from "./data/perf-tier.js";
 
   /* ---------- 特效 ---------- */
   function sparks(x,y,n,col){ for(let i=0;i<n;i++){ const a=Math.random()*6.28,s=60+Math.random()*150; fx.push({type:"spark",x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:0.3+Math.random()*0.2,max:0.5,r:1.5+Math.random()*2,col}); } if(fx.length>150) fx.splice(0,fx.length-150); }
+  // 腳步小土塵：換腳落地時在腳邊輕輕冒一小撮，往上緩飄——跑動的「重量感＋可愛感」；共用 fx 上限回收
+  function dust(x,y,n){ for(let i=0;i<n;i++){ fx.push({type:"spark",x:x+(Math.random()-0.5)*10,y:y+(Math.random()-0.5)*3,
+    vx:(Math.random()-0.5)*22,vy:-(10+Math.random()*16),life:0.3+Math.random()*0.15,max:0.45,r:1.6+Math.random()*1.6,col:"rgba(158,138,100,0.5)"}); }
+    if(fx.length>150) fx.splice(0,fx.length-150); }
   function ring(x,y,r,col){ fx.push({type:"ring",x,y,r0:6,r1:r,life:0.32,max:0.32,col}); }
   let toastT=0; function toast(s){ const el=document.getElementById("mtoast"); if(!el) return; el.textContent=s; el.classList.add("show"); toastT=1.8; }
 
@@ -1081,9 +1089,14 @@ import { createPerfTier } from "./data/perf-tier.js";
     const flyer=(u.kind==="dragonfly"||u.kind==="cicada"), bird=(u.kind==="magpie"||u.kind==="ibis"||u.kind==="pheasant"||u.kind==="mikado");
     const mammal=(u.kind==="leopard"||u.kind==="bear"||u.kind==="deer"||u.kind==="muntjac"||u.kind==="macaque"||u.kind==="pangolin"||u.kind==="yellowmarten"), angry=u.atkA>0;
     const fish=(u.kind==="salmon");
-    const walk=u.moving?Math.sin(u.anim*12):0;
-    const bob=u.moving?Math.abs(Math.sin(u.anim*12))*r*0.14:Math.sin(gt*2.2+u.phase)*r*0.05;
-    const breath=1+(u.moving?0:Math.sin(gt*2.2+u.phase)*0.03);
+    // 自然動作核心：跑動混合值 rb（0=站立、1=全速）——起步/停步用緩動過渡而非布林瞬切，
+    // 所有步態幅度都乘上 rb，動作就會「漸漸跑起來、漸漸停下」，去掉木偶般的生硬感。
+    const dtA=Math.min(0.1,Math.max(0,gt-(u._at===undefined?gt:u._at))); u._at=gt;
+    if(u._rb===undefined) u._rb=0; u._rb+=((u.moving?1:0)-u._rb)*Math.min(1,dtA*9);
+    const rb=u._rb;
+    const walk=Math.sin(u.anim*12)*rb;
+    const bob=Math.abs(Math.sin(u.anim*12))*r*0.15*rb + Math.sin(gt*2.2+u.phase)*r*0.05*(1-rb);
+    const breath=1+Math.sin(gt*2.2+u.phase)*0.03*(1-rb);
     const lunge=u.atkA>0?Math.sin((1-u.atkA/0.2)*3.14159)*r*0.5:0;
     const gy=u.y-bob-(flyer?r*0.5:0);
     // 匯出本幀動態位移/立繪高度：讓戰場服裝(光環/王冠等)跟著角色的彈跳、突進一起動
@@ -1102,18 +1115,31 @@ import { createPerfTier } from "./data/perf-tier.js";
       ctx.fillStyle="rgba(0,0,0,0.22)"; ctx.beginPath(); ctx.ellipse(u.x+r*0.15,u.y+r*0.6,r*1.05,r*0.4,0,0,7); ctx.fill();
       ctx.fillStyle=faction==="inv"?"rgba(239,83,80,0.28)":"rgba(102,187,106,0.34)"; ctx.beginPath(); ctx.ellipse(u.x,u.y+r*0.55,r*1.1,r*0.42,0,0,7); ctx.fill();
       const facingLeft=Math.cos(f||0)<0, flip=(faction==="inv")? !facingLeft : facingLeft;   // 守護者圖面向右、入侵種圖面向左
+      // 轉身緩動：翻面不再瞬間鏡像，而是 0.1~0.2 秒內壓扁再展開（紙片轉身），自然又帶點可愛
+      const wantF=flip?-1:1; if(u._fx===undefined) u._fx=wantF; u._fx+=(wantF-u._fx)*Math.min(1,dtA*11);
+      const afs=(u._fx<0?-1:1)*Math.max(0.14,Math.abs(u._fx));   // 過零瞬間保留一絲厚度，不會消失
+      // 擠壓伸展(squash & stretch)：每一步落地微壓扁、騰起微拉長（步頻兩倍），肉感的關鍵
+      const sq=rb*0.05*Math.sin(u.anim*24);
       ctx.save(); ctx.translate(u.x+Math.cos(f||0)*lunge, gy+Math.sin(f||0)*lunge*0.3+r*0.6);
-      ctx.scale(flip?-1:1, breath);
-      if(u.moving){ // 跑動四肢：立繪下半身切左右兩腳，反相位「一腳一腳」交替跨步——往前擺的腳會抬起、另一腳著地
-        const NW=bb.width, NH=bb.height, legFrac=0.42, legH=H*legFrac, sy2=NH*(1-legFrac), sh2=NH*legFrac, ph=u.anim*12;
-        ctx.rotate(Math.sin(ph)*0.03);   // 身體隨步伐極輕搖擺
-        for(const s of[-1,1]){ const legPh=ph+(s>0?Math.PI:0);   // 左右腳反相：一腳前擺時另一腳後蹬
-          const swing=Math.sin(legPh), lift=Math.max(0,swing)*legH*0.20;   // 只有往前跨的那腳抬起，形成交替踏步
-          const hipX=s*W*0.25, hipY=-legH;
-          ctx.save(); ctx.translate(hipX,hipY); ctx.rotate(swing*0.17); ctx.translate(0,-lift);   // 繞髖部擺動＋抬腳
+      ctx.scale(afs*(1-sq*0.6), breath*(1+sq));
+      // 前傾進跑姿 + 步伐搖擺 + 站立時極輕的重心搖晃（idle 也活著）
+      ctx.rotate(rb*0.055 + walk*0.03 + (1-rb)*Math.sin(gt*1.1+u.phase)*0.014);
+      const NW=bb.width, NH=bb.height;
+      const noLegs=(u.kind==="salmon"||flyer);   // 魚用擺尾、飛蟲用懸停——切腿動畫對牠們不自然
+      if(rb>0.04 && !noLegs){ // 跑動四肢：下半身切左右兩腳反相位交替跨步；全部幅度乘 rb 平滑進出
+        const legFrac=0.42, legH=H*legFrac, sy2=NH*(1-legFrac), sh2=NH*legFrac, ph=u.anim*12;
+        for(const s of[-1,1]){ const sw=Math.sin(ph+(s>0?Math.PI:0));   // 左右腳反相：一腳前擺時另一腳後蹬
+          const lift=Math.max(0,sw)*legH*0.22*rb;                       // 往前跨的腳抬起、另一腳著地
+          ctx.save(); ctx.translate(s*W*0.25,-legH); ctx.rotate(sw*0.18*rb); ctx.translate(0,-lift);
+          ctx.scale(1, 1-0.10*Math.max(0,sw)*rb);                       // 抬起的腳微縮短＝模擬屈膝收腿
           ctx.drawImage(bb, s<0?0:NW/2, sy2, NW/2, sh2, -W/4, 0, W/2, legH);
           ctx.restore(); }
+        ctx.save(); ctx.rotate(-walk*0.02);   // 上半身微反向擺（次級動作）：頭胸不跟下盤同步剛動，去掉「整塊木板」感
         ctx.drawImage(bb, 0,0,NW,NH*(1-legFrac*0.6), -W/2,-H, W, H*(1-legFrac*0.6));   // 上半身蓋住髖部接縫
+        ctx.restore();
+      } else if(rb>0.04 && noLegs){ // 魚/飛蟲：整張立繪輕柔波動前進（擺尾/懸停），不切腿
+        ctx.rotate(walk*0.05);
+        ctx.drawImage(bb,-W/2,-H,W,H);
       } else {
         ctx.drawImage(bb,-W/2,-H,W,H);
       }
