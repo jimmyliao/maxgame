@@ -78,6 +78,13 @@ import { createPerfTier } from "./data/perf-tier.js";
     c=document.createElement("canvas"); c.width=w; c.height=h; const g=c.getContext("2d"); g.imageSmoothingQuality="high"; g.drawImage(img,0,0,w,h); c._nw=img.naturalWidth; _spCache.set(img,c); return c; }
   ["leopard","bear","cicada","dragonfly","deer","magpie","snail","iguana","frog","ibis","anole","muntjac","macaque","salmon","pheasant","pangolin","yellowmarten","mikado"].forEach(k=>{
     try{ const im=new Image(); im.onload=()=>{ if(im.naturalWidth>0) SPRITES_TOP[k]=im; }; im.onerror=()=>{}; im.src="assets/top/"+k+".png"; }catch(e){} });
+  // 真・逐格奔跑動畫：assets/run/<kind>_0..3.png（同一隻動物的疾馳/奔走/擺尾/振翅循環畫格，一律面向右）。
+  // AI 產「sprite sheet」再由 scratchpad/runslice.mjs 去背切格＋統一縮放；載到 ≥2 格才啟用，缺圖自動退回程序步態。
+  const SPRITES_RUN={};
+  ["leopard","bear","cicada","dragonfly","deer","magpie","muntjac","macaque","salmon","pheasant","pangolin","yellowmarten","mikado","snail","iguana","frog","ibis","anole","canetoad","python","skink"].forEach(k=>{
+    for(let i=0;i<4;i++){ const im=new Image();
+      im.onload=()=>{ if(im.naturalWidth>0){ const a=(SPRITES_RUN[k]=SPRITES_RUN[k]||[]); a[i]=im; a._c=a.filter(Boolean); } };
+      im.onerror=()=>{}; im.src="assets/run/"+k+"_"+i+".png"; } });
 
   /* ---------- 視窗 / 世界 ---------- */
   let VW=0, VH=0, dpr=1, rot=false;
@@ -1130,7 +1137,19 @@ import { createPerfTier } from "./data/perf-tier.js";
       ctx.rotate(rb*0.05 + (1-rb)*Math.sin(gt*1.1+u.phase)*0.014);
       const NW=bb.width, NH=bb.height;
       const noLegs=(u.kind==="salmon"||flyer);   // 魚用擺尾、飛蟲用懸停——切腿動畫對牠們不自然
-      if(rb>0.04 && !noLegs){
+      let flashImg=bb, fX=-W/2, fY=-H, fW2=W, fH2=H;   // 受擊閃白要蓋在「當下實際畫的那張圖」上
+      const runA=SPRITES_RUN[u.kind], frs=runA&&runA._c;
+      if(frs && frs.length>=2 && rb>0.35){
+        // 真・逐格奔跑動畫：AI 產的疾馳/奔走/擺尾/振翅畫格輪播——動物真的在跑，不是站姿圖被變形。
+        // 畫格間尾段 28% 交叉淡化減少低格數的跳格感（太寬會看到雙影）；彈跳(gy)/前傾(外層 rotate)沿用，土塵照冒。
+        const cyc=(u.anim*12)/6.283*frs.length, i0=Math.floor(cyc)%frs.length, ft=cyc-Math.floor(cyc);
+        if(faction==="inv") ctx.scale(-1,1);   // 奔跑畫格一律面向右；外層翻面是配「面向左的入侵種立繪」，這裡補正回來
+        const drawF=(fr,al)=>{ const h2=H*(fr.naturalHeight/280), w2=h2*fr.naturalWidth/fr.naturalHeight;
+          if(al<1) ctx.globalAlpha=al; ctx.drawImage(fr,-w2/2,-h2,w2,h2); if(al<1) ctx.globalAlpha=1;
+          flashImg=fr; fX=-w2/2; fY=-h2; fW2=w2; fH2=h2; };
+        drawF(frs[i0],1);
+        if(ft>0.72) drawF(frs[(i0+1)%frs.length],(ft-0.72)/0.28*0.75);
+      } else if(rb>0.04 && !noLegs){
         // 四足疾馳(bound)：參考真實貓科奔跑——柔軟感的主體是「脊椎」不是腿。
         // ① 脊椎收攏/伸展：伸展期拉長壓低、收攏期縮短拱背（貓科疾馳的招牌律動）
         // ② 俯仰：前落地微低頭、後蹬微抬頭
@@ -1155,7 +1174,7 @@ import { createPerfTier } from "./data/perf-tier.js";
       } else {
         ctx.drawImage(bb,-W/2,-H,W,H);
       }
-      if(u.hitT>0){ ctx.globalCompositeOperation="lighter"; ctx.globalAlpha=Math.min(0.65,u.hitT*3); ctx.drawImage(bb,-W/2,-H,W,H); }   // 受擊閃白
+      if(u.hitT>0){ ctx.globalCompositeOperation="lighter"; ctx.globalAlpha=Math.min(0.65,u.hitT*3); ctx.drawImage(flashImg,fX,fY,fW2,fH2); }   // 受擊閃白：蓋在當下實際畫的那張圖上
       ctx.restore(); return; }
     const bLen=r*cfg.long, bW=r*cfg.wide;
     const proud=(u.mood==="proud" && u.moodT>0 && !angry);
