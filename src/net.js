@@ -34,7 +34,7 @@
   let fbReady=false, fbApp=null, fbDb=null, fbAuth=null;
   // 動態載入 Firebase（只有在真的要連線、且已設定 config 時才載入，離線/未設定時完全不影響其他功能）
   async function ensureFirebase(){
-    if(!FIREBASE_CONFIG){ netMsg("⚠ 尚未設定連線服務，請聯絡開發者完成 Firebase 設定後再試。"); return false; }
+    if(!FIREBASE_CONFIG){ netMsg("⚠ 連線功能準備中，先自己逛逛大廳吧！"); return false; }
     if(fbReady) return true;
     try{
       const [{ initializeApp }, { getDatabase, ref, set, onValue, update, remove, get, child }, { getAuth, signInAnonymously }] = await Promise.all([
@@ -47,7 +47,7 @@
       window.__fb={ ref, set, onValue, update, remove, get, child };
       if(window.__netSetMyUid) window.__netSetMyUid(fbAuth.currentUser.uid);   // 多人：把本機 uid 交給 moba，用來對應/認出自己那隻守護者
       fbReady=true; return true;
-    }catch(err){ netMsg("⚠ 連線服務初始化失敗，請檢查網路或稍後再試。"); console.error("Firebase init failed:",err); return false; }
+    }catch(err){ netMsg("⚠ 連線暫時連不上，晚點再試試看～"); console.error("Firebase init failed:",err); return false; }
   }
 
   let currentRoom=null, isHost=false, roomListenerOff=null;
@@ -73,7 +73,7 @@
     const nick=($("nickInput")&&$("nickInput").value.trim())||"訪客"; setNick(nick);
     const { ref, get, update } = window.__fb;
     const snap=await get(ref(fbDb,"rooms/"+code));
-    if(!snap.exists()){ netMsg("找不到這個房間，請確認代碼是否正確。"); return; }
+    if(!snap.exists()){ netMsg("找不到這個房間耶，代碼打對了嗎？"); return; }
     const uid=fbAuth.currentUser.uid;
     const data=snap.val()||{}; const others=Object.values(data.players||{});
     const takenKey=others.length?others[0].heroKey:null;
@@ -213,10 +213,10 @@
   function allGuests(){ const me=myUid(); return Object.keys(roomPlayersCache||{}).filter(u=>u!==me).map(u=>({uid:u,player:roomPlayersCache[u]})); }
 
   async function startGame(){
-    if(!isHost){ netMsg("只有房主可以開始對戰。"); return; }
-    if(!currentRoom || !window.__fb || !window.MOBA){ netMsg("連線尚未就緒，請稍後再試。"); return; }
+    if(!isHost){ netMsg("要等房主按開始才能出發喔！"); return; }
+    if(!currentRoom || !window.__fb || !window.MOBA){ netMsg("連線中…請稍等一下"); return; }
     const me=roomPlayersCache[myUid()]; const guests=allGuests();
-    if(!me){ netMsg("房間狀態異常。"); return; }
+    if(!me){ netMsg("房間好像斷線了，回大廳重新開一個房間吧！"); return; }
     if(!guests.length){ netMsg("請等朋友加入小隊。"); return; }
     const everyone=[me, ...guests.map(g=>g.player)];
     if(everyone.some(p=>!p||!p.ready)){ netMsg("請所有人都按「準備完成」後再開始。"); return; }
@@ -314,7 +314,7 @@
   document.addEventListener("DOMContentLoaded",()=>{
     const ni=$("nickInput"); if(ni) ni.value=getNick();
   });
-  tap("coopBtn",()=>{ const ni=$("nickInput"); if(ni) ni.value=getNick(); netMsg(FIREBASE_CONFIG?"":"⚠ 連線服務尚未設定，介面可先體驗，實際連線功能等開發者完成設定。"); if(window.__tx) window.__tx(()=>show("coop")); else show("coop"); });
+  tap("coopBtn",()=>{ const ni=$("nickInput"); if(ni) ni.value=getNick(); netMsg(FIREBASE_CONFIG?"":"⚠ 連線功能準備中，先自己逛逛大廳吧！"); if(window.__tx) window.__tx(()=>show("coop")); else show("coop"); });
   tap("coopBack",()=>{ hide("coop"); });
   tap("coopCreate",createRoom);
   tap("coopJoinBtn",()=>{ const r=$("coopJoinRow"); if(r) r.classList.toggle("hide"); });

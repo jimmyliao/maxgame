@@ -706,7 +706,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
     const lv=Math.floor(getEcoEarned()/100)+1, ml=getMaxStar();
     document.getElementById("statsBody").innerHTML=
       `🌿 保育值：<b>${getEco()}</b><br>🎖️ 保育等級：<b>Lv.${lv}</b><br>🛡️ 驅逐外來種：<b>${getWins()}</b> 次<br>⭐ 最高配對星級：<b>${ml?("★"+ml):"—"}</b><br><br>`+
-      `<span style="color:#ffd54f;font-weight:800">守護者族群復育</span><br>`+
+      `<span style="color:#ffd54f;font-weight:800">守護者培育</span><br>`+
       HEROES.filter(h=>isHeroUnlocked(h.key)).map(h=>`${h.name}　Lv.${heroLevel(h.key)}`).join("　·　");
   }
   function goSettings(){ state="settings"; setBattleUI(false); show(settingsScr); }
@@ -722,7 +722,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
       const cc=cv.getContext("2d"); drawCreature(cc,h.key,72,82,46,{t:0}); if(!unlocked){ cc.globalAlpha=0.55; cc.fillStyle="#000"; cc.fillRect(0,0,144,144); cc.globalAlpha=1; cc.font="40px serif"; cc.textAlign="center"; cc.fillText("🔒",72,88); }
       const info=document.createElement("div"); info.className="info";
       if(!unlocked){
-        info.innerHTML=`<div class="t">${h.name} 🔒</div><div class="d">${h.status}<br>解鎖花 🌿 ${h.cost}</div>`;
+        info.innerHTML=`<div class="t">${h.name} 🔒</div><div class="d">${h.status}<br>解鎖需 🌿 ${h.cost}</div>`;
         top.appendChild(info);
         const btn=document.createElement("button"); btn.className="btn"; btn.style.cssText="margin:0;padding:8px 12px;font-size:13px;"; btn.textContent="解鎖";
         if(getEco()<h.cost){ btn.className="btn sec"; btn.style.opacity=".4"; }
@@ -777,7 +777,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
           upBtn.addEventListener("pointerdown",(e)=>{ e.preventDefault(); if(talentUpgrade(key)) goUpgrade(); },{passive:false});
           btnWrap.appendChild(upBtn);
         } else {
-          const doneEl=document.createElement("div"); doneEl.style.cssText="font-size:11px;color:#ffd54f;margin-top:4px;"; doneEl.textContent="已修煉至最高等級";
+          const doneEl=document.createElement("div"); doneEl.style.cssText="font-size:11px;color:#ffd54f;margin-top:4px;"; doneEl.textContent="已滿級";
           btnWrap.appendChild(doneEl);
         }
         box.appendChild(btnWrap);
@@ -800,7 +800,7 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
       const cc=cv.getContext("2d"); drawCreature(cc, h.key, 72, 80, 50, {t:0}); if(unlocked) drawCosmetic(cc, cosEquipOf(h.key), 72, 80, 50, 0, h.key);
       if(!unlocked){ cc.fillStyle="rgba(0,0,0,.5)"; cc.fillRect(0,0,144,144); cc.font="40px serif"; cc.textAlign="center"; cc.textBaseline="middle"; cc.fillText("🔒",72,74); }
       const nm=document.createElement("div"); nm.className="hp-name"; nm.textContent=h.name; b.appendChild(nm);
-      if(!unlocked){ const lk=document.createElement("div"); lk.className="hp-lock"; lk.textContent="🔒 去復育解鎖"; b.appendChild(lk); }
+      if(!unlocked){ const lk=document.createElement("div"); lk.className="hp-lock"; lk.textContent="🔒 去「復育」解鎖"; b.appendChild(lk); }
       b.onclick=()=>{ if(unlocked){ featured=i; saveFeatured(); updateLobby(); closeHeroPicker(); } else { closeHeroPicker(); transition(goUpgrade); } };
       wrap.appendChild(b); }); }
   function openHeroPicker(){ const p=document.getElementById("heroPicker"); if(!p) return; buildRoster(); p.classList.remove("hide"); }

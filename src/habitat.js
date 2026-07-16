@@ -49,7 +49,7 @@
   const REGION_KEYS = Object.keys(REGION_INFO);                 // 全部 6 區（含未解鎖）：資料層一律備妥田地，UI 層再決定是否顯示分頁
   const BASE_REGIONS = ["paddy","hill","stream","wetland"];      // 恆常可見的 4 區
   const LOCKED_REGIONS = REGION_KEYS.filter(k=>!BASE_REGIONS.includes(k));
-  // 生態走廊：把新棲地跟既有棲地「串」起來，串通後分頁才會出現、代表守護者真的走得過去
+  // 生態走廊：把新棲地跟既有棲地「串」起來，串聯後分頁才會出現、代表守護者真的走得過去
   const CORRIDORS = [
     { a:"hill", b:"alpine", cost:150, label:"淺山 ↔ 高山寒原", desc:"讓石虎能沿山稜遷移到高山寒原，串起石虎與台灣山椒魚的族群交流路徑。", reward:40 },
     { a:"wetland", b:"estuary", cost:220, label:"濕地 ↔ 濕地河口", desc:"串聯淡水濕地與河口紅樹林，讓候鳥與洄游魚苗的路徑重新暢通。", reward:60 },
@@ -186,11 +186,11 @@
     return 0;
   }
   const GOAL_META = {
-    eco:      { icon:"🌿", label:"累積保育值",   unit:"" },
-    harvests: { icon:"🧺", label:"累積收成次數", unit:" 次" },
-    visitors: { icon:"📖", label:"記錄野生訪客", unit:" 種" },
-    corridors:{ icon:"🌉", label:"建成生態走廊", unit:" 條" },
-    health:   { icon:"🌱", label:"任一棲地復原度", unit:"%" },
+    eco:      { icon:"🌿", label:"保育值",     unit:"" },
+    harvests: { icon:"🧺", label:"收成次數",   unit:" 次" },
+    visitors: { icon:"📖", label:"認識野生訪客", unit:" 種" },
+    corridors:{ icon:"🌉", label:"生態走廊",   unit:" 條" },
+    health:   { icon:"🌱", label:"棲地復原度", unit:"%" },
   };
   // 十道保育關卡：由淺入深，交錯不同玩法目標，教玩家把整個保育站玩過一輪。
   //   reward=過關一次性保育值 bonus（算入終身累積，會回饋 conservationLevel）；title=過關授予的稱號。
@@ -754,7 +754,7 @@
 
   function setRegion(r){ if(!REGION_INFO[r]) return; data.current=r; save(data); applyTheme(); const sd=seedOf(r); banner("🌏 已切換到"+REGION_INFO[r].label+"棲地——播下"+sd.icon+sd.name+"（"+sd.tip+"）"); }
 
-  /* ---------- 生態走廊面板：花保育值串聯兩棲地，串通後解鎖新棲地分頁＋跨物種協力任務回饋 ---------- */
+  /* ---------- 生態走廊面板：花保育值串聯兩棲地，串聯後解鎖新棲地分頁＋跨物種協力任務回饋 ---------- */
   function renderCorridorList(){
     const box=$("habCorridorList"); if(!box) return;
     const lv=conservationLevel(), eco=(window.__getEco&&window.__getEco())||0;
@@ -774,7 +774,7 @@
   function spendEco(n){ try{ const cur=parseInt(localStorage.getItem("shoutu_eco")||"0",10)||0; localStorage.setItem("shoutu_eco",String(Math.max(0,cur-n))); }catch(e){} }
   function buildCorridor(a,b){ const c=CORRIDORS.find(x=>(x.a===a&&x.b===b)); if(!c) return;
     if(corridorBuilt(a,b)) return;
-    if(!levelUnlocked(b)){ banner("保育等級還不夠，無法建造這條走廊"); return; }
+    if(!levelUnlocked(b)){ banner("保育等級還不夠喔，再加油升級！"); return; }
     const eco=(window.__getEco&&window.__getEco())||0; if(eco<c.cost){ banner("保育值不足，無法建造走廊"); return; }
     spendEco(c.cost);   // 一次性花費：只扣可花的保育值，不動終身累積值（保育等級不會因花費而退等）
     const list=loadCorridors(); list.push(corridorId(a,b)); saveCorridors(list);
@@ -839,7 +839,7 @@
     for(const tile of tiles){ if(left<=0) break; if(tile.state==="invasive"){ tile.state="unplanted"; tile.emptySince=now(); left--; } }
     for(const tile of tiles){ if(left<=0) break; if(tile.state==="planted"){ tile.plantedAt-=120000; left--; } }
     save(data); };
-  // 生態走廊串聯查詢：供未來「跨物種協力任務」等模組判斷兩棲地是否已串通
+  // 生態走廊串聯查詢：供未來「跨物種協力任務」等模組判斷兩棲地是否已串聯
   window.__corridorLinked = (a,b) => corridorBuilt(a,b);
   // 除錯／QA 用：給定區域與「種下後經過幾秒」，回傳該區種子在那個時間點的階段/屯貨/實得保育值（純函數，驗證每區種子差異）
   window.__habitatSeedDebug = (region, elapsedSec) => { const sd=seedOf(region);
