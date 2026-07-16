@@ -484,14 +484,18 @@
     display:flex; flex-direction:column; gap:9px; }
   #lobby .lb-side.left{ left:max(12px,env(safe-area-inset-left)); }
   #lobby .lb-side.right{ right:max(12px,env(safe-area-inset-right)); align-items:flex-end; }
+  /* 底色改跟 .lb-pill 一樣的深色玻璃感(rgba(8,24,16,.xx)+backdrop-filter)，不再用淺色半透明——
+     原本的淺色底在白天天空等明亮場景下幾乎看不見文字，深色底無論日夜場景背景多亮都維持可讀對比。 */
   #lobby .navb{ display:flex; align-items:center; gap:6px; width:84px;
-    background:linear-gradient(rgba(255,255,255,.2),rgba(255,255,255,.08)); border:1px solid rgba(255,255,255,.26);
-    color:#e8f5e9; font-size:13px; font-weight:800; border-radius:16px; padding:9px 8px; cursor:pointer;
-    box-shadow:0 2px 5px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.15); transition:transform .12s ease; }
+    background:linear-gradient(rgba(255,255,255,.14),rgba(255,255,255,.04)), rgba(8,24,16,.62);
+    border:1px solid rgba(255,255,255,.28); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+    color:#fff; text-shadow:0 1px 3px rgba(0,0,0,.7); font-size:13px; font-weight:800; border-radius:16px; padding:9px 8px; cursor:pointer;
+    box-shadow:0 2px 5px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.15); transition:transform .12s ease; }
   #lobby .navb span{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   #lobby .navb:active{ filter:brightness(1.25); transform:scale(.96); }
-  #lobby .navb.sm{ width:78px; background:linear-gradient(rgba(255,255,255,.1),rgba(255,255,255,.03)); border-color:rgba(255,255,255,.14);
-    color:#b9d4c2; font-size:11px; font-weight:700; padding:6px 7px; border-radius:13px; box-shadow:0 1px 3px rgba(0,0,0,.25); }
+  #lobby .navb.sm{ width:78px; background:linear-gradient(rgba(255,255,255,.08),rgba(255,255,255,.02)), rgba(8,24,16,.56);
+    border-color:rgba(255,255,255,.2); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+    color:#e3f1e6; text-shadow:0 1px 3px rgba(0,0,0,.65); font-size:11px; font-weight:700; padding:6px 7px; border-radius:13px; box-shadow:0 1px 3px rgba(0,0,0,.3); }
   /* 手機橫向(視窗高度矮)：兩側按鈕縮小、間距收緊，避免蓋住上下 HUD；主角區維持置中不受影響。
      注意：這段必須放在上面所有 #lobby 基礎規則「之後」，同權重下後者才會贏(之前放前面被蓋掉=沒效)。 */
   @media (max-height:560px){
