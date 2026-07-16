@@ -388,8 +388,7 @@
   #app.rot #lobby .roster{ padding:5px 0 6px; gap:6px; }
   #app.rot #lobby .rb{ width:38px; height:38px; border-radius:11px; }
   #app.rot #lobby .play-btn{ padding:9px; font-size:16px; }
-  #app.rot #lobby .lobby-nav.primary{ margin-top:5px; } #app.rot #lobby .lobby-nav.secondary{ margin-top:4px; }
-  #app.rot #lobby .navb{ padding:7px 6px; font-size:11.5px; } #app.rot #lobby .navb.sm{ padding:5px 4px; font-size:10px; }
+  #app.rot #lobby .lb-side{ gap:6px; } #app.rot #lobby .navb{ width:70px; padding:7px 6px; font-size:11.5px; } #app.rot #lobby .navb.sm{ width:66px; padding:5px 4px; font-size:10px; }
   /* 大廳「更換守護者」按鈕（取代原本一整排 roster） */
   #lobby .hero-switch{ margin:9px auto 11px; display:block; border:2px solid rgba(255,213,79,.5); border-radius:22px;
     background:linear-gradient(160deg, rgba(255,213,79,.22), rgba(0,0,0,.35)); color:#ffe082; font-size:14px; font-weight:800;
@@ -479,17 +478,21 @@
   #lobby .play-btn:active{ transform:translateY(3px); }
   @keyframes playPulse{ 0%,100%{ box-shadow:0 6px 0 #e09400, 0 10px 24px rgba(0,0,0,.5), 0 0 0 rgba(255,213,79,0);} 50%{ box-shadow:0 6px 0 #e09400, 0 10px 30px rgba(0,0,0,.5), 0 0 26px rgba(255,213,79,.85);} }
   @keyframes playShine{ 0%{ left:-70%;} 55%,100%{ left:150%;} }
-  /* 主次分明：任務/復育/棲地 是高頻核心循環，較大較亮；圖鑑/戰績/好友/設定 是低頻功能，縮小淡化 */
-  #lobby .lobby-nav{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; width:100%; max-width:420px; }
-  #lobby .lobby-nav.primary{ margin-top:10px; }
-  #lobby .lobby-nav.secondary{ margin-top:6px; }
-  #lobby .navb{ flex:1 1 30%; background:linear-gradient(rgba(255,255,255,.2),rgba(255,255,255,.08)); border:1px solid rgba(255,255,255,.26);
-    color:#e8f5e9; font-size:14px; font-weight:800; border-radius:18px; padding:11px 6px; cursor:pointer;
+  /* 常用功能改貼左右兩側直排：雙手橫握手機時拇指自然落點，不用整疊擠在畫面正下方一小條。
+     主次分明：左側(任務/復育/棲地)是高頻核心循環，較大較亮；右側(圖鑑/戰績/好友/設定)是低頻功能，縮小淡化。 */
+  #lobby .lb-side{ position:absolute; top:50%; transform:translateY(-50%); z-index:2;
+    display:flex; flex-direction:column; gap:9px; }
+  #lobby .lb-side.left{ left:max(12px,env(safe-area-inset-left)); }
+  #lobby .lb-side.right{ right:max(12px,env(safe-area-inset-right)); align-items:flex-end; }
+  #lobby .navb{ display:flex; align-items:center; gap:6px; width:84px;
+    background:linear-gradient(rgba(255,255,255,.2),rgba(255,255,255,.08)); border:1px solid rgba(255,255,255,.26);
+    color:#e8f5e9; font-size:13px; font-weight:800; border-radius:16px; padding:9px 8px; cursor:pointer;
     box-shadow:0 2px 5px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.15); transition:transform .12s ease; }
+  #lobby .navb span{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   #lobby .navb:active{ filter:brightness(1.25); transform:scale(.96); }
-  #lobby .navb.sm{ flex:1 1 21%; background:linear-gradient(rgba(255,255,255,.1),rgba(255,255,255,.03)); border-color:rgba(255,255,255,.14);
-    color:#b9d4c2; font-size:11.5px; font-weight:700; padding:7px 4px; border-radius:14px; box-shadow:0 1px 3px rgba(0,0,0,.25); }
-  /* 手機橫向(視窗高度矮)：整個下方文字/按鈕堆疊全面縮小，把上半留給主角——石虎一定要完整看得到。
+  #lobby .navb.sm{ width:78px; background:linear-gradient(rgba(255,255,255,.1),rgba(255,255,255,.03)); border-color:rgba(255,255,255,.14);
+    color:#b9d4c2; font-size:11px; font-weight:700; padding:6px 7px; border-radius:13px; box-shadow:0 1px 3px rgba(0,0,0,.25); }
+  /* 手機橫向(視窗高度矮)：兩側按鈕縮小、間距收緊，避免蓋住上下 HUD；主角區維持置中不受影響。
      注意：這段必須放在上面所有 #lobby 基礎規則「之後」，同權重下後者才會贏(之前放前面被蓋掉=沒效)。 */
   @media (max-height:560px){
     #lobby .lb-ticker{ display:none; }   /* 跑馬燈讓位給主角，畫面也更乾淨 */
@@ -498,10 +501,9 @@
     #lobby .hero-tag{ font-size:9.5px; margin-top:0; }
     #lobby .hero-switch{ margin:3px auto 4px; padding:4px 13px; font-size:11px; }
     #lobby .play-btn{ padding:6px; font-size:14px; max-width:300px; border-radius:20px; box-shadow:0 3px 0 #c99700, 0 5px 10px rgba(0,0,0,.35); }
-    #lobby .lobby-nav{ max-width:300px; gap:4px; }
-    #lobby .lobby-nav.primary{ margin-top:4px; } #lobby .lobby-nav.secondary{ margin-top:3px; }
-    #lobby .navb{ padding:4px 4px; font-size:10.5px; border-radius:12px; }
-    #lobby .navb.sm{ padding:3px 3px; font-size:9.5px; }
+    #lobby .lb-side{ gap:5px; }
+    #lobby .navb{ width:68px; padding:5px 6px; font-size:10.5px; border-radius:12px; }
+    #lobby .navb.sm{ width:64px; padding:4px 5px; font-size:9.5px; }
     #lobby .lb-bottom{ padding-bottom:3px; }
   }
   /* ===== 場景轉場 ===== */
@@ -536,18 +538,19 @@
         <div class="hero-tag" id="hsTag"></div>
         <button class="hero-switch" id="heroSwitchBtn">🔄 更換守護者</button>
         <button class="play-btn" id="playBtn">⚔ 對 戰</button>
-        <div class="lobby-nav primary">
-          <button class="navb" id="navDaily">📋 任務</button>
-          <button class="navb" id="navUpg">🌱 復育</button>
-          <button class="navb" id="navHabitat">🏡 棲地</button>
-        </div>
-        <div class="lobby-nav secondary">
-          <button class="navb sm" id="navPass">🎟 通行證</button>
-          <button class="navb sm" id="navDex">📖 圖鑑</button>
-          <button class="navb sm" id="navStats">🏆 戰績</button>
-          <button class="navb sm" id="coopBtn">📨 邀請隊友</button>
-          <button class="navb sm" id="navSet">⚙️ 設定</button>
-        </div>
+      </div>
+      <!-- 常用功能移到左右兩側：雙手橫握手機時各自用拇指就能點到，中間留給角色與「對戰」主按鈕，不用整疊擠在畫面正下方 -->
+      <div class="lobby-nav lb-side left">
+        <button class="navb" id="navDaily">📋<span>任務</span></button>
+        <button class="navb" id="navUpg">🌱<span>復育</span></button>
+        <button class="navb" id="navHabitat">🏡<span>棲地</span></button>
+      </div>
+      <div class="lobby-nav lb-side right">
+        <button class="navb sm" id="navPass">🎟<span>通行證</span></button>
+        <button class="navb sm" id="navDex">📖<span>圖鑑</span></button>
+        <button class="navb sm" id="navStats">🏆<span>戰績</span></button>
+        <button class="navb sm" id="coopBtn">📨<span>邀請</span></button>
+        <button class="navb sm" id="navSet">⚙️<span>設定</span></button>
       </div>
       <!-- 保育服裝店：用保育值買裝飾穿在守護者身上（放 #lobby 內以跟隨旋轉），沿用 heroPicker 樣式 -->
       <div id="costumeShop" class="hide">
