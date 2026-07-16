@@ -49,7 +49,7 @@
 ## 分支與部署（重要）
 - 開發分支：**`claude/dinosaur-game-infinite-levels-kpfmbm`**
 - 部署分支：**`main`**（GitHub Pages 來源）。每次完成把同一個 commit push 到開發分支**與** `main`，Pages 1–2 分鐘自動更新。
-- Repo：`jimmyliao/maxgame`（private repo，但 Pages 網站 public）。
+- Repo：`jimmyliao/maxgame`（2026-07-16 起改為 public repo，Pages 網站原本就 public）。
 - 可回退的可玩版本 commit：見 `docs/SPEC.md` 決策紀錄。
 
 ## 怎麼跑 / 測 / 上線
@@ -66,7 +66,7 @@ cd /home/user/maxgame && python3 -m http.server 8099   # 開 http://localhost:80
 ```
 **驗收一票否決項**：① `node --check` 過　② 無頭瀏覽器 0 runtime error　③ 粒子有上限與回收　④ 單檔零外部資源（離線 PWA 不破）。完整 rubric 見 SPEC §驗收。
 
-**CI / Actions 分鐘數**（2026-07-16 起）：私有 repo 的 GitHub Actions 分鐘數已踩到 free tier 上限，`.github/workflows/ci.yml` 改為 `workflow_dispatch`（手動觸發），不再每次 push 自動跑。**Pages 部署是獨立的 GitHub 內建 workflow，跟這條 CI 完全無關、不受影響**——照常 push 到 `main` 即可自動部署。本機驗收（`npm run typecheck && npm run test:unit && npm run build && npm run test:smoke`）仍是每次改動的把關標準，只是不再倚賴遠端 CI 自動跑一次；額度恢復或 repo 改成 public（Actions 分鐘數無限）後可改回自動觸發。
+**CI / Actions 分鐘數**：2026-07-16 一度因私有 repo 分鐘數見底，把 `ci.yml` 改成 `workflow_dispatch` 手動觸發；同日稽核 git 全歷史（金鑰樣式/commit 作者信箱/曾刪除的可疑檔案，皆無問題，唯一命中的 Firebase 用戶端設定金鑰本來就設計成可公開）後**把 repo 改為 public**，GitHub Actions 對 public repo 完全免費無限制，`ci.yml` 已改回 `on: push / pull_request` 自動觸發。備援手動部署方案（不透過 GitHub Actions）仍留著見 `docs/DEPLOY.md`。
 
 ## 🔒 鐵則（不可改壞的合約 — 動程式前必讀）
 > 可「擴充」，不可「改壞既有呼叫與資料合約」。

@@ -1,29 +1,21 @@
-# 部署方式說明（GitHub Actions 額度用完時怎麼辦）
+# 部署方式說明（GitHub Actions 額度問題與備援方案）
 
-## 現況（2026-07-16）
-- 這是**私有 repo**（`jimmyliao/maxgame`），但部署出去的網站是公開的：https://jimmyliao.github.io/maxgame/
-- 私有 repo 的 **GitHub Actions 分鐘數是有上限的（free tier）**，目前已經踩到上限。
-- 這個 repo 目前有兩條「會吃 Actions 分鐘數」的東西：
-  1. 自訂的 `.github/workflows/ci.yml`（型別檢查／單元測試／build／冒煙測試）——**已改成手動觸發**（`workflow_dispatch`），不會再自動 push 就跑，見下方「① 手動 CI」。
-  2. GitHub Pages 內建的「pages build and deployment」——**這是 GitHub 自己的機制，只要 push 到 `main` 就會自動觸發**，跟 `ci.yml` 完全無關、無法用 `workflow_dispatch` 停用。**這是私有 repo 上唯一還是「自動觸發＋吃額度」的東西。**
+## 現況（2026-07-16 更新：repo 已改為 public，額度問題已解除）
+- `jimmyliao/maxgame` 現在是 **public repo**，網站原本就公開：https://jimmyliao.github.io/maxgame/
+- **GitHub Actions 對 public repo 完全免費、沒有分鐘數上限**——`.github/workflows/ci.yml` 已改回 `on: push / pull_request` 自動觸發，Pages 部署（GitHub 內建的「pages build and deployment」）也不再有額度顧慮。
+- 下面 ①②③ 是**私有 repo 時期踩到 free tier 上限**留下的排查記錄與備援方案，額度問題本身已解決、目前用不到，但保留供未來參考（例如帳號又改回 private，或另開私有 repo 專案時）。
 
-## 重要觀念：CI 跟 Pages 部署是兩件事
-- `ci.yml` 紅燈／跑不動，**不會**擋住 Pages 部署，兩者互不影響。
-- 但如果 Actions 分鐘數整個帳號額度用完，**Pages 部署本身也會失敗**（因為它也是跑在 Actions 上）——這就是目前最壞的情況：連正常 `git push origin main` 都可能部署不上去。
+## 背景知識：CI 跟 Pages 部署是兩件事
+- `ci.yml` 紅燈／跑不動，**不會**擋住 Pages 部署，兩者互不影響（各自獨立的 workflow）。
+- 私有 repo 時，Actions 分鐘數整個帳號額度用完的話，**Pages 部署本身也會失敗**（因為它也是跑在 Actions 上）——這是當時最壞的情況：連正常 `git push origin main` 都部署不上去。Public repo 沒有這個問題。
 
-## ① 手動重新啟用 CI（額度恢復後）
-`.github/workflows/ci.yml` 已改成：
+## ① 手動觸發 CI（僅私有 repo 額度緊張時才需要）
+若之後又需要手動模式，把 `on:` 改成：
 ```yaml
 on:
   workflow_dispatch:
 ```
 要跑的話：GitHub 網頁 → repo → **Actions** 分頁 → 左側選 **CI** → 右上角 **Run workflow** 按鈕手動點一次。
-額度完全恢復、不想再手動點的話，把 `on:` 那段改回：
-```yaml
-on:
-  push:
-  pull_request:
-```
 
 ## ② Pages 部署本身撐不住時的備援：不透過 GitHub Actions，直接部署到別的免費靜態網站服務
 這個專案是**零建置**的純靜態網站（`index.html` + `src/*.js`，沒有一定要跑 Vite build 才能上線——`dist/` 只是 CI 用來驗證 build 沒壞掉，實際上線用的是 repo 根目錄的原始檔案）。所以可以直接把整個 repo 根目錄的內容原封不動丟到任何靜態代管服務，跟 GitHub Actions 完全脫鉤。
@@ -57,10 +49,10 @@ bash scripts/deploy-netlify.sh
 - 都需要**你自己**先去該服務免費註冊帳號、跑一次 `login` 授權——這步我這邊做不到（需要你本人的帳號），之後每次部署才能全自動用腳本跑。
 - 這兩個都只是「備援/緊急管道」，**平常還是用 `git push origin main` 讓 GitHub Pages 自動部署**，只有當 Pages 部署也失敗（額度問題）時才需要跑這兩個腳本救急。
 
-## ③ 未來想徹底解決額度問題
-- 最徹底：repo 改成 public（GitHub Actions 對 public repo 完全免費無限制）。**這個選項目前先不採用**（使用者決定）。
-- 或：升級 GitHub 方案（Pro/Team 有更多 Actions 分鐘數）。
-- 或：長期都用 ② 的備援服務當主要部署管道，不依賴 GitHub Pages。
+## ③ 徹底解決額度問題（2026-07-16 已採用：改成 public repo）
+- **已執行**：repo 改成 public，GitHub Actions 對 public repo 完全免費無限制。動手前已完整稽核過 git 全歷史（金鑰樣式、commit 作者信箱、曾被刪除的可疑檔案），確認乾淨可公開；唯一命中的 Firebase 用戶端設定金鑰本來就設計成可公開（存取控制靠 Firebase 安全規則）。
+- 若未來又需要改回 private（例如想暫時隱藏原始碼），Actions 額度問題會重新出現，屆時可參考本文件 ①②。
+- 其他備選：升級 GitHub 方案（Pro/Team 有更多 Actions 分鐘數）；或長期都用 ② 的備援服務當主要部署管道，不依賴 GitHub Pages。
 
 ---
 _這份文件與 `scripts/deploy-*.sh` 是給未來任何 session／agent 接手時看的——遇到「CI 跑不動」或「Pages 部署不上去」，先看這份文件，不用重新排查一次。_
