@@ -1,9 +1,11 @@
 name: CI
 
-# 每次 push / PR 自動跑：型別檢查 + 單元測試 + build + 冒煙/回歸測試
+# 改為手動觸發：私有 repo 的 Actions 分鐘數已踩到 free tier 上限，自動 push/PR 觸發
+# 會持續空耗額度（且不影響 GitHub Pages 部署——Pages 是獨立的 workflow，跟這條 CI 無關）。
+# 額度恢復、或改成 public repo（Actions 分鐘數無限）後，可改回 on: push / pull_request，
+# 或直接在 GitHub Actions 頁面手動點「Run workflow」跑一次驗收。
 on:
-  push:
-  pull_request:
+  workflow_dispatch:
 
 jobs:
   test:
