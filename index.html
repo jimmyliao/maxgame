@@ -432,6 +432,35 @@
   #passShop .cos-card .cos-status{ font-size:11px; color:#a5d6a7; }
   #passShop .pass-tab{ flex:1; border:none; border-radius:12px; background:rgba(255,255,255,.08); color:#c8e6c9; font-size:12px; font-weight:800; padding:7px 4px; cursor:pointer; }
   #passShop .pass-tab.on{ background:#ffd54f; color:#1b2e14; }
+  /* 新手教學：多頁引導彈窗，獨立一套 CSS（不掛在 hp-panel 共用選擇器上，改動不影響其他彈窗） */
+  #tutorial{ position:absolute; inset:0; z-index:24; display:flex; align-items:center; justify-content:center;
+    background:rgba(6,14,10,.86); backdrop-filter:blur(4px); }
+  #tutorial.hide{ display:none; }
+  #tutorial .tut-panel{ position:relative; width:min(92%,440px); background:linear-gradient(160deg,#1e3a2a,#0d1c14);
+    border:2px solid rgba(255,213,79,.4); border-radius:22px; padding:26px 22px 20px; text-align:center;
+    color:#e8f5e0; box-shadow:0 14px 44px rgba(0,0,0,.6); }
+  #tutorial .tut-skip{ position:absolute; top:10px; right:12px; border:none; background:none; color:#a5d6a7;
+    font-size:12.5px; font-weight:700; cursor:pointer; padding:6px; }
+  #tutorial .tut-page{ display:none; }
+  #tutorial .tut-page.on{ display:block; animation:tutIn .25s ease; }
+  @keyframes tutIn{ from{ opacity:0; transform:translateY(6px);} to{ opacity:1; transform:translateY(0);} }
+  #tutorial .tut-emoji{ font-size:40px; margin-bottom:6px; letter-spacing:2px; }
+  #tutorial .tut-page h3{ font-size:19px; font-weight:900; color:#ffd54f; margin-bottom:8px; }
+  #tutorial .tut-page p{ font-size:14px; line-height:1.7; color:#dff0e0; }
+  #tutorial .tut-dots{ display:flex; justify-content:center; gap:7px; margin:18px 0 14px; }
+  #tutorial .tut-dots i{ width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,.25); }
+  #tutorial .tut-dots i.on{ background:#ffd54f; width:18px; border-radius:5px; }
+  #tutorial #tutNext{ width:100%; }
+  /* 首戰操作提示：只在玩家第一場對戰顯示，指向搖桿/攻擊鈕；不擋觸控(pointer-events:none) */
+  .mhint{ position:absolute; pointer-events:none; opacity:0; transition:opacity .3s ease;
+    background:rgba(8,24,16,.82); color:#ffd54f; font-size:12.5px; font-weight:800; white-space:nowrap;
+    padding:6px 12px; border-radius:12px; border:1px solid rgba(255,213,79,.5); box-shadow:0 4px 14px rgba(0,0,0,.4); z-index:30; }
+  .mhint.on{ opacity:1; animation:mhintBob 1.1s ease-in-out infinite; }
+  @keyframes mhintBob{ 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(-5px);} }
+  #mstickHint{ left:50%; bottom:calc(100% + 14px); transform:translateX(-50%); }
+  #mstickHint.on{ animation:mhintBobX 1.1s ease-in-out infinite; }
+  @keyframes mhintBobX{ 0%,100%{ transform:translateX(-50%) translateY(0);} 50%{ transform:translateX(-50%) translateY(-5px);} }
+  #mbtnsHint{ right:0; bottom:calc(100% + 14px); }
   /* 守護者個人資訊 / 帳號資訊（全螢幕） */
   #heroInfo, #accountInfo{ position:absolute; inset:0; z-index:22; display:flex; align-items:center; justify-content:center; background:rgba(6,14,10,.92); backdrop-filter:blur(5px); }
   #heroInfo.hide, #accountInfo.hide{ display:none; }
@@ -545,6 +574,7 @@
       </div>
       <!-- 常用功能移到左右兩側：雙手橫握手機時各自用拇指就能點到，中間留給角色與「對戰」主按鈕，不用整疊擠在畫面正下方 -->
       <div class="lobby-nav lb-side left">
+        <button class="navb" id="navTutorial">❓<span>玩法</span></button>
         <button class="navb" id="navDaily">📋<span>任務</span></button>
         <button class="navb" id="navUpg">🌱<span>復育</span></button>
         <button class="navb" id="navHabitat">🏡<span>棲地</span></button>
@@ -622,6 +652,37 @@
         <div class="hp-panel">
           <div class="hp-head"><span>選擇你的守護者</span><button id="heroPickerClose" class="hp-close">✕</button></div>
           <div id="heroPickerGrid" class="hp-grid"></div>
+        </div>
+      </div>
+      <!-- 新手教學：多頁引導彈窗。新玩家第一次進大廳自動打開；之後可從左側導覽「❓ 玩法」重看。
+           放在 #lobby 內以跟隨旋轉，沿用其他彈窗（hp-panel 系列）的視覺語言但獨立一套 CSS，避免互相牽動。 -->
+      <div id="tutorial" class="hide">
+        <div class="tut-panel">
+          <button id="tutSkip" class="tut-skip">跳過</button>
+          <div id="tutPages">
+            <div class="tut-page on" data-i="0">
+              <div class="tut-emoji">🐆🐻🦌</div>
+              <h3>歡迎來到守土！</h3>
+              <p>你就是台灣特有種本人！操控石虎、黑熊這些台灣動物，組隊打倒外來入侵種，把生病的棲地救回來。</p>
+            </div>
+            <div class="tut-page" data-i="1">
+              <div class="tut-emoji">🕹️⚔️</div>
+              <h3>怎麼玩？</h3>
+              <p>左邊搖桿拖曳移動，右下角按鈕攻擊、放技能。撿到地圖上的 ⭐ 守護之力，就能放大招！</p>
+            </div>
+            <div class="tut-page" data-i="2">
+              <div class="tut-emoji">🌳🌿</div>
+              <h3>你的任務</h3>
+              <p>顧好 🌳 台灣神木，把入侵種通通趕跑，讓 🌿 棲地復原度衝到 100%，就是勝利！</p>
+            </div>
+            <div class="tut-page" data-i="3">
+              <div class="tut-emoji">🛡️</div>
+              <h3>準備好了嗎？</h3>
+              <p>挑一隻你喜歡的守護者，衝進戰場守護台灣吧！</p>
+            </div>
+          </div>
+          <div class="tut-dots" id="tutDots"></div>
+          <button id="tutNext" class="btn">下一步</button>
         </div>
       </div>
     </div>
@@ -740,12 +801,13 @@
     <div class="dh-vs" id="dhTimer">⚔</div>
     <div class="dh-side right"><span class="dh-name" id="dhBossName">首領</span><div class="dh-bar boss"><i id="dhBoss"></i></div></div>
   </div>
-  <div id="mstick"><div id="mknob"></div></div>
+  <div id="mstick"><div id="mknob"></div><div id="mstickHint" class="mhint">拖曳這裡移動 ✋</div></div>
   <div id="mbtns">
     <button id="mBack" class="mbtn back">回神木</button>
     <button id="mUlt" class="mbtn ult locked"><span class="fill"></span>必殺</button>
     <button id="mAtk" class="mbtn atk">攻擊</button>
     <button id="mSp" class="mbtn sp"><span class="fill"></span>技能</button>
+    <div id="mbtnsHint" class="mhint">點這裡攻擊、放技能！</div>
   </div>
   <div id="mzoom">
     <button id="mZoomIn" class="zbtn">＋</button>

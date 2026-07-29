@@ -1754,7 +1754,17 @@ import { createPerfTier } from "./data/perf-tier.js";
     root.classList.remove("mhide"); hide("mpick"); hide("mover"); ov.classList.remove("hide");
     const num=document.getElementById("mccNum"); let n=3;
     (function tick(){ if(n>=1){ if(num){ num.textContent=String(n); num.style.animation="none"; void num.offsetWidth; num.style.animation="ccPop .8s ease"; } n--; setTimeout(tick,700); }
-      else { if(num){ num.textContent="開始！"; num.style.animation="none"; void num.offsetWidth; num.style.animation="ccPop .8s ease"; } setTimeout(()=>{ ov.classList.add("hide"); fn(); },650); } })(); }
+      else { if(num){ num.textContent="開始！"; num.style.animation="none"; void num.offsetWidth; num.style.animation="ccPop .8s ease"; } setTimeout(()=>{ ov.classList.add("hide"); fn(); showBattleHints(); },650); } })(); }
+
+  // 首戰操作提示：只在玩家「這輩子第一場」對戰結束倒數時顯示一次，指向搖桿/攻擊鈕教怎麼操作；純提示不擋觸控
+  function showBattleHints(){
+    try{ if(localStorage.getItem("shoutu_battle_hint_seen")==="1") return; }catch(e){ return; }
+    const sh=document.getElementById("mstickHint"), bh=document.getElementById("mbtnsHint");
+    if(!sh||!bh) return;
+    sh.classList.add("on");
+    setTimeout(()=>{ sh.classList.remove("on"); bh.classList.add("on"); },3200);
+    setTimeout(()=>{ bh.classList.remove("on"); try{ localStorage.setItem("shoutu_battle_hint_seen","1"); }catch(e){} },6600);
+  }
 
   /* ---------- 控制：虛擬搖桿 ---------- */
   const stick=document.getElementById("mstick"), knob=document.getElementById("mknob");

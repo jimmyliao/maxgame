@@ -806,6 +806,20 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   function openHeroPicker(){ const p=document.getElementById("heroPicker"); if(!p) return; buildRoster(); p.classList.remove("hide"); }
   function closeHeroPicker(){ const p=document.getElementById("heroPicker"); if(p) p.classList.add("hide"); }
 
+  /* ===== 新手教學：多頁引導彈窗。第一次進大廳自動開一次，之後可從左側導覽「❓ 玩法」重看 ===== */
+  const TUT_PAGES=document.querySelectorAll("#tutorial .tut-page"), TUT_N=TUT_PAGES.length;
+  let tutIdx=0;
+  function tutRender(){
+    TUT_PAGES.forEach(p=>p.classList.toggle("on", parseInt(p.dataset.i,10)===tutIdx));
+    const dots=document.getElementById("tutDots"); if(dots){ dots.innerHTML="";
+      for(let i=0;i<TUT_N;i++){ const d=document.createElement("i"); if(i===tutIdx) d.className="on"; dots.appendChild(d); } }
+    const nb=document.getElementById("tutNext"); if(nb) nb.textContent = (tutIdx>=TUT_N-1) ? "知道了，開始冒險！" : "下一步";
+  }
+  function openTutorial(){ const p=document.getElementById("tutorial"); if(!p) return; tutIdx=0; tutRender(); p.classList.remove("hide"); }
+  function closeTutorial(){ const p=document.getElementById("tutorial"); if(p) p.classList.add("hide");
+    try{ localStorage.setItem("shoutu_tutorial_seen","1"); }catch(e){} }
+  function tutNext(){ if(tutIdx>=TUT_N-1) closeTutorial(); else { tutIdx++; tutRender(); } }
+
   /* ===== 保育服裝店：用保育值買裝飾，穿在守護者身上（大廳展示＋選角彈窗），每隻各自記憶裝備 ===== */
   // 服裝店已移除（依需求）：基本服裝改用通行證點數(pp)兌換，全部收進通行證「專屬服裝」分頁；cost 保留僅供舊資料相容
   const COSMETICS=[
@@ -1504,6 +1518,11 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   { const sw=document.getElementById("heroSwitchBtn"); if(sw) sw.onclick=openHeroPicker;
     const hc=document.getElementById("heroPickerClose"); if(hc) hc.onclick=closeHeroPicker;
     const hp=document.getElementById("heroPicker"); if(hp) hp.addEventListener("pointerdown",(e)=>{ if(e.target===hp) closeHeroPicker(); }); }   // 點彈窗外圍空白處也可關閉
+  // 新手教學：左側導覽「❓ 玩法」重看、跳過鈕、下一步鈕、點外圍空白關閉
+  { const nt=document.getElementById("navTutorial"); if(nt) nt.onclick=openTutorial;
+    const ts=document.getElementById("tutSkip"); if(ts) ts.onclick=closeTutorial;
+    const tn=document.getElementById("tutNext"); if(tn) tn.onclick=tutNext;
+    const tp=document.getElementById("tutorial"); if(tp) tp.addEventListener("pointerdown",(e)=>{ if(e.target===tp) closeTutorial(); }); }
   // 左上角帳號徽章：點開全螢幕帳號資訊（等級/戰績/守護者圖鑑）
   { const pf=document.getElementById("lbProfile"); if(pf) pf.addEventListener("pointerdown",(e)=>{ e.preventDefault(); openAccountInfo(); },{passive:false});
     const ac=document.getElementById("aiClose"); if(ac) ac.onclick=closeAccountInfo;
@@ -1568,6 +1587,8 @@ import { TYPE, ADV, eff } from "./data/types-chart.js";
   window.addEventListener("keyup",(e)=>{ if(e.key==="ArrowLeft"||e.key==="a")input.left=false; else if(e.key==="ArrowRight"||e.key==="d")input.right=false; });
 
   resize(); goLobby(); requestAnimationFrame(frame);
+  // 新玩家第一次進大廳，自動開一次新手教學（之後想再看，左側導覽有「❓ 玩法」）
+  try{ if(localStorage.getItem("shoutu_tutorial_seen")!=="1") openTutorial(); }catch(e){}
   if("serviceWorker" in navigator){ window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{})); }
 })();
 

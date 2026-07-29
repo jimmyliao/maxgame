@@ -12,6 +12,11 @@ test("載入無錯誤、鐵則齊全、能走完一場戰鬥", async ({ page }) 
 
   await page.goto("/");
 
+  // 新手教學：全新玩家第一次進大廳會自動彈出，先跳過才能繼續操作大廳（鐵則斷言本身不放寬）
+  await expect(page.locator("#tutorial")).toBeVisible();
+  await page.locator("#tutSkip").click();
+  await expect(page.locator("#tutorial")).toBeHidden();
+
   // 大廳（遊戲介面）— 開始守護鈕 + 角色展示
   await expect(page.locator("#playBtn")).toBeVisible();
   await expect(page.locator("#heroShow")).toBeVisible();
