@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>守土・跨環境交接文件</title>
+<style>
+  :root{ --bg:#0d1c14; --panel:#14281c; --line:rgba(255,255,255,.14); --gold:#ffd54f; --txt:#e8f5e9; --sub:#a5d6a7; --warn:#ffab91; --ok:#81c784; }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{ background:var(--bg); color:var(--txt); font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif; line-height:1.75; padding:32px 16px 80px; }
+  main{ max-width:880px; margin:0 auto; }
+  h1{ color:var(--gold); font-size:26px; margin-bottom:4px; }
+  .meta{ color:var(--sub); font-size:13px; margin-bottom:28px; }
+  h2{ color:var(--gold); font-size:19px; margin:36px 0 10px; padding-bottom:6px; border-bottom:1px solid var(--line); }
+  h3{ color:#ffe082; font-size:15.5px; margin:18px 0 6px; }
+  p, li{ font-size:14.5px; }
+  ul, ol{ padding-left:22px; margin:6px 0 12px; }
+  li{ margin:3px 0; }
+  code{ background:rgba(0,0,0,.4); border:1px solid var(--line); border-radius:5px; padding:1px 6px; font-size:13px; color:#c5e1a5; font-family:ui-monospace,Menlo,Consolas,monospace; }
+  pre{ background:rgba(0,0,0,.45); border:1px solid var(--line); border-radius:10px; padding:14px 16px; overflow-x:auto; margin:8px 0 14px; }
+  pre code{ background:none; border:none; padding:0; display:block; white-space:pre; }
+  table{ width:100%; border-collapse:collapse; margin:8px 0 16px; font-size:13.5px; }
+  th, td{ border:1px solid var(--line); padding:7px 10px; text-align:left; vertical-align:top; }
+  th{ background:rgba(255,213,79,.1); color:var(--gold); white-space:nowrap; }
+  .can{ color:var(--ok); font-weight:700; }
+  .cant{ color:var(--warn); font-weight:700; }
+  .box{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 18px; margin:10px 0 16px; }
+  .box.warn{ border-color:rgba(255,171,145,.5); }
+  .box.warn b{ color:var(--warn); }
+  .tag{ display:inline-block; background:rgba(255,213,79,.14); border:1px solid rgba(255,213,79,.4); color:var(--gold); border-radius:8px; font-size:11.5px; font-weight:700; padding:1px 8px; margin-right:6px; }
+  a{ color:#90caf9; }
+</style>
+</head>
+<body>
+<main>
+<h1>🛡️ 守土・跨環境交接文件</h1>
+<div class="meta">產出時間：2026-07-29　|　產出環境：Claude Code（雲端沙盒）　|　對應 commit：<code>5a5bd22</code> / sw <code>shoutu-v138</code><br>
+目的：讓另一個環境的 agent（例如 Discord bot ＋ OpenAI/任何 LLM）能完整接手本專案的開發、驗證與部署。</div>
+
+<h2>〇、30 秒總覽</h2>
+<div class="box">
+<p><b>專案</b>：「守土・福爾摩沙衛士」——用玩的方式認識台灣生態保育的手機網頁遊戲（俯視角 MOBA＋棲地經營＋保育圖鑑，PWA 可離線）。親子共製專案，玩家（使用者）是產品決策者。</p>
+<p><b>線上版</b>：<a href="https://jimmyliao.github.io/maxgame/">https://jimmyliao.github.io/maxgame/</a>（GitHub Pages，從 <code>main</code> 根目錄部署）</p>
+<p><b>Repo</b>：<code>github.com/jimmyliao/maxgame</code>（public）｜開發分支 <code>claude/dinosaur-game-infinite-levels-kpfmbm</code>｜部署分支 <code>main</code></p>
+<p><b>第一件事</b>：先讀 repo 根目錄的 <code>CLAUDE.md</code>——那是唯一入口，含目前狀態、鐵則、流程。本文件是它的「跨環境補充」，不取代它。</p>
+</div>
+
+<h2>一、我（原環境）是什麼、有哪些能力</h2>
+<p>原環境是 Anthropic Claude Code 的雲端沙盒：一個隔離的 Linux 容器，repo 開機時 clone 好，對外網路走受控 proxy。接手方要知道原環境「靠什麼做到現在的品質」，才能在新環境補齊等價能力。</p>
+
+<h3>✅ 原環境做得到（新環境應設法補齊的等價能力）</h3>
+<table>
+<tr><th>能力</th><th>原環境的做法</th><th>新環境驗證方式</th></tr>
+<tr><td>讀寫程式碼</td><td>直接編輯 repo 檔案（index.html、src/*.js、docs/*）</td><td>clone repo 後能改檔、diff 正常</td></tr>
+<tr><td>語法檢查</td><td><code>node --check</code>（index.html 的 inline JS 先用 sed 抽出）</td><td>跑下方「驗收流程」第 1 步，全部 OK</td></tr>
+<tr><td>型別/單元測試</td><td><code>npm run typecheck</code>（tsc）＋ <code>npm run test:unit</code>（vitest，12 tests）</td><td>兩者 exit 0</td></tr>
+<tr><td>實機冒煙測試</td><td><code>npm run test:smoke</code>：Playwright 無頭 Chromium 實際載入遊戲、跳過新手教學、逛完大廳每個畫面、打一場對戰，斷言 0 runtime error</td><td>1 passed；這是最重要的守門測試</td></tr>
+<tr><td>視覺驗證</td><td>無頭 Chromium 截圖（Playwright script），改 UI 後人眼確認畫面</td><td>能產出大廳/對戰截圖即可</td></tr>
+<tr><td>Git 部署</td><td>commit → push 開發分支 → <code>main</code> ff-merge → push；Pages 1–2 分鐘自動上線</td><td>推一個空白 commit 到 main，確認 Pages 有更新（看下方部署驗證）</td></tr>
+<tr><td>CI 監控</td><td>GitHub API 查 Actions 狀態（public repo，push 自動觸發）</td><td>能讀 <code>.github/workflows/ci.yml</code> 的 run 結果</td></tr>
+<tr><td>AI 產圖管線</td><td>產角色/場景素材：洋紅背景 #ff00ff 產圖 → <code>scratchpad</code> 的 keyer 去背 → 存 <code>assets/</code> → 加入 <code>sw.js</code> ASSETS。管線腳本不在 repo（在原環境暫存區），但 <code>docs/ART-PROMPTS*.md</code> 有完整提示詞</td><td>非必需；沒有產圖能力時，遊戲的 canvas fallback 會自動接手（鐵則設計）</td></tr>
+<tr><td>網路查證</td><td>web search/fetch 查政策、文件（如 Play Console 規定）</td><td>視新環境而定</td></tr>
+</table>
+
+<h3>❌ 原環境做不到（歷史決策都受這些限制影響，接手前必知）</h3>
+<table>
+<tr><th>限制</th><th>影響</th><th>新環境是否可能解除</th></tr>
+<tr><td class="cant">連不上 Firebase</td><td>好友連線（src/net.js 多人房間）在沙盒完全測不到，只能用假資料餵 UI（net.js 內建 QA hook）。<b>所有多人功能都是「真機測試」驗收的</b>，由使用者手機實測。</td><td>若新環境網路不受限，可直接連 Firebase 測試——這是升級點</td></tr>
+<tr><td class="cant">無法操作外部服務後台</td><td>Firebase Console（安全規則要手動貼）、Google Play Console、PicSee 短網址後台，全部只能「準備好內容給使用者照抄」，不能代操作</td><td>大概率同樣不行（都需要使用者本人登入），維持「準備內容＋給步驟」模式</td></tr>
+<tr><td class="cant">無法推 git tag</td><td>歷史上推 tag 被 403 擋（sandbox 權限），版本紀錄改用 CLAUDE.md＋docs 為準</td><td>若新環境用完整權限的 token，可補推 tag</td></tr>
+<tr><td class="cant">GitHub 存取只限本 repo</td><td>不能讀寫其他 repo</td><td>視新環境 token scope</td></tr>
+<tr><td class="cant">容器是暫時的</td><td>任何沒 commit 的東西會消失；所以「一完成就 push 兩條分支」是紀律不是選擇</td><td>Discord bot 若也是無狀態，同樣紀律適用</td></tr>
+<tr><td class="cant">不碰祕密金鑰</td><td>repo 是 public：任何金鑰都不能進 repo。唯一在 repo 裡的 Firebase 用戶端 config 本來就是設計成可公開的（防護靠安全規則）。未來 Android 簽署 keystore 必須由使用者自己保管</td><td>同樣適用，這是規則不是限制</td></tr>
+</table>
+
+<h2>二、目前正在做什麼（進行中/待辦，依優先序）</h2>
+<table>
+<tr><th>#</th><th>事項</th><th>狀態</th><th>下一步</th></tr>
+<tr><td>1</td><td><b>Firebase 安全規則發佈確認</b></td><td class="cant">等使用者確認</td><td>規則已寫好在 <code>docs/database.rules.json</code>（房間讀取需登入、房間寫入限房主、players/inputs 限本人）。使用者需手動貼到 Firebase Console → Realtime Database → Rules 發佈。<b>測試模式已到 30 天期限，不發佈的話好友連線會整個掛掉</b>。發佈後要真機測一次開房/加入。</td></tr>
+<tr><td>2</td><td><b>Google Play 上架（TWA 路線）</b></td><td class="cant">已規劃未動工</td><td>使用者已付 $25 開好開發者帳戶。計畫：①補 512×512 PNG 圖示＋manifest 改 landscape ②Bubblewrap 產 keystore＋AAB（keystore 交使用者保管，不進 repo）③GitHub Pages 放 <code>/.well-known/assetlinks.json</code> ④寫隱私權政策頁 ⑤準備商店文案/截圖給使用者填表。<b>關鍵限制：個人帳戶需先跑封閉測試（約 20 位測試者持續 14 天）才能申請正式上架</b>。</td></tr>
+<tr><td>3</td><td><b>攻守對決新模式</b></td><td class="cant">卡在設計決策</td><td>設計文件 <code>docs/SIEGE-MODE.md</code>。第一版打 AI。<b>卡點：迷霧「情報道具」品項要使用者定案</b>才能完成核心循環，先問再做。</td></tr>
+<tr><td>4</td><td><b>翻譯回件整合</b></td><td class="cant">等外部翻譯</td><td>中文文案已於 v137 定版，翻譯包（CSV 837 條，含檔案:行號）已交付使用者外發翻譯。回件後依 CSV C 欄行號回填，並要先設計多語系架構（目前字串全部 hardcode 中文）。</td></tr>
+<tr><td>5</td><td>PicSee 短網址</td><td class="cant">等使用者定案</td><td>研究結論：短碼是全平台共用命名空間（熱門字被搶）、無 API 純手動。使用者選定後把最終網址記進 CLAUDE.md 即可。</td></tr>
+</table>
+
+<h2>三、不可改壞的鐵則（完整版在 CLAUDE.md，這裡是摘要）</h2>
+<div class="box warn">
+<ul>
+<li><code>drawCreature(c, kind, x, y, s, o)</code> <b>簽名不可改</b>；8 個基本 kind（leopard/bear/cicada/dragonfly/snail/iguana/frog/ibis）都要支援；<code>o</code> 既有欄位語意不可改。</li>
+<li>資料結構 <code>HEROES[] / CH[] / TYPE / ADV / eff()</code> 欄位不可刪改名；屬性相剋 🌲&gt;💧&gt;🌪&gt;🪲&gt;🌲 不可動。</li>
+<li><b>零外部依賴</b>：不可用 CDN／外部 script／外部字型。美術「圖檔優先＋canvas fallback」，圖檔一律 repo 內本地檔並加入 <code>sw.js</code> ASSETS。</li>
+<li>輸入一律 Pointer Events ＋ <code>preventDefault</code> ＋ <code>{passive:false}</code>；dock 按鈕 id <code>bLeft/bRight/bSwap/bJump/bSp/bAtk</code> 不可改名。</li>
+<li>進度鍵 <code>localStorage["shoutu_unlocked"]</code> 不可改名（其他存檔鍵清單見 <code>docs/ARCHITECTURE.md</code>）。</li>
+<li>粒子/特效必須有<b>硬上限＋回收</b>，禁止每幀無上限 push。</li>
+<li><b>改任何會被快取的檔案（index.html/src/assets），<code>sw.js</code> 的 CACHE 版本號必須 +1</b>（目前 shoutu-v138），否則舊玩家永遠拿不到新版。</li>
+</ul>
+</div>
+
+<h2>四、標準工作流程（每次改動都走這套）</h2>
+<pre><code># 0. 取得程式碼
+git clone https://github.com/jimmyliao/maxgame.git
+cd maxgame && git checkout claude/dinosaur-game-infinite-levels-kpfmbm
+npm install   # 只有測試需要；遊戲本體零依賴
+
+# 1. 驗收一票否決項（改完必跑，任一失敗不得部署）
+sed -n '/&lt;script&gt;/,/&lt;\/script&gt;/p' index.html | sed '1d;$d' &gt; /tmp/game.js &amp;&amp; node --check /tmp/game.js
+for f in src/*.js; do node --check "$f"; done
+npm run typecheck &amp;&amp; npm run test:unit &amp;&amp; npm run test:smoke
+
+# 2. 版本號（有改快取檔案時）
+#    sw.js 第 2 行 CACHE 版本 +1；新圖檔加入 ASSETS 清單
+
+# 3. 更新文件：CLAUDE.md「目前狀態」補一條本次變更（含 sw 版本）
+
+# 4. 部署（同一 commit 推兩條分支）
+git add -A && git commit -m "變更摘要 (sw vNNN)"    # commit 訊息用繁體中文
+git push -u origin claude/dinosaur-game-infinite-levels-kpfmbm
+git checkout main && git pull origin main
+git merge --ff-only claude/dinosaur-game-infinite-levels-kpfmbm
+git push origin main
+git checkout claude/dinosaur-game-infinite-levels-kpfmbm
+
+# 5. 確認 CI 綠燈（push 自動觸發），Pages 1–2 分鐘後更新</code></pre>
+
+<h2>五、新環境接手前的驗證清單（照順序做完才算接手成功）</h2>
+<ol>
+<li><b>讀取驗證</b>：能讀 <code>CLAUDE.md</code>、<code>docs/SPEC.md</code>、<code>docs/ARCHITECTURE.md</code>、<code>docs/SESSION-NOTES-20260716.md</code>（上次 session 詳細紀錄）。</li>
+<li><b>環境驗證</b>：Node ≥ 20（原環境 v22）、npm install 成功、Playwright Chromium 裝得起來（<code>npx playwright install chromium</code>）。</li>
+<li><b>測試驗證</b>：上面第 1 步全綠——特別是 <code>test:smoke</code> 必須 1 passed。這證明新環境有跟原環境同級的驗收能力。</li>
+<li><b>寫入驗證</b>：對開發分支推一個無害 commit（例如 docs 加一行），確認 push 權限正常。</li>
+<li><b>部署驗證</b>：ff-merge 到 main 並 push，1–2 分鐘後檢查：
+<pre><code>curl -s https://jimmyliao.github.io/maxgame/sw.js | head -3   # 應看到目前 CACHE 版本</code></pre></li>
+<li><b>CI 驗證</b>：確認該 commit 的 GitHub Actions「CI」workflow 綠燈。</li>
+<li><b>回報使用者</b>：以上全過，回報「接手驗證完成」＋目前 sw 版本，再開始接任務。</li>
+</ol>
+
+<h2>六、給 Discord bot 型 agent 的特別提醒</h2>
+<ul>
+<li><b>互動模式差異</b>：原環境是「使用者一句話 → agent 自主做完整條流程（改碼→測試→部署→回報）」。Discord 訊息較零碎，建議維持同樣紀律：動手前把理解寫成一句需求確認，做完回報「改了什麼＋sw 版本＋已部署」。</li>
+<li><b>使用者是家長＋小孩玩家群</b>：溝通用繁體中文、口語、直接。產品文案標準見 CLAUDE.md v137 那條（去 AI 味、去公文腔、像 2022–2026 小孩遊戲的語感）。</li>
+<li><b>長流程要可中斷續作</b>：原環境靠「每步都 commit push」保工作不丟失。bot 環境若會被重啟，同樣要小步提交。</li>
+<li><b>祕密管理</b>：bot 的 API key、git token 走環境變數，絕不進這個 public repo；不在 Discord 頻道貼任何金鑰。</li>
+<li><b>需要使用者親手做的事</b>（agent 只能準備內容）：Firebase Console 貼規則、Play Console 填表上傳、真機測多人連線、保管 keystore。</li>
+</ul>
+
+<h2>七、檔案地圖（快速定位）</h2>
+<table>
+<tr><th>檔案</th><th>內容</th></tr>
+<tr><td><code>CLAUDE.md</code></td><td>專案唯一入口：狀態、鐵則、流程、分支部署。<b>每次改動要回填</b></td></tr>
+<tr><td><code>index.html</code></td><td>殼＋全部 CSS＋大廳/選單/教學等畫面 DOM＋部分 inline JS</td></tr>
+<tr><td><code>src/legacy.js</code></td><td>大廳、圖鑑、復育、通行證、天賦、存檔、章節戰役（舊 1v1 引擎也在此）</td></tr>
+<tr><td><code>src/moba.js</code></td><td>主要玩法：俯視角 MOBA 全部（含首領挑戰、結算、新手戰場提示）</td></tr>
+<tr><td><code>src/habitat.js</code></td><td>棲地基地：種植/收成/訪客/生態走廊/保育關卡</td></tr>
+<tr><td><code>src/net.js</code></td><td>Firebase 多人房間（<b>沙盒測不到，真機驗收</b>）</td></tr>
+<tr><td><code>src/battleshop.js</code> / <code>src/sfx.js</code></td><td>戰場商店／程序化音效（零音檔）</td></tr>
+<tr><td><code>src/data/*.js</code></td><td>純函式資料模組（屬性相剋表、效能分級），有 vitest 單元測試</td></tr>
+<tr><td><code>sw.js</code></td><td>PWA service worker：CACHE 版本＋ASSETS 預快取清單</td></tr>
+<tr><td><code>docs/SPEC.md</code>、<code>docs/SYSTEMS.md</code>、<code>docs/ARCHITECTURE.md</code>、<code>docs/PROCESS.md</code></td><td>完整規格／系統公式／架構與存檔鍵／協作流程</td></tr>
+<tr><td><code>docs/SESSION-NOTES-20260716.md</code></td><td>上一輪 session 全紀錄（repo 公開化、用語定版、翻譯包）</td></tr>
+<tr><td><code>docs/database.rules.json</code></td><td>Firebase 安全規則（等使用者貼上發佈）</td></tr>
+<tr><td><code>test/e2e/smoke.spec.ts</code></td><td>冒煙測試＝驗收守門員：載入 0 錯誤＋鐵則齊全＋走完一場戰鬥</td></tr>
+</table>
+
+<h2>八、版本史摘要（完整版在 CLAUDE.md）</h2>
+<ul>
+<li><span class="tag">v137</span>全遊戲用語定版（去 AI 味/公文腔、修「串通」錯字、清除洩漏的除錯訊息）</li>
+<li><span class="tag">v138</span>新手教學：大廳四頁引導彈窗（可跳過/可重看）＋首戰搖桿與攻擊鈕提示氣泡 ← <b>目前線上版</b></li>
+<li><span class="tag">另有</span>Firebase 正式安全規則（docs/database.rules.json，等使用者發佈）、跨環境交接文件（本檔）</li>
+</ul>
+
+<p style="margin-top:32px;color:var(--sub);font-size:12.5px;">維護約定：任何環境接手後有重大變更，請同步更新 CLAUDE.md 與本檔的「目前正在做什麼」段落，並 push 到開發分支與 main。</p>
+</main>
+</body>
+</html>
