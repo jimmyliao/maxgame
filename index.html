@@ -107,6 +107,8 @@
   .mbtn:active{ transform:translateY(2px); filter:brightness(1.15); }
   .mbtn .fill{ position:absolute; left:0; bottom:0; width:100%; background:rgba(0,0,0,.55); height:0%; pointer-events:none; }
   #mzoom{ position:absolute; right:max(14px,env(safe-area-inset-right)); top:36%; display:flex; flex-direction:column; gap:10px; }
+  /* 獵人視角（第一人稱）：縮放與隊伍聊天沒有意義，對戰開始時由 moba.js 加 hide 收起 */
+  #mzoom.hide, #mChatBtn.hide{ display:none; }
   .zbtn{ width:46px; height:46px; border:none; border-radius:12px; background:rgba(0,0,0,.42); color:#fff; font-size:22px; font-weight:800;
     box-shadow:0 2px 0 rgba(0,0,0,.4); cursor:pointer; line-height:1; }
   .zbtn:active{ transform:translateY(2px); filter:brightness(1.2); }
@@ -845,6 +847,7 @@
     <button class="btn sec mode-tab" id="modeTime">⏱ 限時復育挑戰</button>
     <button class="btn sec mode-tab" id="modePve">🎯 外來種防衛戰</button>
     <button class="btn sec mode-tab on" id="modeDuel">⚔ 首領挑戰</button>
+    <button class="btn sec mode-tab" id="modeHunt">🏹 獵人視角</button>
   </div>
   <p id="bestTimeInfo" class="hide" style="color:#ffd54f;font-weight:800;"></p>
   <div class="row hide" id="pveTargets">
@@ -880,6 +883,13 @@
       <button class="btn duel-sz" data-n="5">五人</button>
     </div>
     <div id="duelRecords"></div>
+  </div>
+  <!-- 獵人視角（第一人稱狩獵・搶先體驗）：單人出戰，化身守護者本獸的視角在山林與草原間追獵入侵種 -->
+  <div id="huntBox" class="hide">
+    <p style="font-size:12.5px;color:#a5d6a7;max-width:380px;margin:2px auto;">從守護者的眼睛看世界——穿過密林與草原，親自追獵入侵種！<br>搖桿移動、拖曳畫面轉頭觀察四周。</p>
+    <div class="row" id="huntStartRow">
+      <button class="btn" id="huntStart">🏹 出發狩獵</button>
+    </div>
   </div>
   <button class="btn sec" id="pickBack">返回大廳</button>
 </div>

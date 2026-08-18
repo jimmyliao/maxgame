@@ -125,6 +125,10 @@ import { createPerfTier } from "./data/perf-tier.js";
   const RELIC_MAX=3, RELIC_SPAWN=13, RELIC_R=22, ULT_CD=24;   // 節奏調快：每 13 秒補一顆守護之力、施放後 24 秒冷卻，讓必殺高光時刻更頻繁
   // 戰場商店（金幣/購買強化）已抽成獨立模組 src/battleshop.js，這裡只透過 window.__shopXxx 呼叫生命週期鉤子
   let pickMode="normal", timeAttack=false;
+  // ===== 獵人視角（第一人稱狩獵・搶先體驗）：只改「呈現與操控映射」，模擬層完全共用 =====
+  // fpYaw=鏡頭朝向（世界座標弧度）；玩家在畫面裡不可見（你就是那雙眼睛），靠爪擊特效/受傷紅暈/小雷達補足自身回饋
+  const fpOn=()=>pickMode==="hunt";
+  let fpYaw=-1.5708, fpBobMix=0;   // fpBobMix=跑動頭部律動混合值（起步/停步緩動，同角色 rb 的思路）
   let battleRegion="paddy", healthBonus=0;   // 復育↔對戰核心循環：戰場棲地健康度影響數值加成
   // 好友連線（選用）：netRole=null 純單機（預設，行為完全不變）；"host" 本機模擬+定期廣播；"guest" 不跑模擬，只接收快照渲染+送出操控
   let netRole=null, netBroadcastT=0, netLastRecvT=0, netStale=false;
@@ -332,6 +336,10 @@ import { createPerfTier } from "./data/perf-tier.js";
       setTimeout(()=>toast("⚔ 首領挑戰・"+duelTierName(lv)+"級！"+DUEL_SZNAME[size]+"挑戰 "+KNAME[bk]+"王　限時 "+DUEL_DUR+" 秒　技能冷卻加快！"),1600); }
     setTimeout(weatherToast,200);   // 讓進場動畫先跑，再顯示天候 toast
     if(pveEvent) setTimeout(()=>toast("🎯 第 "+pveEvent.level+" 關防衛戰！驅逐 "+pveEvent.need+" 隻 "+KNAME[pvePickTarget]),1600);
+    // 獵人視角：鏡頭初始朝北（背對神木望向獵場）；縮放/隊伍聊天在第一人稱沒有意義，暫時收起
+    if(fpOn()){ fpYaw=-1.5708; setTimeout(()=>toast("👉 拖曳畫面可以轉頭觀察四周"),2000); }
+    const zm=document.getElementById("mzoom"); if(zm) zm.classList.toggle("hide",fpOn());
+    const cb=document.getElementById("mChatBtn"); if(cb) cb.classList.toggle("hide",fpOn());
   }
 
   /* ---------- 目標 ---------- */
@@ -627,7 +635,8 @@ import { createPerfTier } from "./data/perf-tier.js";
 
   function updatePlayer(h,dt){
     const mag=Math.hypot(mv.x,mv.y);
-    if(mag>0.12){ const ang=Math.atan2(mv.y,mv.x); h.face=ang; const s=h.speed*Math.min(1,mag); h.x+=Math.cos(ang)*s*dt; h.y+=Math.sin(ang)*s*dt; h.moving=true; h.anim+=dt; }
+    // 獵人視角：搖桿改「相對鏡頭」——上=朝視線方向前進、左右=橫移，符合第一人稱直覺；其他模式維持世界座標
+    if(mag>0.12){ const ang=fpOn()? fpYaw+Math.atan2(mv.x,-mv.y) : Math.atan2(mv.y,mv.x); h.face=ang; const s=h.speed*Math.min(1,mag); h.x+=Math.cos(ang)*s*dt; h.y+=Math.sin(ang)*s*dt; h.moving=true; h.anim+=dt; }
     keepIn(h);
     tryPickRelic(h);
     if(wantBack){ wantBack=false; if(duelEvent){ toast("⚔ 首領挑戰不能回神木補血——死掉就死掉了，全力應戰！"); } else { h.x=shrine.x; h.y=shrine.y+100; h.hp=h.maxhp; ring(h.x,h.y,46,"#80deea"); toast("回到神木旁・補滿體力"); } }
@@ -794,8 +803,195 @@ import { createPerfTier } from "./data/perf-tier.js";
 
   /* ---------- 繪製 ---------- */
   const _ents=[];   // render 用的 y 排序實體陣列，重用不重配置
+  /* ==================== 獵人視角：第一人稱偽 3D 渲染（主打畫質） ====================
+     設計：模擬層(update)完全共用，只換渲染與操控映射。Canvas2D 看板精靈(billboard)投影：
+     以玩家位置為鏡頭、fpYaw 為朝向，深度 dep=前向距離、lat=橫向偏移，
+     螢幕 x=VW/2+lat/dep*FOC、地面 y=HOR+CAMH*FOC/dep、精靈高=世界高*FOC/dep。
+     畫質手段：多層視差遠山剪影、體積光(太陽輻射光)、距離霧與空氣透視、動漫地景圖高解析看板、
+     地形分區(北密林/南草原/兩側岩地)、晝夜天候天空、受傷紅暈、爪擊特效、小雷達。
+     效能：畫面外/霧外剔除、prop 網格確定性生成(零記憶體常駐)、liteFX 自動減量。 */
+  const _fpItems=[];
+  const _fpSpr={};   // 程序小精靈快取（草叢/野花/泥地）：一次畫好重複貼，零每幀繪製成本
+  function fpMini(key,w,h,fn){ let c=_fpSpr[key]; if(c) return c; c=document.createElement("canvas"); c.width=w; c.height=h; fn(c.getContext("2d"),w,h); _fpSpr[key]=c; return c; }
+  function fpGrassImg(){ return fpMini("grass",44,34,(g,w,h)=>{ for(let i=0;i<7;i++){ const x=6+i*5, k=(i*37%10)/10; g.strokeStyle=mix("#5c9a4a","#8cc06a",k); g.lineWidth=2.4; g.beginPath(); g.moveTo(x,h); g.quadraticCurveTo(x+(k-0.5)*10, h*0.45, x+(k-0.5)*16, 3+k*6); g.stroke(); } }); }
+  function fpFlowerImg(){ return fpMini("flower",26,26,(g)=>{ for(let p=0;p<5;p++){ const a=p*1.2566; g.fillStyle="#f6e7f0"; g.beginPath(); g.ellipse(13+Math.cos(a)*6,13+Math.sin(a)*6,4.6,4.6,0,0,7); g.fill(); } g.fillStyle="#ffd54f"; g.beginPath(); g.arc(13,13,3.6,0,7); g.fill(); }); }
+  function fpReedImg(){ return fpMini("reed",40,46,(g,w,h)=>{ for(let i=0;i<5;i++){ const x=7+i*6.5; g.strokeStyle=mix("#7a9a48","#b0c078",(i%3)/2); g.lineWidth=2.2; g.beginPath(); g.moveTo(x,h); g.quadraticCurveTo(x+3,h*0.4,x+6,4); g.stroke(); g.fillStyle="#8a6a3a"; g.beginPath(); g.ellipse(x+6,7,2.4,6,0.2,0,7); g.fill(); } }); }
+  function fpHash(i,j,s){ const n=Math.sin(i*127.1+j*311.7+(s||0)*74.7)*43758.5453; return n-Math.floor(n); }
+  // 色彩工具（FP 專用）：既有 mix()/shade() 只吃 "#hex"，串接會產生 rgb() 字串再進去變 NaN→黑色，這裡同時支援兩種格式
+  function fpCol(c){ if(c.charAt(0)==="#"){ const n=parseInt(c.slice(1),16); return [n>>16,(n>>8)&255,n&255]; } const m=c.match(/\d+/g); return [+m[0],+m[1],+m[2]]; }
+  function fpMix(a,b,t){ const A=fpCol(a),B=fpCol(b); return "rgb("+Math.round(A[0]+(B[0]-A[0])*t)+","+Math.round(A[1]+(B[1]-A[1])*t)+","+Math.round(A[2]+(B[2]-A[2])*t)+")"; }
+  function fpShade(c,amt){ const A=fpCol(c); return "rgb("+clamp(A[0]+amt,0,255)+","+clamp(A[1]+amt,0,255)+","+clamp(A[2]+amt,0,255)+")"; }
+  function fpZone(x,y){ if(y<MH*0.30) return "forest"; if(y>MH*0.70) return "plain"; if(x<MW*0.24||x>MW*0.76) return "rocky"; return "mix"; }
+  // 遠山稜線（確定性：只跟方位角有關，轉頭時穩定不跳動）
+  function fpRidge(az,seed){ return 0.5+0.30*Math.sin(az*1.7+seed)+0.24*Math.sin(az*3.1+seed*2.7)+0.12*Math.sin(az*6.3+seed*1.3); }
+  const FP_SUNAZ=-2.2;   // 太陽/月亮固定方位（西北方），玩家轉頭時會真的「轉到太陽」
+  function renderFP(){
+    const px=player.x, py=player.y;
+    const cy2=Math.cos(fpYaw), sy2=Math.sin(fpYaw);
+    fpBobMix+=((player.moving?1:0)-fpBobMix)*0.1;
+    const bob=Math.sin(clock*8.6)*3.5*fpBobMix;
+    const HOR=VH*0.40+bob, CAMH=48, FOC=VW*0.72;
+    const FAR0=740, FAR1=1060;
+    const wB=weatherBattle, night=wB==="night", storm=wB==="storm", cold=wB==="cold";
+    // ---------- 天空 ----------
+    const skyTop = night?"#0a1430": storm?"#46565c": cold?"#a4c4d6":"#79c4e6";
+    const skyHor = night?"#233850": storm?"#75858a": cold?"#e6efec":"#eef7d6";
+    const sg=ctx.createLinearGradient(0,0,0,HOR+6); sg.addColorStop(0,skyTop); sg.addColorStop(1,skyHor);
+    ctx.fillStyle=sg; ctx.fillRect(0,0,VW,HOR+6);
+    // 太陽/月亮（依方位投影；有 ±π 環繞處理）
+    let sunDA=FP_SUNAZ-fpYaw; while(sunDA>Math.PI) sunDA-=6.2832; while(sunDA<-Math.PI) sunDA+=6.2832;
+    let sunX=null;
+    if(Math.abs(sunDA)<1.15 && !storm){ sunX=VW/2+Math.tan(sunDA)*FOC; const sunY=HOR*(night?0.34:0.30);
+      const sr=night?26:34, glow=ctx.createRadialGradient(sunX,sunY,2,sunX,sunY,sr*4);
+      const gc=night?"rgba(214,228,255,":"rgba(255,244,200,";
+      glow.addColorStop(0,gc+(night?0.85:0.95)+")"); glow.addColorStop(0.25,gc+"0.35)"); glow.addColorStop(1,gc+"0)");
+      ctx.fillStyle=glow; ctx.fillRect(sunX-sr*4,sunY-sr*4,sr*8,sr*8);
+      ctx.fillStyle=night?"#e8f0ff":"#fff8dc"; ctx.beginPath(); ctx.arc(sunX,sunY,sr*(night?0.62:0.8),0,7); ctx.fill();
+      if(night){ ctx.fillStyle=skyTop; ctx.beginPath(); ctx.arc(sunX+9,sunY-6,sr*0.5,0,7); ctx.fill(); } }
+    if(night){ for(let i=0;i<70;i++){ const az=fpHash(i,7,1)*6.2832; let da=az-fpYaw; while(da>Math.PI)da-=6.2832; while(da<-Math.PI)da+=6.2832; if(Math.abs(da)>1.15) continue;
+      const sx=VW/2+Math.tan(da)*FOC, sy=fpHash(i,3,2)*HOR*0.7; ctx.globalAlpha=0.35+fpHash(i,5,3)*0.5*(0.6+0.4*Math.sin(clock*2+i)); ctx.fillStyle="#dfe8ff"; ctx.fillRect(sx,sy,1.6,1.6); } ctx.globalAlpha=1; }
+    // ---------- 多層視差遠山（山林感的骨架） ----------
+    const mBase = night?"#16263c": storm?"#54625f": cold?"#a2bcc4":"#8bab96";
+    for(let L=0;L<3;L++){ const amp=HOR*(0.12+L*0.075), yb=HOR*(0.55+L*0.15);
+      ctx.fillStyle=fpShade(mBase,(L-2)*16-(night?8:0)); ctx.beginPath(); ctx.moveTo(0,HOR+6);
+      for(let sx=0;sx<=VW;sx+=26){ const az=fpYaw+Math.atan((sx-VW/2)/FOC); const hgt=fpRidge(az*(1.15+L*0.5),3.7+L*2.9)*amp; ctx.lineTo(sx,yb-hgt); }
+      ctx.lineTo(VW,HOR+6); ctx.closePath(); ctx.fill(); }
+    // 山腳霧帶（空氣透視：遠處退成天色）——透明端用「同色 α0」避免與黑色插值出現灰帶
+    const hzC=fpMix(skyHor,skyHor,0), hzC0=hzC.replace("rgb(","rgba(").replace(")",",0)");
+    const hz=ctx.createLinearGradient(0,HOR-44,0,HOR+8); hz.addColorStop(0,hzC0); hz.addColorStop(1,hzC);
+    ctx.globalAlpha=0.85; ctx.fillStyle=hz; ctx.fillRect(0,HOR-44,VW,52); ctx.globalAlpha=1;
+    // ---------- 地面（復原度枯黃→翠綠 ＋ 分區色調 ＋ 近深遠淺的空氣透視） ----------
+    const zone=fpZone(px,py);
+    const gTop=fpMix(skyHor, fpMix("#8a9a5e","#4a8a3e",restore), 0.55);
+    let gBot=fpMix("#6b7742","#2f6a26",restore);
+    if(zone==="forest") gBot=fpShade(gBot,-16); else if(zone==="plain") gBot=fpShade(gBot,14); else if(zone==="rocky") gBot=fpMix(gBot,"#7a7f6a",0.3);
+    const gg=ctx.createLinearGradient(0,HOR,0,VH); gg.addColorStop(0,gTop); gg.addColorStop(0.35,fpMix(gTop,gBot,0.55)); gg.addColorStop(1,gBot);
+    ctx.fillStyle=gg; ctx.fillRect(0,HOR,VW,VH-HOR);
+    if(night){ ctx.fillStyle="rgba(10,20,48,0.30)"; ctx.fillRect(0,HOR,VW,VH-HOR); }   // 月夜壓暗但保留可讀性（主打畫質：夜也要看得見美）
+    // ---------- 投影工具 ----------
+    const items=_fpItems; items.length=0;
+    const proj=(wx,wy)=>{ const dx2=wx-px, dy2=wy-py, dep=dx2*cy2+dy2*sy2; if(dep<=12) return null;
+      const lat=-dx2*sy2+dy2*cy2, sx=VW/2+lat/dep*FOC; return { d:dep, sx, gy:HOR+CAMH*FOC/dep }; };
+    const fogA=(d)=> d<FAR0?1:Math.max(0,1-(d-FAR0)/(FAR1-FAR0));
+    const nearA=(d)=> Math.min(1,Math.max(0,(d-24)/80));   // 走到極近距離時淡出，不讓看板放大到糊滿整個畫面
+    const pushImg=(img,p,WH,opt)=>{ if(!img) return; const h=WH*FOC/p.d, w=h*(img.width||img.naturalWidth)/(img.height||img.naturalHeight);
+      if(p.sx+w/2<0||p.sx-w/2>VW||h<3||h>VH*2.4) return;
+      // 大物件貼到鏡頭前會撐爆整個畫面變成一坨深色剪影——依「投影後的螢幕高度」淡出，比純距離淡出更準
+      const hFade=h<VH*0.85?1:Math.max(0,1-(h-VH*0.85)/(VH*1.1));
+      const al=fogA(p.d)*nearA(p.d)*hFade*(opt&&opt.al!==undefined?opt.al:1); if(al<=0.02) return;
+      items.push({d:p.d,img,sx:p.sx,gy:p.gy,w,h,al,flip:!!(opt&&opt.flip),sh:!(opt&&opt.noSh),u:opt&&opt.u}); };
+    // ---------- 地形道具（確定性網格：北密林、南草原、兩側岩地、中央開闊） ----------
+    const G=170, R=FAR1;
+    const treeImg=fimg("tree"), bushImg=fimg("bush"), rockImg=fimg("rock");
+    for(let i=Math.floor((px-R)/G); i<=Math.ceil((px+R)/G); i++) for(let j=Math.floor((py-R)/G); j<=Math.ceil((py+R)/G); j++){
+      const h1=fpHash(i,j,1), wx=i*G+(h1-0.5)*G*0.8, wy=j*G+(fpHash(i,j,2)-0.5)*G*0.8;
+      if(wx<20||wx>MW-20||wy<20||wy>MH-20) continue;
+      if(Math.hypot(wx-SHX,wy-SHY)<300) continue;
+      if(NPOS.some(n=>Math.hypot(wx-n.x,wy-n.y)<150)) continue;
+      const p=proj(wx,wy); if(!p) continue;
+      const z=fpZone(wx,wy), h2=fpHash(i,j,3);
+      if(z==="forest"){ if(h2<0.62) pushImg(treeImg,p,205+h1*90); else if(h2<0.82) pushImg(bushImg,p,72+h1*26); }
+      else if(z==="plain"){ if(h2<0.46&&p.d<560) pushImg(fpGrassImg(),p,26+h1*10,{noSh:1}); else if(h2<0.68&&p.d<480) pushImg(fpFlowerImg(),p,16+h1*7,{noSh:1}); else if(h2<0.76) pushImg(fpReedImg(),p,46+h1*14,{noSh:1}); }
+      else if(z==="rocky"){ if(h2<0.42) pushImg(rockImg,p,58+h1*46); else if(h2<0.6&&p.d<520) pushImg(fpGrassImg(),p,24+h1*8,{noSh:1}); }
+      else { if(h2<0.16) pushImg(treeImg,p,190+h1*70); else if(h2<0.36) pushImg(bushImg,p,64+h1*22); else if(h2<0.56&&p.d<500) pushImg(fpGrassImg(),p,24+h1*9,{noSh:1}); }
+    }
+    if(!liteFX){ const G2=88, R2=400;   // 近景細草（只在近距離、高效能機才畫，腳邊有東西流動＝速度感）
+      for(let i=Math.floor((px-R2)/G2); i<=Math.ceil((px+R2)/G2); i++) for(let j=Math.floor((py-R2)/G2); j<=Math.ceil((py+R2)/G2); j++){
+        const h3=fpHash(i,j,5); if(h3>0.5) continue; const wx=i*G2+(h3-0.5)*G2, wy=j*G2+(fpHash(i,j,6)-0.5)*G2;
+        if(wx<20||wx>MW-20||wy<20||wy>MH-20) continue; const p=proj(wx,wy); if(!p||p.d>R2) continue;
+        pushImg(h3<0.35?fpGrassImg():fpFlowerImg(),p,h3<0.35?24:15,{noSh:1,al:0.9}); } }
+    // ---------- 實體：神木/苗圃/守護之力/入侵種/隊友 ----------
+    { const p=proj(shrine.x,shrine.y); if(p){ const im=fimg("shrine"); const al=Math.max(0.3,fogA(p.d))*nearA(p.d);   // 神木＝地標，霧裡也保留輪廓方便找路回家
+        if(im&&al>0.02){ const h=430*FOC/p.d, w=h*im.naturalWidth/im.naturalHeight; items.push({d:p.d,img:im,sx:p.sx,gy:p.gy,w,h,al,flip:false,sh:true}); } } }
+    for(const n of nurseries){ if(n.hp<=0) continue; const p=proj(n.x,n.y); if(p) pushImg(fimg("nursery"),p,118); }
+    for(const rl of relics){ const p=proj(rl.x,rl.y); if(p&&fogA(p.d)>0.05) items.push({d:p.d,relic:1,sx:p.sx,gy:p.gy,h:38*FOC/p.d,al:fogA(p.d)}); }
+    const unitOf=(u,inv)=>{ const p=proj(u.x,u.y); if(!p) return; const cfg=kcfg(u.kind), r=(u.r||16)*cfg.sz;
+      let img=null, faceRight=true;
+      const runA=SPRITES_RUN[u.kind], frs=runA&&runA._c;
+      if(frs&&frs.length>=2){ const cyc=(u.anim*12)/6.283*frs.length; img=frs[u.moving?Math.floor(cyc)%frs.length:0]; }
+      else { const bb=window.__spriteOf&&window.__spriteOf(u.kind); if(bb&&bb.naturalWidth>0){ img=spScaled(bb); faceRight=!inv; } }
+      if(!img) return;
+      let flip=Math.sin((u.face||0)-fpYaw)<0; if(!faceRight) flip=!flip;
+      pushImg(img,p,r*3.3*(u.elite?1.2:1)*(u.isBoss?1.25:1),{flip,u,al:u.hitT>0?0.8:1});
+    };
+    for(const v of invaders){ if(!v.dead) unitOf(v,true); }
+    for(const h of heroes){ if(!h.dead&&h!==player) unitOf(h,false); }
+    // ---------- 由遠到近繪製（畫家演算法＋接地陰影＋距離霧淡出） ----------
+    items.sort((a,b)=>b.d-a.d);
+    for(const it of items){ ctx.globalAlpha=it.al;
+      if(it.relic){ const g2=ctx.createRadialGradient(it.sx,it.gy-it.h*0.5,2,it.sx,it.gy-it.h*0.5,it.h); g2.addColorStop(0,"rgba(255,235,120,0.9)"); g2.addColorStop(1,"rgba(255,235,120,0)");
+        ctx.fillStyle=g2; ctx.beginPath(); ctx.arc(it.sx,it.gy-it.h*0.5,it.h,0,7); ctx.fill();
+        ctx.font=Math.round(it.h)+"px sans-serif"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText("⭐",it.sx,it.gy-it.h*0.5); ctx.globalAlpha=1; continue; }
+      if(it.sh && it.h<VH*0.9){ ctx.fillStyle="rgba(0,0,0,0.25)"; ctx.beginPath(); ctx.ellipse(it.sx,it.gy,it.w*0.34,Math.max(2,it.w*0.09),0,0,7); ctx.fill(); }   // 極近淡出中的物件連影子一起收掉，不留孤兒影
+      ctx.save(); ctx.translate(it.sx,it.gy); if(it.flip) ctx.scale(-1,1); ctx.drawImage(it.img,-it.w/2,-it.h,it.w,it.h); ctx.restore();
+      if(it.u&&(it.u.maxhp&&(it.u.hp<it.u.maxhp||it.u.isBoss||it.u.elite))&&it.u.hp>0){ const bw=Math.min(76,Math.max(22,it.w*0.62));
+        ctx.globalAlpha=Math.min(1,it.al+0.15); ctx.fillStyle="rgba(0,0,0,0.55)"; ctx.fillRect(it.sx-bw/2,it.gy-it.h-12,bw,5);
+        ctx.fillStyle=it.u.isPlayer!==undefined?"#66bb6a":"#ef5350"; ctx.fillRect(it.sx-bw/2,it.gy-it.h-12,bw*Math.max(0,it.u.hp/it.u.maxhp),5); }
+      ctx.globalAlpha=1; }
+    // ---------- 特效/傷害數字/投射物（世界座標→投影） ----------
+    for(const e of fx){ const p=proj(e.x,e.y); if(!p) continue; const a=Math.max(0,e.life/e.max)*fogA(p.d); if(a<=0.02) continue; const k=FOC/p.d;
+      if(e.type==="ring"){ const la=Math.max(0,e.life/e.max), rr=(e.r0+(e.r1-e.r0)*(1-la))*k; ctx.globalAlpha=a*0.9; ctx.strokeStyle=e.col; ctx.lineWidth=Math.max(1.5,4*k*3);
+        ctx.beginPath(); ctx.ellipse(p.sx,p.gy,rr,rr*Math.min(0.5,CAMH/p.d*2.4),0,0,7); ctx.stroke(); }
+      else if(e.type==="spark"){ ctx.globalAlpha=a; ctx.fillStyle=e.col; ctx.beginPath(); ctx.arc(p.sx,p.gy-26*k,Math.max(1.2,e.r*k*2.6),0,7); ctx.fill(); }
+      else if(e.type==="streak"){ const p2=proj(e.x2,e.y2); if(p2){ ctx.globalAlpha=a; ctx.strokeStyle=e.col; ctx.lineWidth=Math.max(2,8*k*3); ctx.lineCap="round";
+        ctx.beginPath(); ctx.moveTo(p.sx,p.gy-24*k); ctx.lineTo(p2.sx,p2.gy-24*FOC/p2.d); ctx.stroke(); ctx.lineCap="butt"; } }
+      ctx.globalAlpha=1; }
+    for(const pr of hprojs){ const p=proj(pr.x,pr.y); if(!p) continue; const k=FOC/p.d; ctx.globalAlpha=fogA(p.d);
+      ctx.fillStyle=pr.col; ctx.beginPath(); ctx.ellipse(p.sx,p.gy-30*k,13*k*2.4,5*k*2.4,0,0,7); ctx.fill(); ctx.globalAlpha=1; }
+    ctx.textAlign="center"; ctx.textBaseline="middle";
+    for(const f of floats){ const p=proj(f.x,f.y); if(!p) continue; ctx.globalAlpha=Math.min(1,f.life*1.8)*fogA(p.d);
+      ctx.fillStyle=f.col; ctx.font="bold "+Math.round(Math.max(9,Math.min(26,(f.big?4600:3200)/p.d)))+"px sans-serif"; ctx.fillText(f.txt,p.sx,p.gy-60*FOC/p.d); ctx.globalAlpha=1; }
+    // 鎖定目標標記（紅圈落在腳下＋準星角）
+    if(player.aim&&!player.aim.dead){ const p=proj(player.aim.x,player.aim.y); if(p){ const k=FOC/p.d, rr=((player.aim.r||16)+14)*k;
+      ctx.strokeStyle="rgba(255,90,80,0.95)"; ctx.lineWidth=2.4; const tt=clock*4;
+      for(let q=0;q<4;q++){ const ang=tt+q*1.5708; ctx.beginPath(); ctx.ellipse(p.sx,p.gy,rr,rr*0.32,0,ang+0.35,ang+1.15); ctx.stroke(); } } }
+    // ---------- 體積光（太陽輻射光束；lighter 疊色、呼吸強度；暴雨/低效能關閉） ----------
+    if(sunX!==null && !liteFX && !night){ ctx.save(); ctx.globalCompositeOperation="lighter";
+      const sunY=HOR*0.30; for(let b=0;b<5;b++){ const a=0.05+0.03*Math.sin(clock*0.5+b*1.9); if(a<=0.015) continue;
+        const ang2=-0.5+b*0.26+Math.sin(clock*0.2+b)*0.05; ctx.globalAlpha=a; ctx.fillStyle="rgba(255,244,200,1)";
+        ctx.beginPath(); ctx.moveTo(sunX,sunY); ctx.lineTo(sunX+Math.cos(ang2+1.35)*VH*1.6,sunY+Math.sin(ang2+1.35)*VH*1.6);
+        ctx.lineTo(sunX+Math.cos(ang2+1.55)*VH*1.6,sunY+Math.sin(ang2+1.55)*VH*1.6); ctx.closePath(); ctx.fill(); }
+      ctx.restore(); ctx.globalAlpha=1; }
+    // ---------- 第一人稱自身回饋：爪擊特效＋受傷紅暈 ----------
+    if(player.atkA>0){ const t=1-player.atkA/0.2, colK=KCOL[player.kind]||"#ffd54f";
+      ctx.save(); ctx.translate(VW/2,VH*0.62); ctx.rotate(-0.5+t*0.25); ctx.globalAlpha=Math.max(0,1-t*1.15); ctx.lineCap="round";
+      for(let q=0;q<3;q++){ const off=(q-1)*34; ctx.strokeStyle=q===1?"#fff":colK; ctx.lineWidth=q===1?7:5;
+        ctx.beginPath(); ctx.moveTo(-VW*0.22+t*VW*0.42,off-70); ctx.lineTo(-VW*0.05+t*VW*0.42,off+70); ctx.stroke(); }
+      ctx.restore(); ctx.globalAlpha=1; ctx.lineCap="butt"; }
+    if(player.hitT>0){ const a=Math.min(1,player.hitT/0.15); const rv=ctx.createRadialGradient(VW/2,VH/2,VH*0.3,VW/2,VH/2,VH*0.75);
+      rv.addColorStop(0,"rgba(255,0,0,0)"); rv.addColorStop(1,"rgba(255,30,20,"+(0.38*a).toFixed(3)+")"); ctx.fillStyle=rv; ctx.fillRect(0,0,VW,VH); }
+    // ---------- 小雷達（第一人稱失去全場視野的必要補償；北朝上、玩家箭頭指向 fpYaw） ----------
+    { const mx=VW/2, my=104, mr=46, k=mr*2/Math.max(MW,MH);
+      ctx.globalAlpha=0.82; ctx.fillStyle="rgba(8,24,16,0.62)"; ctx.beginPath(); ctx.arc(mx,my,mr+4,0,7); ctx.fill();
+      ctx.strokeStyle="rgba(255,255,255,0.3)"; ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(mx,my,mr+4,0,7); ctx.stroke();
+      const dot=(wx,wy,col,r2)=>{ const sx=mx+(wx-MW/2)*k, sy=my+(wy-MH/2)*k; ctx.fillStyle=col; ctx.beginPath(); ctx.arc(sx,sy,r2,0,7); ctx.fill(); };
+      dot(shrine.x,shrine.y,"#ffd54f",3.6);
+      for(const n of nurseries) if(n.hp>0) dot(n.x,n.y,"#80cbc4",2.2);
+      for(const rl of relics) dot(rl.x,rl.y,"#fff176",2);
+      for(const v of invaders) if(!v.dead) dot(v.x,v.y,v.elite?"#ff5252":"#ef9a9a",v.elite?3:2.2);
+      const sx=mx+(px-MW/2)*k, sy=my+(py-MH/2)*k;
+      ctx.save(); ctx.translate(sx,sy); ctx.rotate(fpYaw+1.5708);
+      ctx.fillStyle="rgba(255,255,255,0.16)"; ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0,15,-1.96,-1.18); ctx.closePath(); ctx.fill();   // 視野扇形
+      ctx.fillStyle="#e8f5e9"; ctx.beginPath(); ctx.moveTo(0,-4.6); ctx.lineTo(3.4,4); ctx.lineTo(-3.4,4); ctx.closePath(); ctx.fill(); ctx.restore();
+      ctx.globalAlpha=1; }
+    // ---------- 後處理：暗角＋神木瀕危警示＋天候粒子/色調＋連擊（沿用俯視角的既有元件） ----------
+    if(_ppW!==VW||_ppH!==VH) buildPostGrads();
+    ctx.fillStyle=_vigGrad; ctx.fillRect(0,0,VW,VH);
+    if(shrine.hp/shrine.maxhp<0.3){ const pl=0.5+0.5*Math.sin(clock*6); const rv=ctx.createRadialGradient(VW/2,VH/2,VH*0.3,VW/2,VH/2,VH*0.78);
+      rv.addColorStop(0,"rgba(255,0,0,0)"); rv.addColorStop(1,"rgba(255,0,0,"+(0.26*pl).toFixed(3)+")"); ctx.fillStyle=rv; ctx.fillRect(0,0,VW,VH); }
+    renderWeather();
+    if(combo>=2){ const pop=1+comboPop*0.5, tier=Math.floor(combo/5), gold=combo%5===0&&comboPop>0.25;
+      ctx.save(); ctx.translate(VW-70,54); ctx.scale(pop,pop);
+      ctx.font="bold 15px sans-serif"; ctx.textAlign="center"; ctx.fillStyle=gold?"#ffd54f":"rgba(255,255,255,0.85)";
+      ctx.strokeStyle="rgba(0,0,0,0.6)"; ctx.lineWidth=3; ctx.strokeText("連擊",0,-13); ctx.fillText("連擊",0,-13);
+      ctx.font="bold "+(26+tier*3)+"px sans-serif"; ctx.fillStyle=gold?"#ffd54f":"#fff59d";
+      ctx.strokeText(String(combo),0,14); ctx.fillText(String(combo),0,14); ctx.restore(); }
+  }
+  /* ==================== /獵人視角 ==================== */
+
   function render(){
     ctx.clearRect(0,0,VW,VH);
+    if(fpOn() && player){ renderFP(); return; }
     // 棲地：枯黃(低復原) → 翠綠(高復原)。地面圖已載入時，底漸層會被不透明地磚整片蓋掉，跳過省一次全螢幕填色。
     const top=mix("#8a9a5e","#4a8a3e",restore), bot=mix("#6b7742","#2f6a26",restore);
     const g=ctx.createLinearGradient(0,0,0,VH); g.addColorStop(0,top); g.addColorStop(1,bot);
@@ -1795,7 +1991,10 @@ import { createPerfTier } from "./data/perf-tier.js";
   document.querySelectorAll("#mChatWheel .qmsg").forEach(b=>{ b.addEventListener("pointerdown",(ev)=>{ ev.preventDefault(); sendQuickMsg(b.dataset.q); },{passive:false}); });
   const pts=new Map(); let pinchD=0, pinchZ=1;
   cv.addEventListener("pointerdown",(e)=>{ pts.set(e.pointerId,{x:e.clientX,y:e.clientY}); if(pts.size===2){ const a=[...pts.values()]; pinchD=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)||1; pinchZ=zoom; } },{passive:false});
-  cv.addEventListener("pointermove",(e)=>{ if(!pts.has(e.pointerId))return; pts.set(e.pointerId,{x:e.clientX,y:e.clientY}); if(pts.size===2){ e.preventDefault(); const a=[...pts.values()], d=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)||1; setZoom(pinchZ*d/pinchD); } },{passive:false});
+  cv.addEventListener("pointermove",(e)=>{ if(!pts.has(e.pointerId))return;
+    // 獵人視角：單指在畫面上拖曳＝轉頭（左右環視）。要在覆寫座標「之前」取舊點算位移；直握旋轉時螢幕位移要轉回遊戲座標。
+    if(pts.size===1 && fpOn() && running){ const old=pts.get(e.pointerId); const dsx=e.clientX-old.x, dsy=e.clientY-old.y; const dx=rot? dsy : dsx; fpYaw+=dx*0.0056; e.preventDefault(); }
+    pts.set(e.pointerId,{x:e.clientX,y:e.clientY}); if(pts.size===2 && !fpOn()){ e.preventDefault(); const a=[...pts.values()], d=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)||1; setZoom(pinchZ*d/pinchD); } },{passive:false});
   const rmPt=(e)=>pts.delete(e.pointerId); cv.addEventListener("pointerup",rmPt); cv.addEventListener("pointercancel",rmPt); cv.addEventListener("pointerleave",rmPt);
   cv.addEventListener("wheel",(e)=>{ if(!running)return; e.preventDefault(); setZoom(zoom-Math.sign(e.deltaY)*0.12); },{passive:false});
 
@@ -1815,23 +2014,25 @@ import { createPerfTier } from "./data/perf-tier.js";
     if(el) el.textContent="🗺 戰場："+(REGION_LABEL[r]||r)+(h>0.01?("　🌱 加成 出戰速度 +"+Math.round(h*12)+"%・技能冷卻 -"+Math.round(h*15)+"%"):""); }
   document.querySelectorAll("#battleRegions .hregion").forEach(b=>b.addEventListener("pointerdown",(e)=>{ e.preventDefault(); setBattleRegion(b.dataset.r); },{passive:false}));
   function setPickMode(m){ pickMode=m;
-    const nT=document.getElementById("modeNormal"), tT=document.getElementById("modeTime"), pT=document.getElementById("modePve"), dT=document.getElementById("modeDuel");
-    if(nT) nT.classList.toggle("on",m==="normal"); if(tT) tT.classList.toggle("on",m==="time"); if(pT) pT.classList.toggle("on",m==="pve"); if(dT) dT.classList.toggle("on",m==="duel");
+    const nT=document.getElementById("modeNormal"), tT=document.getElementById("modeTime"), pT=document.getElementById("modePve"), dT=document.getElementById("modeDuel"), hT=document.getElementById("modeHunt");
+    if(nT) nT.classList.toggle("on",m==="normal"); if(tT) tT.classList.toggle("on",m==="time"); if(pT) pT.classList.toggle("on",m==="pve"); if(dT) dT.classList.toggle("on",m==="duel"); if(hT) hT.classList.toggle("on",m==="hunt");
     const dLv=getDuelLevel(), dTier=duelTierName(dLv);
-    txt("mpickTitle", m==="time" ? "⏱ 限時復育挑戰" : m==="pve" ? "🎯 外來種防衛戰" : m==="duel" ? ("⚔ 首領挑戰・"+dTier+"級"+(isDuelMaster()?" 👑":"")) : "🌳 棲地復育保衛戰");
+    txt("mpickTitle", m==="time" ? "⏱ 限時復育挑戰" : m==="pve" ? "🎯 外來種防衛戰" : m==="duel" ? ("⚔ 首領挑戰・"+dTier+"級"+(isDuelMaster()?" 👑":"")) : m==="hunt" ? "🏹 獵人視角・搶先體驗" : "🌳 棲地復育保衛戰");
     const descEl=document.getElementById("mpickDesc");
     if(descEl) descEl.innerHTML = m==="time" ? "目標不是守住不倒，而是盡快把棲地復原到 100%！<br>擊退入侵種、守住苗圃，比比看你多快能讓棲地重新翠綠。"
       : m==="pve" ? "選一種外來入侵種當清除目標，限時內驅逐足額數量就成功！<br>善用原生種的生態優勢（生物防治鏈）能大幅提升效率。"
       : m==="duel" ? ("選 <b>單人／三人／五人</b> 一起挑戰一隻超強大首領（人越多首領越強）！限時內擊敗就贏。<br>目前難度：<b style='color:#ffd54f'>"+dTier+"級</b>"+(isDuelMaster()?"（已達最高的大師級 👑）":"　—　每打贏一場自動晉級，最高「大師」級！")+"<br>走位閃避牠的範圍震波與蓄力衝撞、撿守護之力放必殺。")
+      : m==="hunt" ? "第一次，從守護者的眼睛看世界！穿過密林、草原與岩地，<br>親自追獵入侵種、守住神木——復原度滿 100% 就成功！"
       : "守護台灣神木與復育苗圃，擊退四面湧入的外來入侵種——讓枯黃的棲地一吋吋復原成翠綠，復原度滿 100% 就守護成功！";
     const info=document.getElementById("bestTimeInfo");
     if(info){ if(m==="time"){ const b3=getBest(3), b5=getBest(5);
         info.innerHTML="🏆 最佳紀錄　3守護者："+(b3?fmtTime(b3):"—")+"　5守護者："+(b5?fmtTime(b5):"—"); info.classList.remove("hide"); }
       else info.classList.add("hide"); }
     const pvR=document.getElementById("pveTargets"); if(pvR) pvR.classList.toggle("hide",m!=="pve");
-    // 首領挑戰：隱藏一般隊伍人數列，改顯示 1~5 人挑戰選擇 + 通關紀錄面板
-    const tsr=document.getElementById("teamSizeRow"); if(tsr) tsr.classList.toggle("hide",m==="duel");
+    // 首領挑戰：隱藏一般隊伍人數列，改顯示 1~5 人挑戰選擇 + 通關紀錄面板；獵人視角：單人出戰鈕
+    const tsr=document.getElementById("teamSizeRow"); if(tsr) tsr.classList.toggle("hide",m==="duel"||m==="hunt");
     const db=document.getElementById("duelBox"); if(db) db.classList.toggle("hide",m!=="duel");
+    const hb=document.getElementById("huntBox"); if(hb) hb.classList.toggle("hide",m!=="hunt");
     // 精簡首領挑戰畫面：只留「模式頁籤 + 單人~五人 + 紀錄」，戰場地區/加成/天賦提示這些額外列在首領挑戰時一律收起，避免太複雜
     const duel=(m==="duel");
     const br=document.getElementById("battleRegions"); if(br) br.classList.toggle("hide",duel);
@@ -1839,7 +2040,8 @@ import { createPerfTier } from "./data/perf-tier.js";
     const th=document.getElementById("talentHintInfo"); if(th && duel) th.classList.add("hide");
     if(m==="duel") renderDuelRecords();
     updatePveLevelInfo(); }
-  tap("modeNormal",()=>setPickMode("normal")); tap("modeTime",()=>setPickMode("time")); tap("modePve",()=>setPickMode("pve")); tap("modeDuel",()=>setPickMode("duel"));
+  tap("modeNormal",()=>setPickMode("normal")); tap("modeTime",()=>setPickMode("time")); tap("modePve",()=>setPickMode("pve")); tap("modeDuel",()=>setPickMode("duel")); tap("modeHunt",()=>setPickMode("hunt"));
+  tap("huntStart",()=>mCountdown(()=>start(1)));   // 獵人視角＝單人出戰（第一人稱搶先體驗，不進好友連線）
   document.querySelectorAll("#duelSizeRow .duel-sz").forEach(b=>b.addEventListener("pointerdown",(e)=>{ e.preventDefault(); const n=parseInt(b.dataset.n,10)||1; mCountdown(()=>start(n)); },{passive:false}));
   window.__mobaSetPickMode=(m)=>{ if(["normal","time","pve","siege","duel"].indexOf(m)>=0) setPickMode(m); };   // 好友房間房主選的模式帶進對戰（含首領挑戰）
   function setPveTarget(k){ pvePickTarget=k; document.querySelectorAll("#pveTargets .hregion").forEach(b=>b.classList.toggle("on",b.dataset.pv===k)); updatePveLevelInfo(); }
@@ -1857,11 +2059,14 @@ import { createPerfTier } from "./data/perf-tier.js";
   tap("moverNext",()=>mCountdown(()=>start(teamSize)));
   window.addEventListener("keydown",(e)=>{ if(!running) return; if(e.key==="ArrowLeft"||e.key==="a")mv.x=-1; else if(e.key==="ArrowRight"||e.key==="d")mv.x=1; else if(e.key==="ArrowUp"||e.key==="w")mv.y=-1; else if(e.key==="ArrowDown"||e.key==="s")mv.y=1; else if(e.key==="k"||e.key==="Shift")wantSp=true; else if(e.key==="b")wantBack=true; else if(e.key==="j"||e.key===" "){ wantAtk=true; wantAtkT=0.28; } else if(e.key==="l"){ if(player&&player.ult) wantUlt=true; } });
   window.addEventListener("keyup",(e)=>{ if(["ArrowLeft","a","ArrowRight","d"].includes(e.key))mv.x=0; if(["ArrowUp","w","ArrowDown","s"].includes(e.key))mv.y=0; });
+  // 獵人視角（桌機測試用）：Q/E 轉頭
+  window.addEventListener("keydown",(e)=>{ if(!running||!fpOn()) return; if(e.key==="q") fpYaw-=0.14; else if(e.key==="e") fpYaw+=0.14; });
 
   window.MOBA={ start, exit:exitToLobby, toRoom, startNetHost, startNetGuest,
     // 除錯／QA 用內部狀態快照（不影響玩法，方便無頭瀏覽器驗收天候・PVE 數值是否真的生效）
     debug:()=>({ weatherBattle, pveEvent, netRole, netMyUid, heroes:heroes.map(h=>({kind:h.kind,speed:h.speed,dmg:h.dmg,isPlayer:!!h.isPlayer,ctrl:h.ctrl||null})), playerKind:player&&player.kind, guestCount:Object.keys(netGuestByUid).length, weatherFxLen:weatherFx.length, invadersLen:invaders.length,
-      relics:relics.length, playerUlt:!!(player&&player.ult), playerUltCd:player?Math.round((player.ultCd||0)*10)/10:0 }),
+      relics:relics.length, playerUlt:!!(player&&player.ult), playerUltCd:player?Math.round((player.ultCd||0)*10)/10:0,
+      fpMode:fpOn(), fpYaw:Math.round(fpYaw*100)/100 }),
     snapshot:()=>snapshot(), applySnapshot:(s)=>applySnapshot(s),   // 除錯／QA 用：無頭瀏覽器模擬「host 廣播 → guest 套用」全流程驗證好友連線鏡頭是否正確
     // 除錯／QA 用：撿拾式必殺技全流程——強制生一顆能量球到玩家腳下、觸發撿拾、施放必殺
     dbgRelicAt:()=>{ if(player) relics.push({x:player.x+10,y:player.y,phase:0}); return relics.length; },
