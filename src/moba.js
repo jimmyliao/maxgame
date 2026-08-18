@@ -128,7 +128,7 @@ import { createPerfTier } from "./data/perf-tier.js";
   // ===== 獵人視角（第一人稱狩獵・搶先體驗）：只改「呈現與操控映射」，模擬層完全共用 =====
   // fpYaw=鏡頭朝向（世界座標弧度）；玩家在畫面裡不可見（你就是那雙眼睛），靠爪擊特效/受傷紅暈/小雷達補足自身回饋
   const fpOn=()=>pickMode==="hunt";
-  let fpYaw=-1.5708, fpBobMix=0;   // fpBobMix=跑動頭部律動混合值（起步/停步緩動，同角色 rb 的思路）
+  let fpYaw=-1.5708, fpBobMix=0, fpCoverMix=0;   // fpBobMix=跑動頭部律動；fpCoverMix=樹冠覆蓋度（走進/走出密林時緩動過渡）
   let battleRegion="paddy", healthBonus=0;   // 復育↔對戰核心循環：戰場棲地健康度影響數值加成
   // 好友連線（選用）：netRole=null 純單機（預設，行為完全不變）；"host" 本機模擬+定期廣播；"guest" 不跑模擬，只接收快照渲染+送出操控
   let netRole=null, netBroadcastT=0, netLastRecvT=0, netStale=false;
@@ -816,6 +816,19 @@ import { createPerfTier } from "./data/perf-tier.js";
   function fpGrassImg(){ return fpMini("grass",44,34,(g,w,h)=>{ for(let i=0;i<7;i++){ const x=6+i*5, k=(i*37%10)/10; g.strokeStyle=mix("#5c9a4a","#8cc06a",k); g.lineWidth=2.4; g.beginPath(); g.moveTo(x,h); g.quadraticCurveTo(x+(k-0.5)*10, h*0.45, x+(k-0.5)*16, 3+k*6); g.stroke(); } }); }
   function fpFlowerImg(){ return fpMini("flower",26,26,(g)=>{ for(let p=0;p<5;p++){ const a=p*1.2566; g.fillStyle="#f6e7f0"; g.beginPath(); g.ellipse(13+Math.cos(a)*6,13+Math.sin(a)*6,4.6,4.6,0,0,7); g.fill(); } g.fillStyle="#ffd54f"; g.beginPath(); g.arc(13,13,3.6,0,7); g.fill(); }); }
   function fpReedImg(){ return fpMini("reed",40,46,(g,w,h)=>{ for(let i=0;i<5;i++){ const x=7+i*6.5; g.strokeStyle=mix("#7a9a48","#b0c078",(i%3)/2); g.lineWidth=2.2; g.beginPath(); g.moveTo(x,h); g.quadraticCurveTo(x+3,h*0.4,x+6,4); g.stroke(); g.fillStyle="#8a6a3a"; g.beginPath(); g.ellipse(x+6,7,2.4,6,0.2,0,7); g.fill(); } }); }
+  // 蕨類（原始林底層植被的主角）：從基部呈扇形展開的羽狀複葉
+  function fpFernImg(){ return fpMini("fern",64,44,(g,w,h)=>{ for(let i=0;i<7;i++){ const a=-2.6+i*0.38, L=30+((i*53)%12);
+    const tipX=w/2+Math.cos(a)*L, tipY=h+Math.sin(a)*L;
+    g.strokeStyle=mix("#2f6a28","#5a9a48",(i%4)/3); g.lineWidth=2; g.beginPath(); g.moveTo(w/2,h); g.quadraticCurveTo(w/2+Math.cos(a)*L*0.5,h+Math.sin(a)*L*0.62,tipX,tipY); g.stroke();
+    g.lineWidth=1.1; for(let s=0.3;s<0.95;s+=0.16){ const bx=w/2+Math.cos(a)*L*s, by=h+Math.sin(a)*L*s*0.83;
+      g.beginPath(); g.moveTo(bx,by); g.lineTo(bx+Math.cos(a+1.2)*5,by+Math.sin(a+1.2)*5); g.moveTo(bx,by); g.lineTo(bx+Math.cos(a-1.2)*5,by+Math.sin(a-1.2)*5); g.stroke(); } } }); }
+  // 頭頂樹冠層（走進密林時蓋在畫面上緣的枝葉；快取一張橫向可平鋪的長條）
+  function fpCanopyImg(){ return fpMini("canopy",512,150,(g,w,h)=>{ g.fillStyle="rgba(16,38,20,0.96)";
+    for(let i=0;i<46;i++){ const x=(i*97.3)%w, y=-30+((i*57)%80), r=26+((i*31)%34); g.beginPath(); g.arc(x,y,r,0,7); g.fill(); }
+    g.fillStyle="rgba(34,66,32,0.85)"; for(let i=0;i<30;i++){ const x=(i*151.7)%w, y=-26+((i*43)%64), r=15+((i*23)%22); g.beginPath(); g.arc(x,y,r,0,7); g.fill(); } }); }
+  // 林間小徑：從南方草原蜿蜒通到神木腳下（世界座標多段線，一次算好；渲染時投影成透視地面色帶）
+  const FP_TRAIL=(()=>{ const pts=[]; const y0=MH-70, y1=MH/2+185;
+    for(let t=0;t<=1.0001;t+=0.02){ const y=y0-(y0-y1)*t, x=MW/2+Math.sin(t*5.2)*230+Math.sin(t*11.7)*70; pts.push({x,y}); } return pts; })();
   function fpHash(i,j,s){ const n=Math.sin(i*127.1+j*311.7+(s||0)*74.7)*43758.5453; return n-Math.floor(n); }
   // 色彩工具（FP 專用）：既有 mix()/shade() 只吃 "#hex"，串接會產生 rgb() 字串再進去變 NaN→黑色，這裡同時支援兩種格式
   function fpCol(c){ if(c.charAt(0)==="#"){ const n=parseInt(c.slice(1),16); return [n>>16,(n>>8)&255,n&255]; } const m=c.match(/\d+/g); return [+m[0],+m[1],+m[2]]; }
@@ -862,10 +875,13 @@ import { createPerfTier } from "./data/perf-tier.js";
     ctx.globalAlpha=0.85; ctx.fillStyle=hz; ctx.fillRect(0,HOR-44,VW,52); ctx.globalAlpha=1;
     // ---------- 地面（復原度枯黃→翠綠 ＋ 分區色調 ＋ 近深遠淺的空氣透視） ----------
     const zone=fpZone(px,py);
+    // 樹冠覆蓋度：密林=全罩、混合區=薄罩，走進走出用緩動過渡（畫面由開闊漸漸「被森林包起來」）
+    fpCoverMix+=((zone==="forest"?1:zone==="mix"?0.3:0)-fpCoverMix)*0.045;
     const gTop=fpMix(skyHor, fpMix("#8a9a5e","#4a8a3e",restore), 0.55);
     let gBot=fpMix("#6b7742","#2f6a26",restore);
-    if(zone==="forest") gBot=fpShade(gBot,-16); else if(zone==="plain") gBot=fpShade(gBot,14); else if(zone==="rocky") gBot=fpMix(gBot,"#7a7f6a",0.3);
-    const gg=ctx.createLinearGradient(0,HOR,0,VH); gg.addColorStop(0,gTop); gg.addColorStop(0.35,fpMix(gTop,gBot,0.55)); gg.addColorStop(1,gBot);
+    if(zone==="forest") gBot=fpMix(gBot,"#1d4a22",0.62);   // 原始林底層：深綠濕潤，不是開闊地的枯黃
+    else if(zone==="plain") gBot=fpShade(gBot,14); else if(zone==="rocky") gBot=fpMix(gBot,"#7a7f6a",0.3);
+    const gg=ctx.createLinearGradient(0,HOR,0,VH); gg.addColorStop(0,fpMix(gTop,gBot,fpCoverMix*0.55)); gg.addColorStop(0.35,fpMix(gTop,gBot,0.55+fpCoverMix*0.25)); gg.addColorStop(1,gBot);
     ctx.fillStyle=gg; ctx.fillRect(0,HOR,VW,VH-HOR);
     if(night){ ctx.fillStyle="rgba(10,20,48,0.30)"; ctx.fillRect(0,HOR,VW,VH-HOR); }   // 月夜壓暗但保留可讀性（主打畫質：夜也要看得見美）
     // ---------- 投影工具 ----------
@@ -880,26 +896,47 @@ import { createPerfTier } from "./data/perf-tier.js";
       const hFade=h<VH*0.85?1:Math.max(0,1-(h-VH*0.85)/(VH*1.1));
       const al=fogA(p.d)*nearA(p.d)*hFade*(opt&&opt.al!==undefined?opt.al:1); if(al<=0.02) return;
       items.push({d:p.d,img,sx:p.sx,gy:p.gy,w,h,al,flip:!!(opt&&opt.flip),sh:!(opt&&opt.noSh),u:opt&&opt.u}); };
+    // ---------- 林間小徑（透視投影的泥土色帶：從南方草原蜿蜒到神木，跟著它走就到家） ----------
+    { ctx.save(); const TW=26;
+      for(let i=0;i<FP_TRAIL.length-1;i++){ const a=FP_TRAIL[i], b=FP_TRAIL[i+1];
+        const pa=proj(a.x,a.y), pb=proj(b.x,b.y); if(!pa||!pb) continue;
+        const dm=Math.min(pa.d,pb.d); if(dm>FAR1) continue;
+        const dx3=b.x-a.x, dy3=b.y-a.y, L3=Math.hypot(dx3,dy3)||1, nx3=-dy3/L3*TW, ny3=dx3/L3*TW;
+        const c1=proj(a.x+nx3,a.y+ny3), c2=proj(a.x-nx3,a.y-ny3), c3=proj(b.x-nx3,b.y-ny3), c4=proj(b.x+nx3,b.y+ny3);
+        if(!c1||!c2||!c3||!c4) continue;
+        ctx.globalAlpha=fogA(dm)*0.8; ctx.fillStyle=night?"#3a3226":"#71583c";
+        ctx.beginPath(); ctx.moveTo(c1.sx,c1.gy); ctx.lineTo(c2.sx,c2.gy); ctx.lineTo(c3.sx,c3.gy); ctx.lineTo(c4.sx,c4.gy); ctx.closePath(); ctx.fill(); }
+      ctx.globalAlpha=1; ctx.restore(); }
     // ---------- 地形道具（確定性網格：北密林、南草原、兩側岩地、中央開闊） ----------
     const G=170, R=FAR1;
     const treeImg=fimg("tree"), bushImg=fimg("bush"), rockImg=fimg("rock");
     for(let i=Math.floor((px-R)/G); i<=Math.ceil((px+R)/G); i++) for(let j=Math.floor((py-R)/G); j<=Math.ceil((py+R)/G); j++){
       const h1=fpHash(i,j,1), wx=i*G+(h1-0.5)*G*0.8, wy=j*G+(fpHash(i,j,2)-0.5)*G*0.8;
-      if(wx<20||wx>MW-20||wy<20||wy>MH-20) continue;
+      // 裝飾允許長到地圖界外（實體走不出去、純視覺）：世界邊緣外仍是連綿樹海/草原，第一人稱不會看到「世界的盡頭」
       if(Math.hypot(wx-SHX,wy-SHY)<300) continue;
       if(NPOS.some(n=>Math.hypot(wx-n.x,wy-n.y)<150)) continue;
       const p=proj(wx,wy); if(!p) continue;
       const z=fpZone(wx,wy), h2=fpHash(i,j,3);
-      if(z==="forest"){ if(h2<0.62) pushImg(treeImg,p,205+h1*90); else if(h2<0.82) pushImg(bushImg,p,72+h1*26); }
+      // 原始林（玩家參考圖定調）：樹要高到樹冠超出畫面、近看是一根根粗壯樹幹，不是「草地上擺整棵樹」
+      if(z==="forest"){ if(h2<0.72) pushImg(treeImg,p,430+h1*280); else if(h2<0.88) pushImg(fpFernImg(),p,44+h1*18,{noSh:1}); else pushImg(bushImg,p,76+h1*28); }
       else if(z==="plain"){ if(h2<0.46&&p.d<560) pushImg(fpGrassImg(),p,26+h1*10,{noSh:1}); else if(h2<0.68&&p.d<480) pushImg(fpFlowerImg(),p,16+h1*7,{noSh:1}); else if(h2<0.76) pushImg(fpReedImg(),p,46+h1*14,{noSh:1}); }
       else if(z==="rocky"){ if(h2<0.42) pushImg(rockImg,p,58+h1*46); else if(h2<0.6&&p.d<520) pushImg(fpGrassImg(),p,24+h1*8,{noSh:1}); }
-      else { if(h2<0.16) pushImg(treeImg,p,190+h1*70); else if(h2<0.36) pushImg(bushImg,p,64+h1*22); else if(h2<0.56&&p.d<500) pushImg(fpGrassImg(),p,24+h1*9,{noSh:1}); }
+      else { if(h2<0.2) pushImg(treeImg,p,260+h1*140); else if(h2<0.4) pushImg(bushImg,p,64+h1*22); else if(h2<0.56&&p.d<500) pushImg(fpGrassImg(),p,24+h1*9,{noSh:1}); }
     }
-    if(!liteFX){ const G2=88, R2=400;   // 近景細草（只在近距離、高效能機才畫，腳邊有東西流動＝速度感）
+    if(!liteFX){   // 密林第二層樹（半格錯位副網格）：樹幹更密、前後交錯才有「被森林包住」的縱深
+      for(let i=Math.floor((px-R)/G); i<=Math.ceil((px+R)/G); i++) for(let j=Math.floor((py-R)/G); j<=Math.ceil((py+R)/G); j++){
+        const h4=fpHash(i,j,8); if(h4>0.55) continue;
+        const wx=(i+0.5)*G+(h4-0.5)*G*0.7, wy=(j+0.5)*G+(fpHash(i,j,9)-0.5)*G*0.7;
+        if(fpZone(wx,wy)!=="forest") continue;   // 副網格同樣允許界外（見上：邊緣外的連綿樹海）
+        if(Math.hypot(wx-SHX,wy-SHY)<300) continue;
+        const p=proj(wx,wy); if(!p) continue;
+        pushImg(treeImg,p,380+h4*420); } }
+    if(!liteFX){ const G2=88, R2=400;   // 近景細節（只在近距離、高效能機才畫，腳邊有東西流動＝速度感）：密林鋪蕨類、其他區鋪草花
       for(let i=Math.floor((px-R2)/G2); i<=Math.ceil((px+R2)/G2); i++) for(let j=Math.floor((py-R2)/G2); j<=Math.ceil((py+R2)/G2); j++){
-        const h3=fpHash(i,j,5); if(h3>0.5) continue; const wx=i*G2+(h3-0.5)*G2, wy=j*G2+(fpHash(i,j,6)-0.5)*G2;
+        const h3=fpHash(i,j,5); if(h3>0.62) continue; const wx=i*G2+(h3-0.5)*G2, wy=j*G2+(fpHash(i,j,6)-0.5)*G2;
         if(wx<20||wx>MW-20||wy<20||wy>MH-20) continue; const p=proj(wx,wy); if(!p||p.d>R2) continue;
-        pushImg(h3<0.35?fpGrassImg():fpFlowerImg(),p,h3<0.35?24:15,{noSh:1,al:0.9}); } }
+        const inForest=fpZone(wx,wy)==="forest";
+        pushImg(inForest?(h3<0.4?fpFernImg():fpGrassImg()):(h3<0.35?fpGrassImg():fpFlowerImg()),p,inForest?(h3<0.4?40:26):(h3<0.35?24:15),{noSh:1,al:0.9}); } }
     // ---------- 實體：神木/苗圃/守護之力/入侵種/隊友 ----------
     { const p=proj(shrine.x,shrine.y); if(p){ const im=fimg("shrine"); const al=Math.max(0.3,fogA(p.d))*nearA(p.d);   // 神木＝地標，霧裡也保留輪廓方便找路回家
         if(im&&al>0.02){ const h=430*FOC/p.d, w=h*im.naturalWidth/im.naturalHeight; items.push({d:p.d,img:im,sx:p.sx,gy:p.gy,w,h,al,flip:false,sh:true}); } } }
@@ -945,9 +982,25 @@ import { createPerfTier } from "./data/perf-tier.js";
     if(player.aim&&!player.aim.dead){ const p=proj(player.aim.x,player.aim.y); if(p){ const k=FOC/p.d, rr=((player.aim.r||16)+14)*k;
       ctx.strokeStyle="rgba(255,90,80,0.95)"; ctx.lineWidth=2.4; const tt=clock*4;
       for(let q=0;q<4;q++){ const ang=tt+q*1.5708; ctx.beginPath(); ctx.ellipse(p.sx,p.gy,rr,rr*0.32,0,ang+0.35,ang+1.15); ctx.stroke(); } } }
-    // ---------- 體積光（太陽輻射光束；lighter 疊色、呼吸強度；暴雨/低效能關閉） ----------
-    if(sunX!==null && !liteFX && !night){ ctx.save(); ctx.globalCompositeOperation="lighter";
-      const sunY=HOR*0.30; for(let b=0;b<5;b++){ const a=0.05+0.03*Math.sin(clock*0.5+b*1.9); if(a<=0.015) continue;
+    // ---------- 樹冠層＋林內光影（走進密林時整個畫面被森林「包起來」；覆蓋度緩動過渡） ----------
+    if(fpCoverMix>0.03){
+      // 林內環境光：整體壓暗染綠，模擬樹冠把直射光濾掉
+      ctx.fillStyle="rgba(9,24,13,"+(0.17*fpCoverMix).toFixed(3)+")"; ctx.fillRect(0,0,VW,VH);
+      // 頭頂樹冠（橫向平鋪＋跟著轉頭視差平移）
+      const cp=fpCanopyImg(), ch=VH*0.30*fpCoverMix, off=((fpYaw*220)%512+512)%512;
+      ctx.globalAlpha=Math.min(1,fpCoverMix*1.15);
+      for(let x=-off; x<VW; x+=512) ctx.drawImage(cp,x,0,512,ch);
+      ctx.globalAlpha=1;
+      // 樹冠灑落的垂直光柱（晴天限定；lighter 疊色、緩慢呼吸）
+      if(!night && !storm && !liteFX){ ctx.save(); ctx.globalCompositeOperation="lighter";
+        for(let b=0;b<4;b++){ const a=(0.05+0.035*Math.sin(clock*0.4+b*2.2))*fpCoverMix; if(a<=0.012) continue;
+          const bx=VW*(0.14+b*0.24)+Math.sin(clock*0.16+b*1.3)*30, bw=VW*0.035+b*10;
+          ctx.globalAlpha=a; ctx.fillStyle="rgba(235,255,205,1)";
+          ctx.beginPath(); ctx.moveTo(bx-bw,0); ctx.lineTo(bx+bw,0); ctx.lineTo(bx+bw-VH*0.16,VH); ctx.lineTo(bx-bw-VH*0.16,VH); ctx.closePath(); ctx.fill(); }
+        ctx.restore(); ctx.globalAlpha=1; } }
+    // ---------- 體積光（開闊地的太陽輻射光束；密林改用上面的樹冠光柱） ----------
+    if(sunX!==null && !liteFX && !night && fpCoverMix<0.5){ ctx.save(); ctx.globalCompositeOperation="lighter";
+      const sunY=HOR*0.30; for(let b=0;b<5;b++){ const a=(0.05+0.03*Math.sin(clock*0.5+b*1.9))*(1-fpCoverMix); if(a<=0.015) continue;
         const ang2=-0.5+b*0.26+Math.sin(clock*0.2+b)*0.05; ctx.globalAlpha=a; ctx.fillStyle="rgba(255,244,200,1)";
         ctx.beginPath(); ctx.moveTo(sunX,sunY); ctx.lineTo(sunX+Math.cos(ang2+1.35)*VH*1.6,sunY+Math.sin(ang2+1.35)*VH*1.6);
         ctx.lineTo(sunX+Math.cos(ang2+1.55)*VH*1.6,sunY+Math.sin(ang2+1.55)*VH*1.6); ctx.closePath(); ctx.fill(); }
