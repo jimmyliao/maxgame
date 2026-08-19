@@ -1005,6 +1005,25 @@ import { createPerfTier } from "./data/perf-tier.js";
         ctx.beginPath(); ctx.moveTo(sunX,sunY); ctx.lineTo(sunX+Math.cos(ang2+1.35)*VH*1.6,sunY+Math.sin(ang2+1.35)*VH*1.6);
         ctx.lineTo(sunX+Math.cos(ang2+1.55)*VH*1.6,sunY+Math.sin(ang2+1.55)*VH*1.6); ctx.closePath(); ctx.fill(); }
       ctx.restore(); ctx.globalAlpha=1; }
+    // ---------- 第一人稱武器視角：常駐擺動的爪掌＋準星（「手拿武器可瞄準」的手感回饋） ----------
+    { const colK=KCOL[player.kind]||"#e8a13a", dark=shade(colK,-40);
+      const atkT=player.atkA>0?1-player.atkA/0.2:0, swing=atkT>0?Math.sin(atkT*Math.PI):0;
+      const idleBob=Math.sin(clock*2.1)*4+fpBobMix*Math.sin(clock*8.6)*2.4;
+      ctx.save(); ctx.translate(VW*0.78-swing*VW*0.10, VH*1.02-idleBob-swing*VH*0.05); ctx.rotate(-0.32+swing*0.5);
+      ctx.fillStyle=dark; ctx.beginPath(); ctx.ellipse(0,0,54,120,0,0,7); ctx.fill();
+      ctx.fillStyle=colK; ctx.beginPath(); ctx.ellipse(4,-96,46,40,0,0,7); ctx.fill();
+      ctx.strokeStyle="#20140c"; ctx.lineWidth=3; ctx.stroke();
+      for(let q=-1;q<=1;q++){ ctx.fillStyle="#f5f0e6"; ctx.beginPath();
+        ctx.moveTo(4+q*20,-118); ctx.lineTo(4+q*20-6,-96); ctx.lineTo(4+q*20+6,-96); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle="#20140c"; ctx.lineWidth=1.6; ctx.stroke(); }
+      ctx.restore(); }
+    { const locked=player.aim&&!player.aim.dead, pulse=locked?0.85+0.15*Math.sin(clock*10):1;
+      ctx.save(); ctx.translate(VW/2,VH/2); ctx.scale(pulse,pulse);
+      ctx.strokeStyle=locked?"rgba(255,90,80,0.95)":"rgba(255,255,255,0.75)"; ctx.lineWidth=2;
+      const g=locked?5:7, len=6;
+      for(const[dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){ ctx.beginPath(); ctx.moveTo(dx*g,dy*g); ctx.lineTo(dx*(g+len),dy*(g+len)); ctx.stroke(); }
+      if(locked){ ctx.fillStyle="rgba(255,90,80,0.9)"; ctx.beginPath(); ctx.arc(0,0,1.6,0,7); ctx.fill(); }
+      ctx.restore(); }
     // ---------- 第一人稱自身回饋：爪擊特效＋受傷紅暈 ----------
     if(player.atkA>0){ const t=1-player.atkA/0.2, colK=KCOL[player.kind]||"#ffd54f";
       ctx.save(); ctx.translate(VW/2,VH*0.62); ctx.rotate(-0.5+t*0.25); ctx.globalAlpha=Math.max(0,1-t*1.15); ctx.lineCap="round";
