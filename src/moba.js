@@ -984,8 +984,8 @@ import { createPerfTier } from "./data/perf-tier.js";
       for(let q=0;q<4;q++){ const ang=tt+q*1.5708; ctx.beginPath(); ctx.ellipse(p.sx,p.gy,rr,rr*0.32,0,ang+0.35,ang+1.15); ctx.stroke(); } } }
     // ---------- 樹冠層＋林內光影（走進密林時整個畫面被森林「包起來」；覆蓋度緩動過渡） ----------
     if(fpCoverMix>0.03){
-      // 林內環境光：整體壓暗染綠，模擬樹冠把直射光濾掉
-      ctx.fillStyle="rgba(9,24,13,"+(0.17*fpCoverMix).toFixed(3)+")"; ctx.fillRect(0,0,VW,VH);
+      // 林內環境光：整體壓暗染綠，模擬樹冠把直射光濾掉（壓太暗會跟後面的暗角/夜間疊加變得看不清楚，調輕一點）
+      ctx.fillStyle="rgba(9,24,13,"+(0.10*fpCoverMix).toFixed(3)+")"; ctx.fillRect(0,0,VW,VH);
       // 頭頂樹冠（橫向平鋪＋跟著轉頭視差平移）
       const cp=fpCanopyImg(), ch=VH*0.30*fpCoverMix, off=((fpYaw*220)%512+512)%512;
       ctx.globalAlpha=Math.min(1,fpCoverMix*1.15);
@@ -1005,6 +1005,28 @@ import { createPerfTier } from "./data/perf-tier.js";
         ctx.beginPath(); ctx.moveTo(sunX,sunY); ctx.lineTo(sunX+Math.cos(ang2+1.35)*VH*1.6,sunY+Math.sin(ang2+1.35)*VH*1.6);
         ctx.lineTo(sunX+Math.cos(ang2+1.55)*VH*1.6,sunY+Math.sin(ang2+1.55)*VH*1.6); ctx.closePath(); ctx.fill(); }
       ctx.restore(); ctx.globalAlpha=1; }
+    // ---------- 第一人稱武器視角：常駐擺動的爪掌＋準星（「手拿武器可瞄準」的手感回饋） ----------
+    // 錨點抬高離開下方按鈕列(#dock)範圍，避免爪掌被攻擊/技能鈕遮住一半看起來像穿模；整體外緣加深色輪廓線讓剪影在任何背景亮度下都清楚可辨
+    { const colK=KCOL[player.kind]||"#e8a13a", dark=shade(colK,-40);
+      const atkT=player.atkA>0?1-player.atkA/0.2:0, swing=atkT>0?Math.sin(atkT*Math.PI):0;
+      const idleBob=Math.sin(clock*2.1)*3+fpBobMix*Math.sin(clock*8.6)*2;
+      ctx.save(); ctx.translate(VW*0.82-swing*VW*0.08, VH*0.86-idleBob-swing*VH*0.05); ctx.rotate(-0.32+swing*0.5); ctx.scale(0.72,0.72);
+      ctx.strokeStyle="#140b06"; ctx.lineWidth=7; ctx.lineJoin="round";
+      ctx.beginPath(); ctx.ellipse(0,0,54,120,0,0,7); ctx.stroke();
+      ctx.fillStyle=dark; ctx.fill();
+      ctx.beginPath(); ctx.ellipse(4,-96,46,40,0,0,7); ctx.stroke();
+      ctx.fillStyle=colK; ctx.fill();
+      for(let q=-1;q<=1;q++){ ctx.fillStyle="#f5f0e6"; ctx.beginPath();
+        ctx.moveTo(4+q*20,-118); ctx.lineTo(4+q*20-6,-96); ctx.lineTo(4+q*20+6,-96); ctx.closePath();
+        ctx.strokeStyle="#140b06"; ctx.lineWidth=3; ctx.stroke(); ctx.fill(); }
+      ctx.restore(); }
+    { const locked=player.aim&&!player.aim.dead, pulse=locked?0.85+0.15*Math.sin(clock*10):1;
+      ctx.save(); ctx.translate(VW/2,VH/2); ctx.scale(pulse,pulse);
+      ctx.strokeStyle=locked?"rgba(255,90,80,0.95)":"rgba(255,255,255,0.75)"; ctx.lineWidth=2;
+      const g=locked?5:7, len=6;
+      for(const[dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){ ctx.beginPath(); ctx.moveTo(dx*g,dy*g); ctx.lineTo(dx*(g+len),dy*(g+len)); ctx.stroke(); }
+      if(locked){ ctx.fillStyle="rgba(255,90,80,0.9)"; ctx.beginPath(); ctx.arc(0,0,1.6,0,7); ctx.fill(); }
+      ctx.restore(); }
     // ---------- 第一人稱自身回饋：爪擊特效＋受傷紅暈 ----------
     if(player.atkA>0){ const t=1-player.atkA/0.2, colK=KCOL[player.kind]||"#ffd54f";
       ctx.save(); ctx.translate(VW/2,VH*0.62); ctx.rotate(-0.5+t*0.25); ctx.globalAlpha=Math.max(0,1-t*1.15); ctx.lineCap="round";
