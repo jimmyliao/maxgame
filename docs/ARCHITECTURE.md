@@ -224,3 +224,62 @@ graph TD
 3. `docs/SYSTEMS.md`（等級/成長、對戰兩大系統的公式與鍵名）
 4. `docs/PROCESS.md`（「對談→需求單」協作合約）
 5. `docs/SPEC.md`（完整規格 + 決策紀錄）、`docs/SIEGE-MODE.md`（待做模式）
+
+---
+
+## 6. Planned shared Web/mobile topology（2026-08-29，尚未實作）
+
+### 6.1 目標
+
+保留單一 `jimmyliao/maxgame` repo 與一份 gameplay/content truth：
+
+```text
+shared TypeScript game core + Canvas renderer + content/assets
+                   |
+          +--------+--------+
+          |                 |
+     Web/PWA shell     Capacitor mobile shell
+     GitHub Pages      offline bundled dist
+                            |
+                  iOS / Android adapters
+             haptics · lifecycle · share · safe area
+```
+
+Capacitor 只負責平台 shell；`src` 中的規則、場景、renderer、content 與本機進度邏輯仍是單一正本。Mobile 不能在 runtime 載入 production 網站，也不能以 remote code 繞過 Store review。
+
+### 6.2 漸進式目錄方向
+
+```text
+src/
+  core/       # deterministic rules/state/content contracts
+  render/     # Canvas2D rendering/VFX
+  scenes/     # lobby/battle/result/dex/habitat
+  platform/   # web.ts / capacitor.ts adapters
+  net/        # Firebase multiplayer; Web only, excluded Store v1
+public/assets/
+capacitor.config.ts
+ios/          # generated native shell; signing human-owned
+android/      # generated native shell; signing human-owned
+```
+
+不為符合此圖一次性重寫。先從現行 `window.__*` 橋接抽出可測試 contract，再逐模組搬移；每一步保持 Web 行為與既有 `shoutu_*` 本機進度相容。`shoutu_unlocked` 等既有鍵不改名。
+
+### 6.3 Platform adapter boundary
+
+Game core 只能依賴窄介面：storage、haptics、share、orientation、lifecycle、clock/audio。Web adapter 使用 localStorage/Web APIs；Capacitor adapter 使用官方 plugin。Firebase multiplayer 是 optional Web capability，Store v1 不載入。
+
+### 6.4 CI/release lanes
+
+| Lane | Trigger | Output | Gate |
+|---|---|---|---|
+| PR | `discord/max/*` 或一般 PR | typecheck/unit/build/smoke + desktop/mobile screenshots | Max/Jimmy approve |
+| Web production | merge `main` | legacy Pages（遷移期）或後續 Actions `dist/` | CI green + human merge |
+| Mobile candidate | explicit release tag | offline iOS/Android build | human-owned signing + device smoke |
+| Store release | manual | ASC/Play submission | Jimmy explicit go；never bot-triggered |
+
+### 6.5 Current gap and residual risks
+
+- `openab-max-agy` 尚未 mount 此 repo；現行 JimiOMP 能聊天/存取較廣，不是 child-safe writer。
+- 現行模組以 `window.__*` 緊耦合；shared core 抽取需逐步 contract tests，不能 big-bang rewrite。
+- GitHub Pages 目前直接服務 `main` root，不是 Vite `dist/`；切 Actions deployment 是最後門，不與 mobile scaffold 同時進行。
+- Store App 的內容/素材 provenance、age rating、privacy、offline size、background/lifecycle 行為尚未驗證。

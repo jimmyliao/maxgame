@@ -189,3 +189,64 @@ worktree：A 不用（要先合併）；B/C/D 最適合 worktree 平行；regist
 | 2026-06-30 | **架構定案**：TS+Vite+模組化、原生 Canvas2D 薄引擎（留 Renderer 介面換 Pixi）、Capacitor 留未來；漸進遷移、每步可玩 | 見 §8；美術做進重構後結構 |
 
 > 可回退的穩定可玩版本：**`b26af2c`**（寶可夢系統版），建議 `git tag playable-v1`。
+
+---
+
+## 11. 2026-08-29：下一個雙 Store App 與 Max Discord 協作決策
+
+### 11.1 狀態與名稱
+
+- Jimmy 已選 Maxgame 作為 Leapie Rewind 後的下一個完整雙 Store App，但 **mobile implementation 尚未開始**。
+- 「守土」維持 working/story name；正式 Store brand 待 Max/Jimmy 選定。候選方向為「島嶼守護隊」「山海守護隊」「棲地守護隊」，避免軍事/領土語感蓋過親子生態主題。
+- Rewind iOS formal review 與 Android 12 testers × 14 days gate 優先；未達 gate 前只做規格、rights、privacy 與 bot workflow。
+
+### 11.2 單一 codebase 決策
+
+未來 Web/PWA 與 iOS/Android 共用同一份 TypeScript/Canvas game core、content 與 assets。Mobile 使用 **Capacitor offline bundle** 加 platform adapters；不完整重寫另一套 Flutter gameplay，也不把 remote GitHub Pages URL 當薄 WebView。
+
+原因：Max 必須能透過 Discord/OpenAB 修改同一遊戲並讓 Web 與下一個 mobile build 同時取得變更；雙 renderer 會造成邏輯與內容漂移。Capacitor App 必須補 offline packaging、haptics、orientation/lifecycle、system share、safe-area、accessibility，才能形成明確的 App value。
+
+### 11.3 Store v1 cut line
+
+只取一個完整垂直切片：
+
+- 一場 3–5 分鐘 offline battle loop。
+- 4 位守護者、4 種入侵種、1 個棲地。
+- 保育圖鑑與本機進度。
+- 無 account、chat、multiplayer、Firebase、ads、IAP、remote content 或 always-on backend。
+
+目前 Web 的多人、好友房、通行證等內容不等於首版 Store scope；保留於 Web，不帶入 v1。
+
+### 11.4 Max Discord/OpenAB release contract
+
+```text
+Max request in #game-max
+  -> maxgame-only isolated worktree
+  -> branch discord/max/<request-id>
+  -> typecheck + unit + build + smoke + screenshots
+  -> PR + Max/Jimmy approval
+  -> merge main
+  -> GitHub Pages automatic Web deploy
+  -> production URL verification
+```
+
+- Bot 不得 direct-push `main`，不得讀其他 repo/secrets，不得修改 credentials、Firebase/DNS、GitHub Actions、Capacitor signing 或 Store metadata。
+- `main` merge 可自動發布 Web；mobile 只能由 Jimmy 核准 release tag/build，不能因 Discord 對話自動送 Store。
+- 2026-08-29 現況：`#game-max` 可與 JimiOMP 對話；但 dedicated `openab-max-agy` live mount/working_dir 仍是 `personal/apps/max`，不是本 repo。這只證明聊天入口，不代表 safe edit/deploy E2E。
+- GitHub Pages 已實證為 legacy `main` root、HTTPS 200；merge/push `main` 自動部署，feature branch 不部署 production。
+
+### 11.5 本 checkpoint 沒有改的東西
+
+- 沒有 gameplay/source/schema/localStorage key 改動。
+- 沒有新增 Capacitor、iOS、Android scaffold、package ID、signing 或 Store record。
+- 沒有改 GitHub Pages source、Firebase 或 production domain。
+- 本次只更新 `docs/SPEC.md` 與 `docs/ARCHITECTURE.md`，作為後續 implementation gate。
+
+### 11.6 Implementation 前驗收
+
+1. 正式名稱與 rights-safe Store positioning 定案。
+2. Shared core/platform adapter 切線經 design review。
+3. 物種事實、圖片/字體/音效 provenance 完成。
+4. Mobile privacy/age rating/accessibility 完成。
+5. Dedicated Max bot 通過一次非破壞性 branch→PR→approval→Pages pilot。
+6. Rewind Android 12/12 tester clock 已啟動，且 iOS review 結果已知或無需立即修正。
