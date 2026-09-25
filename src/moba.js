@@ -872,7 +872,7 @@ import { createPerfTier } from "./data/perf-tier.js";
     // 低空林霧：拉開遠山、地面與近景，讓小徑像從森林深處延伸而來
     // 透明端用「同色 α0」避免與黑色插值出現灰帶；物件仍在這層之後保持清楚
     const hzC=fpMix(skyHor,skyHor,0), hzC0=hzC.replace("rgb(","rgba(").replace(")",",0)");
-    const hz=ctx.createLinearGradient(0,HOR-36,0,HOR+VH*0.18); hz.addColorStop(0,hzC0); hz.addColorStop(0.42,hzC.replace(")",",0.62)").replace("rgb(","rgba(")); hz.addColorStop(1,hzC0);
+    const hz=ctx.createLinearGradient(0,HOR-36,0,HOR+VH*0.18); hz.addColorStop(0,hzC0); hz.addColorStop(0.42,hzC.replace(")",",0.42)").replace("rgb(","rgba(")); hz.addColorStop(1,hzC0);
     ctx.fillStyle=hz; ctx.fillRect(0,HOR-36,VW,VH*0.18+36);
     // ---------- 地面（復原度枯黃→翠綠 ＋ 分區色調 ＋ 近深遠淺的空氣透視） ----------
     const zone=fpZone(px,py);
