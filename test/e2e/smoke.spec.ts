@@ -81,3 +81,21 @@ test("載入無錯誤、鐵則齊全、能走完一場戰鬥", async ({ page }) 
   // 一票否決：全程 0 runtime / console error
   expect(errors, "不可有 runtime/console 錯誤").toEqual([]);
 });
+
+test("獵人視角可載入且沒有 runtime error", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push("PAGEERROR: " + e));
+  await page.setViewportSize({ width: 844, height: 390 });
+  page.on("console", (m) => { if (m.type() === "error" && !m.text().includes("Failed to load resource")) errors.push("CONSOLE: " + m.text()); });
+
+  await page.goto("/");
+  await page.locator("#tutSkip").click();
+  await page.locator("#playBtn").click();
+  await page.locator("#modeHunt").click();
+  await expect(page.locator("#huntStart")).toBeVisible();
+  await page.locator("#huntStart").click();
+  await expect(page.locator("#moba")).toBeVisible({ timeout: 6_000 });
+  await page.waitForTimeout(1_000);
+
+  expect(errors, "獵人視角不可有 runtime/console error").toEqual([]);
+});
