@@ -869,10 +869,11 @@ import { createPerfTier } from "./data/perf-tier.js";
       ctx.fillStyle=fpShade(mBase,(L-2)*16-(night?8:0)); ctx.beginPath(); ctx.moveTo(0,HOR+6);
       for(let sx=0;sx<=VW;sx+=26){ const az=fpYaw+Math.atan((sx-VW/2)/FOC); const hgt=fpRidge(az*(1.15+L*0.5),3.7+L*2.9)*amp; ctx.lineTo(sx,yb-hgt); }
       ctx.lineTo(VW,HOR+6); ctx.closePath(); ctx.fill(); }
-    // 山腳霧帶（空氣透視：遠處退成天色）——透明端用「同色 α0」避免與黑色插值出現灰帶
+    // 低空林霧：拉開遠山、地面與近景，讓小徑像從森林深處延伸而來
+    // 透明端用「同色 α0」避免與黑色插值出現灰帶；物件仍在這層之後保持清楚
     const hzC=fpMix(skyHor,skyHor,0), hzC0=hzC.replace("rgb(","rgba(").replace(")",",0)");
-    const hz=ctx.createLinearGradient(0,HOR-44,0,HOR+8); hz.addColorStop(0,hzC0); hz.addColorStop(1,hzC);
-    ctx.globalAlpha=0.85; ctx.fillStyle=hz; ctx.fillRect(0,HOR-44,VW,52); ctx.globalAlpha=1;
+    const hz=ctx.createLinearGradient(0,HOR-36,0,HOR+VH*0.18); hz.addColorStop(0,hzC0); hz.addColorStop(0.42,hzC.replace(")",",0.62)").replace("rgb(","rgba(")); hz.addColorStop(1,hzC0);
+    ctx.fillStyle=hz; ctx.fillRect(0,HOR-36,VW,VH*0.18+36);
     // ---------- 地面（復原度枯黃→翠綠 ＋ 分區色調 ＋ 近深遠淺的空氣透視） ----------
     const zone=fpZone(px,py);
     // 樹冠覆蓋度：密林=全罩、混合區=薄罩，走進走出用緩動過渡（畫面由開闊漸漸「被森林包起來」）
