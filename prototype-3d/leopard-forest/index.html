@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>守土：石虎原始森林 3D</title>
+  <link rel="stylesheet" href="./src/style.css">
+</head>
+<body>
+  <main id="app">
+    <canvas id="world" aria-label="石虎原始森林三維試玩場景"></canvas>
+    <section id="hud" aria-live="polite">
+      <span>守土・3D 原始森林</span>
+      <h1>石虎追蹤綠鬣蜥</h1>
+      <p id="objective">靠近綠鬣蜥，守護這片森林。</p>
+    </section>
+    <p id="guide">拖曳畫面轉鏡頭　·　WASD / 方向鍵移動石虎</p>
+    <button id="start" type="button">進入森林</button>
+    <p id="fallback" hidden>這台裝置暫時無法開啟 3D 畫面。</p>
+  </main>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
