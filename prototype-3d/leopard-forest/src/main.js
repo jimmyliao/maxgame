@@ -46,12 +46,33 @@ treeSpots.forEach(([x,z,s], i) => tree(x, z, s, i % 3 ? "#286836" : "#377c41"));
 for (let i = 0; i < 55; i++) { const a = i * 2.399, r = 4 + (i % 9) * 1.5, x = Math.cos(a) * r, z = Math.sin(a) * r; if (Math.abs(x) < 4 && Math.abs(z) < 6) continue; const fern = addMesh(new THREE.ConeGeometry(.25, .9, 5), shade(i % 2 ? "#397c3b" : "#245f32"), [x, .42, z], [1, 1, 1]); fern.rotation.z = .35; fern.rotation.y = a; }
 for (let i = 0; i < 20; i++) { const a = i * 1.71, r = 5 + (i % 5) * 2.4; addMesh(new THREE.DodecahedronGeometry(.45 + (i % 3) * .18, 0), shade("#68746a"), [Math.cos(a) * r, .35, Math.sin(a) * r], [1, .7, 1]); }
 
-function spottedTexture() { const c = document.createElement("canvas"); c.width = c.height = 256; const g = c.getContext("2d"); g.fillStyle = "#c58b45"; g.fillRect(0, 0, 256, 256); for (let i = 0; i < 58; i++) { const x = (i * 73) % 256, y = (i * 131) % 256, r = 5 + i % 6; g.strokeStyle = "#3a2b1e"; g.lineWidth = 3; g.beginPath(); g.arc(x, y, r, .25, 5.8); g.stroke(); g.fillStyle = "#d7a258"; g.beginPath(); g.arc(x, y, r * .42, 0, Math.PI * 2); g.fill(); } const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; }
+function furMaps() {
+  const S = 512, mk = () => { const c = document.createElement("canvas"); c.width = c.height = S; return [c, c.getContext("2d")]; };
+  const [c, g] = mk(), [b, h] = mk(); let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const grad = g.createLinearGradient(0, 0, 0, S); grad.addColorStop(0, "#b9803f"); grad.addColorStop(.55, "#cf9a55"); grad.addColorStop(.85, "#e6c98f"); grad.addColorStop(1, "#f3e2bd"); g.fillStyle = grad; g.fillRect(0, 0, S, S);
+  h.fillStyle = "#808080"; h.fillRect(0, 0, S, S);
+  for (let i = 0; i < 46; i++) { const x = rnd() * S, y = rnd() * S * .8, r = 12 + rnd() * 14, rot = rnd() * 6;
+    g.save(); g.translate(x, y); g.rotate(rot); g.scale(1.35, 1);
+    g.fillStyle = "#d9a35a"; g.beginPath(); g.arc(0, 0, r, 0, 7); g.fill();
+    g.strokeStyle = "#2f2118"; g.lineWidth = 4 + rnd() * 3; g.beginPath(); g.arc(0, 0, r, .35, 5.6); g.stroke();
+    g.strokeStyle = "rgba(60,40,24,.55)"; g.lineWidth = 2; g.beginPath(); g.arc(0, 0, r * .55, 3, 8); g.stroke(); g.restore();
+    h.fillStyle = "#6a6a6a"; h.beginPath(); h.arc(x, y, r * 1.2, 0, 7); h.fill(); }
+  for (let i = 0; i < 70; i++) { g.fillStyle = "#3a2a1e"; g.beginPath(); g.ellipse(rnd() * S, rnd() * S * .75, 3 + rnd() * 4, 2 + rnd() * 3, rnd() * 3, 0, 7); g.fill(); }
+  for (let i = 0; i < 9000; i++) { const x = rnd() * S, y = rnd() * S, len = 7 + rnd() * 12, a = Math.PI / 2 + (rnd() - .5) * .35, dx = Math.cos(a) * len, dy = Math.sin(a) * len, l = rnd();
+    g.strokeStyle = l > .55 ? "rgba(255,230,170," + (.1 + rnd() * .15) + ")" : "rgba(50,30,15," + (.08 + rnd() * .14) + ")"; g.lineWidth = .6 + rnd() * .5; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + dx * .5 + 2, y + dy * .5, x + dx, y + dy); g.stroke();
+    h.strokeStyle = l > .5 ? "rgba(255,255,255,.35)" : "rgba(0,0,0,.3)"; h.lineWidth = .8; h.beginPath(); h.moveTo(x, y); h.quadraticCurveTo(x + dx * .5 + 2, y + dy * .5, x + dx, y + dy); h.stroke(); }
+  const t = new THREE.CanvasTexture(c), bump = new THREE.CanvasTexture(b); t.colorSpace = THREE.SRGBColorSpace;
+  [t, bump].forEach(x => { x.wrapS = x.wrapT = THREE.RepeatWrapping; x.anisotropy = 4; }); return { map: t, bump };
+}
 function leopard() {
-  const g = new THREE.Group(), fur = new THREE.MeshStandardMaterial({ map: spottedTexture(), roughness: .9 }), dark = shade("#241a14"), cream = shade("#f0d5a3"), eye = new THREE.MeshStandardMaterial({ color: "#e8ba45", emissive: "#432a05", emissiveIntensity: .25, roughness: .35 });
+  const g = new THREE.Group(), fm = furMaps(), fur = new THREE.MeshPhysicalMaterial({ map: fm.map, bumpMap: fm.bump, bumpScale: 1.6, roughnessMap: fm.bump, roughness: .95, metalness: 0, sheen: 1.0, sheenRoughness: .55, sheenColor: new THREE.Color("#f5d399") }), dark = shade("#241a14"), cream = shade("#f0d5a3"), white = shade("#fff4e0", .9), eye = new THREE.MeshStandardMaterial({ color: "#e8ba45", emissive: "#432a05", emissiveIntensity: .25, roughness: .35 });
   const body = addMesh(new THREE.SphereGeometry(1, 22, 14), fur, [0, 1.12, .05], [1.13, .56, .5], g);
   addMesh(new THREE.SphereGeometry(.5, 18, 12), fur, [0, 1.42, -.78], [.78, .7, .95], g);
   [[-.25,1.79,-1.02],[.25,1.79,-1.02]].forEach(p => { addMesh(new THREE.SphereGeometry(.17, 8, 7), fur, p, [1,1,.55], g); addMesh(new THREE.SphereGeometry(.105, 8, 7), dark, [p[0],p[1]-.015,p[2]-.12], [1,1,.35], g); });
+  [[-.25,1.79,-1.02],[.25,1.79,-1.02]].forEach(p => { addMesh(new THREE.SphereGeometry(.16, 10, 8), dark, [p[0],p[1],p[2]+.05], [1,1,.3], g); addMesh(new THREE.SphereGeometry(.07, 8, 6), white, [p[0],p[1]+.02,p[2]+.085], [1.1,.9,.3], g); });
+  [-.08,.08].forEach(x => addMesh(new THREE.SphereGeometry(.05, 8, 6), white, [x,1.7,-1.07], [.4,.35,2.6], g).rotation.x = -.55);
+  addMesh(new THREE.SphereGeometry(1, 18, 10), cream, [0,.83,.05], [.98,.31,.44], g);
+  addMesh(new THREE.SphereGeometry(.3, 12, 8), cream, [0,1.12,-.6], [.9,.8,.7], g);
   [[-.19,1.47,-1.18],[.19,1.47,-1.18]].forEach(p => { addMesh(new THREE.SphereGeometry(.09, 10, 8), eye, p, [1,1,.42], g); addMesh(new THREE.SphereGeometry(.032, 8, 6), dark, [p[0],p[1],p[2]-.038], [1,1,.28], g); });
   [[-.16,1.3,-1.17],[.16,1.3,-1.17]].forEach(p => addMesh(new THREE.SphereGeometry(.16, 12, 8), cream, p, [1,.7,.65], g));
   addMesh(new THREE.SphereGeometry(.075, 10, 8), dark, [0,1.36,-1.33], [1,.7,.55], g);
