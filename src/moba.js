@@ -2090,14 +2090,15 @@ import { createPerfTier } from "./data/perf-tier.js";
     if(el) el.textContent="🗺 戰場："+(REGION_LABEL[r]||r)+(h>0.01?("　🌱 加成 出戰速度 +"+Math.round(h*12)+"%・技能冷卻 -"+Math.round(h*15)+"%"):""); }
   document.querySelectorAll("#battleRegions .hregion").forEach(b=>b.addEventListener("pointerdown",(e)=>{ e.preventDefault(); setBattleRegion(b.dataset.r); },{passive:false}));
   function setPickMode(m){ pickMode=m;
-    const nT=document.getElementById("modeNormal"), tT=document.getElementById("modeTime"), pT=document.getElementById("modePve"), dT=document.getElementById("modeDuel"), hT=document.getElementById("modeHunt");
-    if(nT) nT.classList.toggle("on",m==="normal"); if(tT) tT.classList.toggle("on",m==="time"); if(pT) pT.classList.toggle("on",m==="pve"); if(dT) dT.classList.toggle("on",m==="duel"); if(hT) hT.classList.toggle("on",m==="hunt");
+    const nT=document.getElementById("modeNormal"), tT=document.getElementById("modeTime"), pT=document.getElementById("modePve"), dT=document.getElementById("modeDuel"), hT=document.getElementById("modeHunt"), rT=document.getElementById("modeRun");
+    if(nT) nT.classList.toggle("on",m==="normal"); if(tT) tT.classList.toggle("on",m==="time"); if(pT) pT.classList.toggle("on",m==="pve"); if(dT) dT.classList.toggle("on",m==="duel"); if(hT) hT.classList.toggle("on",m==="hunt"); if(rT) rT.classList.toggle("on",m==="run");
     const dLv=getDuelLevel(), dTier=duelTierName(dLv);
-    txt("mpickTitle", m==="time" ? "⏱ 限時復育挑戰" : m==="pve" ? "🎯 外來種防衛戰" : m==="duel" ? ("⚔ 首領挑戰・"+dTier+"級"+(isDuelMaster()?" 👑":"")) : m==="hunt" ? "🏹 獵人視角・搶先體驗" : "🌳 棲地復育保衛戰");
+    txt("mpickTitle", m==="time" ? "⏱ 限時復育挑戰" : m==="pve" ? "🎯 外來種防衛戰" : m==="duel" ? ("⚔ 首領挑戰・"+dTier+"級"+(isDuelMaster()?" 👑":"")) : m==="hunt" ? "🏹 獵人視角・搶先體驗" : m==="run" ? "🏃 叢林疾行" : "🌳 棲地復育保衛戰");
     const descEl=document.getElementById("mpickDesc");
     if(descEl) descEl.innerHTML = m==="time" ? "目標不是守住不倒，而是盡快把棲地復原到 100%！<br>擊退入侵種、守住苗圃，比比看你多快能讓棲地重新翠綠。"
       : m==="pve" ? "選一種外來入侵種當清除目標，限時內驅逐足額數量就成功！<br>善用原生種的生態優勢（生物防治鏈）能大幅提升效率。"
       : m==="duel" ? ("選 <b>單人／三人／五人</b> 一起挑戰一隻超強大首領（人越多首領越強）！限時內擊敗就贏。<br>目前難度：<b style='color:#ffd54f'>"+dTier+"級</b>"+(isDuelMaster()?"（已達最高的大師級 👑）":"　—　每打贏一場自動晉級，最高「大師」級！")+"<br>走位閃避牠的範圍震波與蓄力衝撞、撿守護之力放必殺。")
+      : m==="run" ? "像忍者一樣在原始林裡疾奔！跳過坑洞與刺藤、爪擊倒木與入侵種，<br>看你能跑多遠、擊退幾隻首領！"
       : m==="hunt" ? "第一次，從守護者的眼睛看世界！穿過密林、草原與岩地，<br>親自追獵入侵種、守住神木——復原度滿 100% 就成功！"
       : "守護台灣神木與復育苗圃，擊退四面湧入的外來入侵種——讓枯黃的棲地一吋吋復原成翠綠，復原度滿 100% 就守護成功！";
     const info=document.getElementById("bestTimeInfo");
@@ -2106,17 +2107,21 @@ import { createPerfTier } from "./data/perf-tier.js";
       else info.classList.add("hide"); }
     const pvR=document.getElementById("pveTargets"); if(pvR) pvR.classList.toggle("hide",m!=="pve");
     // 首領挑戰：隱藏一般隊伍人數列，改顯示 1~5 人挑戰選擇 + 通關紀錄面板；獵人視角：單人出戰鈕
-    const tsr=document.getElementById("teamSizeRow"); if(tsr) tsr.classList.toggle("hide",m==="duel"||m==="hunt");
+    const tsr=document.getElementById("teamSizeRow"); if(tsr) tsr.classList.toggle("hide",m==="duel"||m==="hunt"||m==="run");
     const db=document.getElementById("duelBox"); if(db) db.classList.toggle("hide",m!=="duel");
     const hb=document.getElementById("huntBox"); if(hb) hb.classList.toggle("hide",m!=="hunt");
+    // 叢林疾行（跑酷）：只顯示說明＋最佳紀錄＋開始鈕
+    const rb=document.getElementById("runBox"); if(rb) rb.classList.toggle("hide",m!=="run");
+    if(m==="run"){ let best=0; try{ best=parseInt(localStorage.getItem("shoutu_runner_best")||"0",10)||0; }catch(e){} txt("runBestInfo", best?("🏆 最佳紀錄："+best+" 分"):"還沒有紀錄——跑出你的第一個紀錄吧！"); }
     // 精簡首領挑戰畫面：只留「模式頁籤 + 單人~五人 + 紀錄」，戰場地區/加成/天賦提示這些額外列在首領挑戰時一律收起，避免太複雜
-    const duel=(m==="duel");
+    const duel=(m==="duel"||m==="run");
     const br=document.getElementById("battleRegions"); if(br) br.classList.toggle("hide",duel);
     const bb=document.getElementById("battleBonusInfo"); if(bb) bb.classList.toggle("hide",duel);
     const th=document.getElementById("talentHintInfo"); if(th && duel) th.classList.add("hide");
     if(m==="duel") renderDuelRecords();
     updatePveLevelInfo(); }
-  tap("modeNormal",()=>setPickMode("normal")); tap("modeTime",()=>setPickMode("time")); tap("modePve",()=>setPickMode("pve")); tap("modeDuel",()=>setPickMode("duel")); tap("modeHunt",()=>setPickMode("hunt"));
+  tap("modeNormal",()=>setPickMode("normal")); tap("modeTime",()=>setPickMode("time")); tap("modePve",()=>setPickMode("pve")); tap("modeDuel",()=>setPickMode("duel")); tap("modeHunt",()=>setPickMode("hunt")); tap("modeRun",()=>setPickMode("run"));
+  tap("runStart",()=>{ if(window.__runner) window.__runner.start((window.__featuredKey&&window.__featuredKey())||"leopard"); });   // 叢林疾行：獨立跑酷模組，不進 MOBA
   tap("huntStart",()=>mCountdown(()=>start(1)));   // 獵人視角＝單人出戰（第一人稱搶先體驗，不進好友連線）
   document.querySelectorAll("#duelSizeRow .duel-sz").forEach(b=>b.addEventListener("pointerdown",(e)=>{ e.preventDefault(); const n=parseInt(b.dataset.n,10)||1; mCountdown(()=>start(n)); },{passive:false}));
   window.__mobaSetPickMode=(m)=>{ if(["normal","time","pve","siege","duel"].indexOf(m)>=0) setPickMode(m); };   // 好友房間房主選的模式帶進對戰（含首領挑戰）
