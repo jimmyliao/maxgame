@@ -324,7 +324,7 @@
   /* moba PVE 關卡遞增：過關「下一關」按鈕，未過關時隱藏 */
   #moverNext.hide{ display:none; }
   /* 對戰選單各列的 .hide 之前沒有對應規則(只有 .hregion.hide/.scr.hide)，導致 pveTargets/隊伍人數/地區/duelBox 一直全部同時顯示＝畫面太複雜。補上這些容器的隱藏規則(id+class 特異度確保生效) */
-  #modeTabs.hide, #pveTargets.hide, #teamSizeRow.hide, #battleRegions.hide, #duelBox.hide,
+  #modeTabs.hide, #runBox.hide, #huntBox.hide, #pveTargets.hide, #teamSizeRow.hide, #battleRegions.hide, #duelBox.hide,
   #bestTimeInfo.hide, #pveLevelInfo.hide, #talentHintInfo.hide, #battleBonusInfo.hide{ display:none; }
   .scr{ position:absolute; inset:0; z-index:10; display:flex; flex-direction:column; align-items:center; justify-content:center;
     text-align:center; padding:20px; background:rgba(7,20,12,.92); overflow:auto; touch-action:pan-x pan-y; }
@@ -848,6 +848,7 @@
     <button class="btn sec mode-tab" id="modePve">🎯 外來種防衛戰</button>
     <button class="btn sec mode-tab on" id="modeDuel">⚔ 首領挑戰</button>
     <button class="btn sec mode-tab" id="modeHunt">🏹 獵人視角</button>
+    <button class="btn sec mode-tab" id="modeRun">🏃 叢林疾行</button>
   </div>
   <p id="bestTimeInfo" class="hide" style="color:#ffd54f;font-weight:800;"></p>
   <div class="row hide" id="pveTargets">
@@ -890,6 +891,12 @@
     <div class="row" id="huntStartRow">
       <button class="btn" id="huntStart">🏹 出發狩獵</button>
     </div>
+  </div>
+  <!-- 叢林疾行（忍者必須死式橫向自動跑酷，src/runner.js）：單人出戰，守護者自動奔跑，跳/二段跳/爪擊穿越原始林 -->
+  <div id="runBox" class="hide">
+    <p style="font-size:13px;color:#a5d6a7;max-width:420px;margin:2px auto;">守護者在熱帶原始林裡自動向前狂奔！<br>點畫面＝跳、空中再點＝二段跳；「爪擊」擊碎倒木、驅逐入侵種，每 500 公尺迎戰首領。</p>
+    <p id="runBestInfo" style="color:#ffd54f;font-weight:800;margin:2px auto;"></p>
+    <div class="row"><button class="btn" id="runStart">🏃 開始疾行</button></div>
   </div>
   <button class="btn sec" id="pickBack">返回大廳</button>
 </div>
@@ -1023,5 +1030,6 @@
 <script type="module" src="./src/battleshop.js"></script>
 <script type="module" src="./src/net.js"></script>
 <script type="module" src="./src/habitat.js"></script>
+<script type="module" src="./src/runner.js"></script>
 </body>
 </html>

@@ -99,3 +99,36 @@ test("獵人視角可載入且沒有 runtime error", async ({ page }) => {
 
   expect(errors, "獵人視角不可有 runtime/console error").toEqual([]);
 });
+
+// 叢林疾行（橫向自動跑酷）：模式頁籤存在、能開跑、能跳/爪擊、結算頁能回選單，全程 0 runtime error
+test("叢林疾行：開跑、跳躍、爪擊、結算、回選單", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push("PAGEERROR: " + e));
+  page.on("console", (m) => { if (m.type() === "error" && !m.text().includes("Failed to load resource")) errors.push("CONSOLE: " + m.text()); });
+  await page.goto("/");
+  await page.locator("#tutSkip").click();
+  await page.locator("#playBtn").click();
+  await expect(page.locator("#modeNormal")).toBeVisible();
+  await expect(page.locator("#modeRun")).toBeVisible();
+  await page.locator("#modeRun").click();
+  await expect(page.locator("#runStart")).toBeVisible();
+  await expect(page.locator("#huntStart")).toBeHidden();
+  await page.locator("#runStart").click();
+  await expect(page.locator("#runner")).toBeVisible();
+  await page.waitForTimeout(3600);
+  await page.keyboard.press(" ");
+  await page.keyboard.press("j");
+  await page.waitForTimeout(800);
+  const d = await page.evaluate(() => (window as any).__runner.debug());
+  expect(d.state).toBe("run");
+  expect(d.dist).toBeGreaterThan(0);
+  expect(d.parts).toBeLessThanOrEqual(160);
+  await page.evaluate(() => (window as any).__runner._die());
+  await expect(page.locator("#rResult")).toBeVisible();
+  // 新紀錄存進新的 localStorage 鍵，不動 shoutu_unlocked
+  expect(Number(await page.evaluate(() => localStorage.getItem("shoutu_runner_best")))).toBeGreaterThan(0);
+  await page.locator("#rMenu").click();
+  await expect(page.locator("#runner")).toBeHidden();
+  await expect(page.locator("#mpick")).toBeVisible();
+  expect(errors).toEqual([]);
+});

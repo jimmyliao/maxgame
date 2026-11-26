@@ -872,7 +872,7 @@ import { createPerfTier } from "./data/perf-tier.js";
     // 低空林霧：拉開遠山、地面與近景，讓小徑像從森林深處延伸而來
     // 透明端用「同色 α0」避免與黑色插值出現灰帶；物件仍在這層之後保持清楚
     const hzC=fpMix(skyHor,skyHor,0), hzC0=hzC.replace("rgb(","rgba(").replace(")",",0)");
-    const hz=ctx.createLinearGradient(0,HOR-36,0,HOR+VH*0.18); hz.addColorStop(0,hzC0); hz.addColorStop(0.42,hzC.replace(")",",0.62)").replace("rgb(","rgba(")); hz.addColorStop(1,hzC0);
+    const hz=ctx.createLinearGradient(0,HOR-36,0,HOR+VH*0.18); hz.addColorStop(0,hzC0); hz.addColorStop(0.42,hzC.replace(")",",0.42)").replace("rgb(","rgba(")); hz.addColorStop(1,hzC0);
     ctx.fillStyle=hz; ctx.fillRect(0,HOR-36,VW,VH*0.18+36);
     // ---------- 地面（復原度枯黃→翠綠 ＋ 分區色調 ＋ 近深遠淺的空氣透視） ----------
     const zone=fpZone(px,py);
@@ -985,8 +985,8 @@ import { createPerfTier } from "./data/perf-tier.js";
       for(let q=0;q<4;q++){ const ang=tt+q*1.5708; ctx.beginPath(); ctx.ellipse(p.sx,p.gy,rr,rr*0.32,0,ang+0.35,ang+1.15); ctx.stroke(); } } }
     // ---------- 樹冠層＋林內光影（走進密林時整個畫面被森林「包起來」；覆蓋度緩動過渡） ----------
     if(fpCoverMix>0.03){
-      // 林內環境光：整體壓暗染綠，模擬樹冠把直射光濾掉
-      ctx.fillStyle="rgba(9,24,13,"+(0.17*fpCoverMix).toFixed(3)+")"; ctx.fillRect(0,0,VW,VH);
+      // 林內環境光：整體壓暗染綠，模擬樹冠把直射光濾掉（壓太暗會跟後面的暗角/夜間疊加變得看不清楚，調輕一點）
+      ctx.fillStyle="rgba(9,24,13,"+(0.10*fpCoverMix).toFixed(3)+")"; ctx.fillRect(0,0,VW,VH);
       // 頭頂樹冠（橫向平鋪＋跟著轉頭視差平移）
       const cp=fpCanopyImg(), ch=VH*0.30*fpCoverMix, off=((fpYaw*220)%512+512)%512;
       ctx.globalAlpha=Math.min(1,fpCoverMix*1.15);
@@ -1006,6 +1006,28 @@ import { createPerfTier } from "./data/perf-tier.js";
         ctx.beginPath(); ctx.moveTo(sunX,sunY); ctx.lineTo(sunX+Math.cos(ang2+1.35)*VH*1.6,sunY+Math.sin(ang2+1.35)*VH*1.6);
         ctx.lineTo(sunX+Math.cos(ang2+1.55)*VH*1.6,sunY+Math.sin(ang2+1.55)*VH*1.6); ctx.closePath(); ctx.fill(); }
       ctx.restore(); ctx.globalAlpha=1; }
+    // ---------- 第一人稱武器視角：常駐擺動的爪掌＋準星（「手拿武器可瞄準」的手感回饋） ----------
+    // 錨點抬高離開下方按鈕列(#dock)範圍，避免爪掌被攻擊/技能鈕遮住一半看起來像穿模；整體外緣加深色輪廓線讓剪影在任何背景亮度下都清楚可辨
+    { const colK=KCOL[player.kind]||"#e8a13a", dark=shade(colK,-40);
+      const atkT=player.atkA>0?1-player.atkA/0.2:0, swing=atkT>0?Math.sin(atkT*Math.PI):0;
+      const idleBob=Math.sin(clock*2.1)*3+fpBobMix*Math.sin(clock*8.6)*2;
+      ctx.save(); ctx.translate(VW*0.82-swing*VW*0.08, VH*0.86-idleBob-swing*VH*0.05); ctx.rotate(-0.32+swing*0.5); ctx.scale(0.72,0.72);
+      ctx.strokeStyle="#140b06"; ctx.lineWidth=7; ctx.lineJoin="round";
+      ctx.beginPath(); ctx.ellipse(0,0,54,120,0,0,7); ctx.stroke();
+      ctx.fillStyle=dark; ctx.fill();
+      ctx.beginPath(); ctx.ellipse(4,-96,46,40,0,0,7); ctx.stroke();
+      ctx.fillStyle=colK; ctx.fill();
+      for(let q=-1;q<=1;q++){ ctx.fillStyle="#f5f0e6"; ctx.beginPath();
+        ctx.moveTo(4+q*20,-118); ctx.lineTo(4+q*20-6,-96); ctx.lineTo(4+q*20+6,-96); ctx.closePath();
+        ctx.strokeStyle="#140b06"; ctx.lineWidth=3; ctx.stroke(); ctx.fill(); }
+      ctx.restore(); }
+    { const locked=player.aim&&!player.aim.dead, pulse=locked?0.85+0.15*Math.sin(clock*10):1;
+      ctx.save(); ctx.translate(VW/2,VH/2); ctx.scale(pulse,pulse);
+      ctx.strokeStyle=locked?"rgba(255,90,80,0.95)":"rgba(255,255,255,0.75)"; ctx.lineWidth=2;
+      const g=locked?5:7, len=6;
+      for(const[dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){ ctx.beginPath(); ctx.moveTo(dx*g,dy*g); ctx.lineTo(dx*(g+len),dy*(g+len)); ctx.stroke(); }
+      if(locked){ ctx.fillStyle="rgba(255,90,80,0.9)"; ctx.beginPath(); ctx.arc(0,0,1.6,0,7); ctx.fill(); }
+      ctx.restore(); }
     // ---------- 第一人稱自身回饋：爪擊特效＋受傷紅暈 ----------
     if(player.atkA>0){ const t=1-player.atkA/0.2, colK=KCOL[player.kind]||"#ffd54f";
       ctx.save(); ctx.translate(VW/2,VH*0.62); ctx.rotate(-0.5+t*0.25); ctx.globalAlpha=Math.max(0,1-t*1.15); ctx.lineCap="round";
@@ -2068,14 +2090,15 @@ import { createPerfTier } from "./data/perf-tier.js";
     if(el) el.textContent="🗺 戰場："+(REGION_LABEL[r]||r)+(h>0.01?("　🌱 加成 出戰速度 +"+Math.round(h*12)+"%・技能冷卻 -"+Math.round(h*15)+"%"):""); }
   document.querySelectorAll("#battleRegions .hregion").forEach(b=>b.addEventListener("pointerdown",(e)=>{ e.preventDefault(); setBattleRegion(b.dataset.r); },{passive:false}));
   function setPickMode(m){ pickMode=m;
-    const nT=document.getElementById("modeNormal"), tT=document.getElementById("modeTime"), pT=document.getElementById("modePve"), dT=document.getElementById("modeDuel"), hT=document.getElementById("modeHunt");
-    if(nT) nT.classList.toggle("on",m==="normal"); if(tT) tT.classList.toggle("on",m==="time"); if(pT) pT.classList.toggle("on",m==="pve"); if(dT) dT.classList.toggle("on",m==="duel"); if(hT) hT.classList.toggle("on",m==="hunt");
+    const nT=document.getElementById("modeNormal"), tT=document.getElementById("modeTime"), pT=document.getElementById("modePve"), dT=document.getElementById("modeDuel"), hT=document.getElementById("modeHunt"), rT=document.getElementById("modeRun");
+    if(nT) nT.classList.toggle("on",m==="normal"); if(tT) tT.classList.toggle("on",m==="time"); if(pT) pT.classList.toggle("on",m==="pve"); if(dT) dT.classList.toggle("on",m==="duel"); if(hT) hT.classList.toggle("on",m==="hunt"); if(rT) rT.classList.toggle("on",m==="run");
     const dLv=getDuelLevel(), dTier=duelTierName(dLv);
-    txt("mpickTitle", m==="time" ? "⏱ 限時復育挑戰" : m==="pve" ? "🎯 外來種防衛戰" : m==="duel" ? ("⚔ 首領挑戰・"+dTier+"級"+(isDuelMaster()?" 👑":"")) : m==="hunt" ? "🏹 獵人視角・搶先體驗" : "🌳 棲地復育保衛戰");
+    txt("mpickTitle", m==="time" ? "⏱ 限時復育挑戰" : m==="pve" ? "🎯 外來種防衛戰" : m==="duel" ? ("⚔ 首領挑戰・"+dTier+"級"+(isDuelMaster()?" 👑":"")) : m==="hunt" ? "🏹 獵人視角・搶先體驗" : m==="run" ? "🏃 叢林疾行" : "🌳 棲地復育保衛戰");
     const descEl=document.getElementById("mpickDesc");
     if(descEl) descEl.innerHTML = m==="time" ? "目標不是守住不倒，而是盡快把棲地復原到 100%！<br>擊退入侵種、守住苗圃，比比看你多快能讓棲地重新翠綠。"
       : m==="pve" ? "選一種外來入侵種當清除目標，限時內驅逐足額數量就成功！<br>善用原生種的生態優勢（生物防治鏈）能大幅提升效率。"
       : m==="duel" ? ("選 <b>單人／三人／五人</b> 一起挑戰一隻超強大首領（人越多首領越強）！限時內擊敗就贏。<br>目前難度：<b style='color:#ffd54f'>"+dTier+"級</b>"+(isDuelMaster()?"（已達最高的大師級 👑）":"　—　每打贏一場自動晉級，最高「大師」級！")+"<br>走位閃避牠的範圍震波與蓄力衝撞、撿守護之力放必殺。")
+      : m==="run" ? "像忍者一樣在原始林裡疾奔！跳過坑洞與刺藤、爪擊倒木與入侵種，<br>看你能跑多遠、擊退幾隻首領！"
       : m==="hunt" ? "第一次，從守護者的眼睛看世界！穿過密林、草原與岩地，<br>親自追獵入侵種、守住神木——復原度滿 100% 就成功！"
       : "守護台灣神木與復育苗圃，擊退四面湧入的外來入侵種——讓枯黃的棲地一吋吋復原成翠綠，復原度滿 100% 就守護成功！";
     const info=document.getElementById("bestTimeInfo");
@@ -2084,17 +2107,21 @@ import { createPerfTier } from "./data/perf-tier.js";
       else info.classList.add("hide"); }
     const pvR=document.getElementById("pveTargets"); if(pvR) pvR.classList.toggle("hide",m!=="pve");
     // 首領挑戰：隱藏一般隊伍人數列，改顯示 1~5 人挑戰選擇 + 通關紀錄面板；獵人視角：單人出戰鈕
-    const tsr=document.getElementById("teamSizeRow"); if(tsr) tsr.classList.toggle("hide",m==="duel"||m==="hunt");
+    const tsr=document.getElementById("teamSizeRow"); if(tsr) tsr.classList.toggle("hide",m==="duel"||m==="hunt"||m==="run");
     const db=document.getElementById("duelBox"); if(db) db.classList.toggle("hide",m!=="duel");
     const hb=document.getElementById("huntBox"); if(hb) hb.classList.toggle("hide",m!=="hunt");
+    // 叢林疾行（跑酷）：只顯示說明＋最佳紀錄＋開始鈕
+    const rb=document.getElementById("runBox"); if(rb) rb.classList.toggle("hide",m!=="run");
+    if(m==="run"){ let best=0; try{ best=parseInt(localStorage.getItem("shoutu_runner_best")||"0",10)||0; }catch(e){} txt("runBestInfo", best?("🏆 最佳紀錄："+best+" 分"):"還沒有紀錄——跑出你的第一個紀錄吧！"); }
     // 精簡首領挑戰畫面：只留「模式頁籤 + 單人~五人 + 紀錄」，戰場地區/加成/天賦提示這些額外列在首領挑戰時一律收起，避免太複雜
-    const duel=(m==="duel");
+    const duel=(m==="duel"||m==="run");
     const br=document.getElementById("battleRegions"); if(br) br.classList.toggle("hide",duel);
     const bb=document.getElementById("battleBonusInfo"); if(bb) bb.classList.toggle("hide",duel);
     const th=document.getElementById("talentHintInfo"); if(th && duel) th.classList.add("hide");
     if(m==="duel") renderDuelRecords();
     updatePveLevelInfo(); }
-  tap("modeNormal",()=>setPickMode("normal")); tap("modeTime",()=>setPickMode("time")); tap("modePve",()=>setPickMode("pve")); tap("modeDuel",()=>setPickMode("duel")); tap("modeHunt",()=>setPickMode("hunt"));
+  tap("modeNormal",()=>setPickMode("normal")); tap("modeTime",()=>setPickMode("time")); tap("modePve",()=>setPickMode("pve")); tap("modeDuel",()=>setPickMode("duel")); tap("modeHunt",()=>setPickMode("hunt")); tap("modeRun",()=>setPickMode("run"));
+  tap("runStart",()=>{ if(window.__runner) window.__runner.start((window.__featuredKey&&window.__featuredKey())||"leopard"); });   // 叢林疾行：獨立跑酷模組，不進 MOBA
   tap("huntStart",()=>mCountdown(()=>start(1)));   // 獵人視角＝單人出戰（第一人稱搶先體驗，不進好友連線）
   document.querySelectorAll("#duelSizeRow .duel-sz").forEach(b=>b.addEventListener("pointerdown",(e)=>{ e.preventDefault(); const n=parseInt(b.dataset.n,10)||1; mCountdown(()=>start(n)); },{passive:false}));
   window.__mobaSetPickMode=(m)=>{ if(["normal","time","pve","siege","duel"].indexOf(m)>=0) setPickMode(m); };   // 好友房間房主選的模式帶進對戰（含首領挑戰）
